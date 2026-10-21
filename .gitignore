@@ -15,3 +15,4 @@ venv/
 /suite_results.png
 /train_results.json
 /train_results.png
+.hypothesis/
