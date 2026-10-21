@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased: Phase 3 (SciFact) and SAFETY.md
+### Added
+- `SAFETY.md`: guarantees by construction (fail-closed, NOT_SURE never accepted, zero-propagation, non-bypassable gate,
+  hash-chained audit), each mapped to its tests, and measured guarantees with Clopper-Pearson bounds and caveats.
+- `ClaimTrace(not_sure_band=...)` and `submit(..., not_sure=True)`: a distinct NOT_SURE outcome. It is never admitted,
+  invisible like a block, logged and replayed. A gate failure stays BLOCK. `ThresholdLearner.band()` for selective mode.
+- `tests/test_fail_closed.py` (hypothesis property and fuzz tests of the fail-closed guarantee), NOT_SURE tests, and a
+  byte-exact quote-gate test. Tests: 147 → 164 (162 pass, 2 opt-in skips).
+- Phase 3 pipeline: SciFact loader, BM25, ONNX/torch NLI, xAI judges J1–J10 with a hard-capped spend ledger, rv3
+  retrieval (RRF of BM25/MedCPT/bge + MedCPT cross-encoder), exact band search, LTT (Bonferroni) NOT_SURE,
+  risk-coverage chart, label-review list.
+### Results (held-out SciFact dev, n = 300)
+- gold evidence: node 91.3% [88.0, 94.3]; false accepts 19 → 6 of 176 (p = 0.0002).
+- rv3 retrieved evidence: node 87.3% [83.3, 91.0] (ties best judges; < 90%); false accepts 29 → 12 (p < 0.0001).
+- Selective, gold: 0/56 errors at 18.7% coverage (upper 5.21%). LTT ≤ 1%: not certifiable with 350 train claims, so it abstains.
+- API spend $80.82 of $100.
+
 ## Unreleased (proposed 1.2.0, on top of 1.1.0): correlation-aware combining
 ### Added
 - `roman_wheel_node.dependence.DependenceLearner`: an append-only, replayable ledger of each source's correctness per claim,
