@@ -57,9 +57,10 @@ append-only ledger of `(eff, truth)` for each mode and picks the cut-off that ma
 outcomes (half-life 500, 0.001 grid, `default` until `min_obs`).
 
 ## Limits (stated honestly)
-* **The independence assumption.** Sources that copy each other get counted several times. In the `copycats`
-  scenario the node reaches 71.6% with the learned threshold (67.7% without it), while the optimum is 79.1%
-  (20 seeds). A real fix needs a model of the correlation (see next steps).
+* **The independence assumption** (naive `bayes-hard`). Sources that copy each other get counted several times: on `copycats`,
+  bayes-hard reaches 67.7% against a 79.1% optimum. **Fixed by `variant="ess"` with a `DependenceLearner`, which reaches 79.0%** (see
+  [Correlation-aware combining](#correlation-aware-combining-variantess-with-a-dependencelearner)).
+  A latent common cause (`partial_corr`) is only partly captured.
 * **The information ceiling.** No fusion rule can beat the Bayes-optimal oracle. Eight independent 58%-accurate
   sources cap out at about 67% (exact majority-vote value: 67.1%). Reaching 90% would take about 63 such sources.
 * **Feedback is required.** Reliabilities come from right/wrong feedback. With no feedback, the node uses
@@ -215,17 +216,83 @@ RWN_FULL_BENCH=1 python -m pytest tests/test_bench.py         # the same check a
 3.9, 3.12 and 3.13. The charts are not byte-compared, because PNG bytes depend on the matplotlib version.
 The default test suite also re-derives a subset of the committed per-seed numbers: all 20 cold-start seeds, baseline seed 0 and copycats seed 7.
 
+## Correlation-aware combining: `variant="ess"` with a `DependenceLearner`
+
+Naive Bayes assumes sources are independent given the truth. Sources that copy each other then get counted several times
+(the copycats scenario lost 11 points to this). `roman_wheel_node.dependence.DependenceLearner` learns the dependence from
+feedback. Like every other learner here, it uses an append-only, replayable ledger with decay applied on replay.
+
+**From first principles:** if two sources are independent given the truth, whether one is *right* tells you nothing
+about whether the other is right. So the learner tracks, for every pair, the decayed 2×2 table of their correctness
+(right/wrong). The G-test (`2·N·MI > 6.63`, p < 0.01) decides whether a pair is significantly dependent, and
+φ (the correlation of correctness) measures how much evidence they duplicate. Three combiners were tried, all on hard votes:
+
+| variant | idea | verdict |
+|---|---|---|
+| **`ess`** | effective-sample-size discount: weight each vote `logit(r_k)` by `1 / (1 + Σ_j max(0, φ_jk))` over significant partners, so a cluster of near-duplicates counts about once | **chosen**: best accuracy and calibration on every dependence scenario |
+| `tan` | tree-augmented naive Bayes: a Chow-Liu forest over significant pairs, with `P(c_k | c_parent)` shrunk toward `r_k` | close second (−0.1 to −0.4 points vs ess); one parent per source can't represent a cluster as well |
+| `stack` | online logistic regression on signed votes, L2-anchored to naive-Bayes weights | wins only on drift (+0.4); loses 1.0 point on 8 weak sources and is noisier at cold start |
+
+With no significant pairs, `ess` and `tan` reduce **exactly** to `variant="hard"`. That is why they tie bayes-hard on the
+independent scenarios: the paired difference is ≤ 0.01 points, with 19–20 of 20 seeds identical.
+
+```python
+from roman_wheel_node import DependenceLearner, roman_wheel_node, give_feedback
+dep = DependenceLearner("dependence_ledger.jsonl")          # half_life=150 claims by default
+eff, op, status = roman_wheel_node(1, scores, mode="bayes", variant="ess", dependence=dep)
+give_feedback(scores, truth, dependence=dep)                # once the truth is known
+# ClaimTrace(..., mode="bayes", variant="ess", dependence=dep) logs the exact model snapshot, so replay() is exact
+```
+
+### Dependence benchmark: `python -m roman_wheel_node.bench --suite dependence --seeds 20`
+This covers the six standard scenarios (definitions unchanged) plus three new dependence scenarios, each with an oracle
+that knows the true joint model:
+- `partial_corr`: four sources repeat a *hidden* shared call half the time.
+- `two_clusters`: two independent leader-plus-two-copier clusters.
+- `leader_switch`: three copiers switch from a 75% leader to a 60% one at claim 1500.
+
+Each table cell is accuracy, mean ± 95% CI over 20 seeds. TA / FB are the true-accept and false-block rates. The paired
+column is (ess wins / ties / hard wins) over 20 seeds. ECE is the expected calibration error of eff.
+
+| Scenario | Ceiling | bayes-hard | **bayes-ess** | ess TA / FB | bayes-tan | bayes-stack | ess − hard, paired | ECE hard → ess |
+|---|---|---|---|---|---|---|---|---|
+| baseline | 92.4 | 92.2 ± 0.3 | **92.2 ± 0.3** | 92.3 / 92.1 | 92.2 ± 0.3 | 92.0 ± 0.3 | -0.00 ± 0.00 (0/19/1) | 0.011 → **0.011** |
+| drift (drone goes bad at 1500) | 87.8 | 85.1 ± 0.3 | **85.1 ± 0.3** | 85.5 / 84.8 | 85.1 ± 0.3 | 85.5 ± 0.3 | +0.00 ± 0.00 (1/19/0) | 0.015 → **0.015** |
+| bad majority | 86.1 | 85.7 ± 0.3 | **85.7 ± 0.3** | 85.9 / 85.5 | 85.7 ± 0.3 | 85.5 ± 0.3 | +0.00 ± 0.00 (0/20/0) | 0.017 → **0.017** |
+| all noisy (8 weak sources) | 66.9 | 66.3 ± 0.5 | **66.3 ± 0.5** | 67.0 / 65.6 | 66.3 ± 0.5 | 65.3 ± 0.5 | -0.00 ± 0.01 (1/16/3) | 0.025 → **0.025** |
+| cold start (first 50 claims) | 92.6 | 87.4 ± 2.0 | **87.4 ± 2.0** | 86.9 / 87.8 | 87.4 ± 2.0 | 86.9 ± 1.6 | +0.00 ± 0.00 (0/20/0) | 0.106 → **0.106** |
+| copycats (3 copy a 65% leader) | 79.1 | 67.7 ± 0.3 | **79.0 ± 0.4** | 79.2 / 78.8 | 78.8 ± 0.4 | 78.1 ± 0.5 | +11.23 ± 0.33 (20/0/0) | 0.172 → **0.021** |
+| partial correlation (latent shared call) (new) | 79.7 | 77.9 ± 0.3 | **78.3 ± 0.4** | 78.3 / 78.4 | 78.2 ± 0.3 | 78.3 ± 0.4 | +0.46 ± 0.29 (15/1/4) | 0.081 → **0.027** |
+| two copy clusters (new) | 78.0 | 75.9 ± 0.4 | **77.7 ± 0.3** | 77.8 / 77.7 | 77.4 ± 0.3 | 77.1 ± 0.3 | +1.87 ± 0.24 (20/0/0) | 0.108 → **0.018** |
+| copiers switch leader at 1500 (new) | 80.6 | 76.2 ± 0.6 | **79.5 ± 0.3** | 79.9 / 79.2 | 79.4 ± 0.3 | 79.0 ± 0.3 | +3.35 ± 0.43 (20/0/0) | 0.138 → **0.018** |
+
+- **Copycats:** the gap to the ceiling went from **11.4 points to 0.1**, and ECE went from 0.172 to 0.021.
+- **leader_switch:** the gap went from 4.4 to 1.1 points. Decay lets the learned dependence follow the switch.
+- **two_clusters:** the gap went from 2.1 to 0.3 points.
+- **partial_corr:** the gap only went from 1.8 to 1.4 points. The shared cause is *latent*, so pairwise statistics
+  capture it only partly. Calibration still improves (0.081 to 0.027).
+- **Remaining limits:** dependence must be learned, so a cluster costs a few hundred claims before it is discounted
+  (cold start can't benefit). Pairwise φ approximates higher-order structure. The combiners use hard votes only.
+
+![dependence accuracy](results/dependence/dep_accuracy.png)
+![paired](results/dependence/dep_paired.png)
+![calibration](results/dependence/dep_calibration.png)
+
+The standard suite (`results/`) is frozen and still byte-identical. The dependence suite (`results/dependence/`)
+is byte-reproducible too (`--suite dependence --check results/dependence`). The dependence code uses
+`math.fsum`, because Python 3.12 changed the builtin float `sum()`, which made one near-threshold edge differ on 3.9 before the fix.
+
 ## Layout
 * `src/roman_wheel_node/core.py`: the node, `LiveWeights` and `ThresholdLearner`. The public API is re-exported from `roman_wheel_node`.
+* `src/roman_wheel_node/dependence.py`: `DependenceLearner`, `FrozenDependence`, and the `ess` / `tan` / `stack` combiners.
 * `src/roman_wheel_node/trace.py`: `ClaimTrace`, `Claim`, `Decision`, `replay`, `TamperError` (Phase 1).
 * `src/roman_wheel_node/bench/`: `generator.py` (the claim-stream generator and its CLI), `runner.py` (policies,
   confidence intervals, calibration, head-to-heads), `plots.py`, and `__main__.py` (`python -m roman_wheel_node.bench`).
-* `results/`: the committed 20-seed `benchmark.json` / `benchmark.txt` and the charts.
-* `tests/`: 108 tests (`python -m pytest -q`; one full-benchmark test runs only with `RWN_FULL_BENCH=1`).
+* `results/`: the committed 20-seed standard suite (frozen). `results/dependence/`: the 20-seed dependence suite.
+* `phase3/`: the Phase 3 fact-verification plan (`PLAN.md`) and interface scaffolding (not part of the package).
+* `tests/`: 147 tests (`python -m pytest -q`; two full-benchmark byte checks run only with `RWN_FULL_BENCH=1`).
 * `benchmarks/train_sim.py` and `benchmarks/results_v1.0.0.*`: the original demo and the 1.0.0 five-seed results, kept for history.
 
 ## Next steps
-* Correlation-aware fusion: learn pairwise agreement between sources from the ledger and shrink the weight of
-  redundant sources (this is the main remaining gap, in `copycats`).
 * Phase 3: evaluate on a real agent with real claims (see the PR description).
 * Learned score calibration per source: histogram P(truth | score bin) from the ledger, replacing the fixed soft/hard models.

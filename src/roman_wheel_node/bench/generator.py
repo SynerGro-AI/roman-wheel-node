@@ -33,7 +33,8 @@ import sys
 from dataclasses import dataclass, field
 from typing import Dict, Iterator, List, Optional, Tuple
 
-__all__ = ["Source", "CopyGroup", "Scenario", "Claim", "SCENARIOS", "stream", "density_ratio", "oracle_llr"]
+__all__ = ["Source", "CopyGroup", "Scenario", "Claim", "SCENARIOS", "DEPENDENCE_SCENARIOS", "ALL_SCENARIOS",
+           "stream", "density_ratio", "oracle_llr"]
 
 BETA_SAYS_TRUE = (8, 2)
 BETA_SAYS_FALSE = (2, 8)
@@ -55,11 +56,31 @@ class Source:
 
 @dataclass(frozen=True)
 class CopyGroup:
-    """``followers`` repeat ``leader``'s call w.p. ``copy_prob``, else call on their own at ``follower_accuracy``."""
-    leader: str
+    """``followers`` repeat the leader's call w.p. ``copy_prob``, else call on their own at ``follower_accuracy``.
+
+    ``leader=None`` means a *latent* leader: a hidden shared call that is right w.p. ``latent_accuracy`` and is
+    never observed (partial correlation). ``switch=(k, name)``: from claim k on, the followers copy ``name``.
+    """
+    leader: Optional[str]
     followers: Tuple[str, ...]
     copy_prob: float
     follower_accuracy: float
+    latent_accuracy: Optional[float] = None
+    switch: Optional[Tuple[int, str]] = None
+
+    def leader_at(self, i: int) -> Optional[str]:
+        if self.switch is not None and i >= self.switch[0]:
+            return self.switch[1]
+        return self.leader
+
+    def spec(self) -> dict:
+        d = {"leader": self.leader, "followers": list(self.followers), "copy_prob": self.copy_prob,
+             "follower_accuracy": self.follower_accuracy}
+        if self.latent_accuracy is not None:
+            d["latent_accuracy"] = self.latent_accuracy
+        if self.switch is not None:
+            d["switch"] = list(self.switch)
+        return d
 
 
 @dataclass(frozen=True)
@@ -71,14 +92,19 @@ class Scenario:
     copy: Optional[CopyGroup] = None
     base_rate: float = 0.5
     description: str = ""
+    groups: Tuple[CopyGroup, ...] = ()      # further copy groups (dependence suite); ``copy`` kept for v1 specs
+
+    def all_groups(self) -> Tuple[CopyGroup, ...]:
+        return ((self.copy,) if self.copy else ()) + self.groups
 
     def true_accuracy(self, i: int) -> Dict[str, float]:
         """Marginal P(source's call is right) at claim i (for followers: copy-mixture marginal)."""
         acc = {s.name: s.acc(i) for s in self.sources}
-        if self.copy:
-            lead = acc[self.copy.leader]
-            for f in self.copy.followers:
-                acc[f] = self.copy.copy_prob * lead + (1 - self.copy.copy_prob) * self.copy.follower_accuracy
+        for g in self.all_groups():
+            ld = g.leader_at(i)
+            lead = acc[ld] if ld is not None else g.latent_accuracy
+            for f in g.followers:
+                acc[f] = g.copy_prob * lead + (1 - g.copy_prob) * g.follower_accuracy
         return acc
 
     def spec(self) -> dict:
@@ -89,7 +115,8 @@ class Scenario:
                 "copy": None if not self.copy else {"leader": self.copy.leader, "followers": list(self.copy.followers),
                                                     "copy_prob": self.copy.copy_prob,
                                                     "follower_accuracy": self.copy.follower_accuracy},
-                "noise": {"says_true": list(BETA_SAYS_TRUE), "says_false": list(BETA_SAYS_FALSE), "floor": SCORE_FLOOR}}
+                "noise": {"says_true": list(BETA_SAYS_TRUE), "says_false": list(BETA_SAYS_FALSE), "floor": SCORE_FLOOR},
+                **({"groups": [g.spec() for g in self.groups]} if self.groups else {})}
 
 
 @dataclass(frozen=True)
@@ -123,6 +150,27 @@ SCENARIOS: Dict[str, Scenario] = {s.key: s for s in [
 ]}
 
 
+DEPENDENCE_SCENARIOS: Dict[str, Scenario] = {s.key: s for s in [
+    Scenario("partial_corr", "partial correlation (latent shared call)", 3000,
+             (Source("p1", .70), Source("p2", .70), Source("p3", .70), Source("p4", .70), Source("solo", .75)),
+             groups=(CopyGroup(None, ("p1", "p2", "p3", "p4"), 0.5, 0.70, latent_accuracy=0.70),),
+             description="p1..p4 each repeat a hidden shared call (70% right) half the time, else call on their own "
+                         "at 70%; one independent 75% source"),
+    Scenario("two_clusters", "two copy clusters", 3000,
+             (Source("a0", .70), Source("a1", .70), Source("a2", .70),
+              Source("b0", .65), Source("b1", .65), Source("b2", .65), Source("solo", .75)),
+             groups=(CopyGroup("a0", ("a1", "a2"), 0.85, 0.60), CopyGroup("b0", ("b1", "b2"), 0.85, 0.60)),
+             description="two independent clusters (leader + 2 followers copying 85% of the time) and one 75% source"),
+    Scenario("leader_switch", "copiers switch leader at 1500", 3000,
+             (Source("L1", .75), Source("L2", .60), Source("f1", .70), Source("f2", .70), Source("f3", .70),
+              Source("solo", .80)),
+             groups=(CopyGroup("L1", ("f1", "f2", "f3"), 0.9, 0.55, switch=(1500, "L2")),),
+             description="f1..f3 copy L1 (75%) 90% of the time, then switch to copying L2 (60%) at claim 1500"),
+]}
+
+ALL_SCENARIOS: Dict[str, Scenario] = {**SCENARIOS, **DEPENDENCE_SCENARIOS}
+
+
 def _score(says_true: bool, rng: random.Random) -> float:
     return max(SCORE_FLOOR, rng.betavariate(*BETA_SAYS_TRUE) if says_true else rng.betavariate(*BETA_SAYS_FALSE))
 
@@ -134,27 +182,36 @@ def density_ratio(s: float) -> float:
 
 
 def oracle_llr(sc: Scenario, i: int, scores: Dict[str, float]) -> float:
-    """Exact log P(scores | true) / P(scores | false) under the generating model."""
-    followers = set(sc.copy.followers) if sc.copy else set()
-    leader = sc.copy.leader if sc.copy else None
+    """Exact log P(scores | true) / P(scores | false) under the generating model.
+
+    Sources outside any copy group (at claim i) are independent given the truth. For each copy group the
+    leader's call (observed through its score, or latent) is marginalised exactly.
+    """
+    groups = sc.all_groups()
+    grouped = set()
+    for g in groups:
+        grouped |= set(g.followers)
+        if g.leader_at(i) is not None:
+            grouped.add(g.leader_at(i))
     z = 0.0
     for s in sc.sources:
-        if s.name in followers or s.name == leader:
+        if s.name in grouped:
             continue
         a, x = s.acc(i), density_ratio(scores[s.name])
         z += math.log((a * x + (1 - a)) / (a + (1 - a) * x))
-    if sc.copy:
-        cg, la = sc.copy, next(s for s in sc.sources if s.name == leader).acc(i)
+    for g in groups:
+        ld = g.leader_at(i)
+        la = next(s for s in sc.sources if s.name == ld).acc(i) if ld is not None else g.latent_accuracy
 
         def lik(truth: bool) -> float:
             tot = 0.0
             for lead_says in (True, False):
                 p_lead = la if lead_says == truth else 1 - la
-                h = density_ratio(scores[leader]) if lead_says else 1.0
+                h = (density_ratio(scores[ld]) if lead_says else 1.0) if ld is not None else 1.0
                 prod = 1.0
-                for f in cg.followers:
-                    p_own_true = cg.follower_accuracy if truth else 1 - cg.follower_accuracy
-                    p_true = cg.copy_prob * (1.0 if lead_says else 0.0) + (1 - cg.copy_prob) * p_own_true
+                for f in g.followers:
+                    p_own_true = g.follower_accuracy if truth else 1 - g.follower_accuracy
+                    p_true = g.copy_prob * (1.0 if lead_says else 0.0) + (1 - g.copy_prob) * p_own_true
                     prod *= p_true * density_ratio(scores[f]) + (1 - p_true)
                 tot += p_lead * h * prod
             return tot
@@ -163,19 +220,30 @@ def oracle_llr(sc: Scenario, i: int, scores: Dict[str, float]) -> float:
 
 
 def stream(sc: Scenario, seed: int, n: Optional[int] = None) -> Iterator[Claim]:
-    """Yield the claim stream for (scenario, seed). Identical across runs and platforms (Python's Mersenne Twister)."""
+    """Yield the claim stream for (scenario, seed). Identical across runs and platforms (Python's Mersenne Twister).
+
+    Per claim: truth; then one draw per *latent* copy group (its hidden call), in group order; then the sources
+    in declaration order. Scenarios without latent groups consume the RNG exactly as in v1.0.0.
+    """
     rng = random.Random(seed)
-    followers = set(sc.copy.followers) if sc.copy else set()
+    groups = sc.all_groups()
+    follower_of = {f: g for g in groups for f in g.followers}
     for i in range(sc.n if n is None else n):
         truth = rng.random() < sc.base_rate
+        latent: Dict[int, bool] = {}
+        for gi, g in enumerate(groups):
+            if g.leader_at(i) is None:
+                latent[gi] = truth if rng.random() < g.latent_accuracy else not truth  # type: ignore[operator]
         says: Dict[str, bool] = {}
         scores: Dict[str, float] = {}
         for s in sc.sources:
-            if s.name in followers:
-                if rng.random() < sc.copy.copy_prob:          # type: ignore[union-attr]
-                    v = says[sc.copy.leader]                  # type: ignore[union-attr]
+            g = follower_of.get(s.name)
+            if g is not None:
+                if rng.random() < g.copy_prob:
+                    ld = g.leader_at(i)
+                    v = says[ld] if ld is not None else latent[groups.index(g)]
                 else:
-                    v = truth if rng.random() < sc.copy.follower_accuracy else not truth  # type: ignore[union-attr]
+                    v = truth if rng.random() < g.follower_accuracy else not truth
             else:
                 v = truth if rng.random() < s.acc(i) else not truth
             says[s.name] = v
@@ -187,18 +255,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(prog="python -m roman_wheel_node.bench.generator",
                                 description="Emit a synthetic claim stream as JSONL.")
     p.add_argument("--list", action="store_true", help="list standard scenarios and their specs")
-    p.add_argument("--scenario", choices=sorted(SCENARIOS))
+    p.add_argument("--scenario", choices=sorted(ALL_SCENARIOS))
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--n", type=int, default=None, help="number of claims (default: the scenario's n)")
     p.add_argument("--out", default="-", help="output path, or - for stdout")
     a = p.parse_args(argv)
     if a.list:
-        print(json.dumps({k: s.spec() for k, s in SCENARIOS.items()}, indent=1))
+        print(json.dumps({k: s.spec() for k, s in ALL_SCENARIOS.items()}, indent=1))
         return 0
     if not a.scenario:
         p.error("--scenario is required (or --list)")
     out = sys.stdout if a.out == "-" else open(a.out, "w")
-    for c in stream(SCENARIOS[a.scenario], a.seed, a.n):
+    for c in stream(ALL_SCENARIOS[a.scenario], a.seed, a.n):
         out.write(json.dumps({"i": c.i, "truth": c.truth, "scores": c.scores, "true_accuracy": c.true_accuracy,
                               "oracle_llr": c.oracle_llr}, sort_keys=True) + "\n")
     if out is not sys.stdout:

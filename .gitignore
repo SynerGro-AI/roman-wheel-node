@@ -16,3 +16,8 @@ venv/
 /train_results.json
 /train_results.png
 .hypothesis/
+# phase 3 downloads and API response caches (never commit)
+phase3/data/
+phase3/models/
+phase3/cache/
+.env

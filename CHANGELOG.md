@@ -1,6 +1,27 @@
 # Changelog
 
-## Unreleased (proposed 1.1.0): Phase 1 gated trace + Phase 2 reproducible benchmark
+## Unreleased (proposed 1.2.0, on top of 1.1.0): correlation-aware combining
+### Added
+- `roman_wheel_node.dependence.DependenceLearner`: an append-only, replayable ledger of each source's correctness per claim,
+  with decay on replay (`half_life=150`). It learns pairwise dependence (decayed 2×2 tables, G-test at p < 0.01, φ).
+- New bayes variants that need `dependence=`: **`ess`** (recommended; effective-sample-size discount), `tan`
+  (tree-augmented naive Bayes) and `stack` (online logistic stacking). `give_feedback(..., dependence=)` and
+  `ClaimTrace(..., dependence=)` log the exact model snapshot, so `replay()` recomputes decisions exactly.
+- Generator: copy groups can have a latent leader (`leader=None`, `latent_accuracy`) or switch leaders (`switch=(k, name)`).
+  Three new scenarios (`partial_corr`, `two_clusters`, `leader_switch`) have exact joint-model oracles.
+- `python -m roman_wheel_node.bench --suite dependence`, with results in `results/dependence/` (20 seeds).
+- `phase3/`: the fact-verification plan and scaffolding (SciFact, local ONNX NLI, xAI judges); no real-data runs yet.
+- Tests: 108 → 147 (including offline tests of the phase3 scaffolding).
+
+### Results (20 seeds)
+- copycats: bayes-hard 67.7% → bayes-ess **79.0%** (ceiling 79.1%). ECE 0.172 → 0.021.
+- leader_switch +3.4 points, two_clusters +1.9, partial_corr +0.5 (paired, all significant).
+- Independent scenarios: no change beyond noise (paired difference ≤ 0.01 points, 19–20/20 seeds identical).
+
+### Unchanged
+- The six standard scenario definitions, every existing mode/variant, and `results/` (still byte-identical via `--check`).
+
+## 1.1.0 (unreleased): Phase 1 gated trace + Phase 2 reproducible benchmark
 ### Added
 - `roman_wheel_node.trace`: `ClaimTrace` / `Claim` / `Decision` / `replay` / `TamperError`.
   - `submit()` is the only way into context; every call goes through `roman_wheel_node`.
