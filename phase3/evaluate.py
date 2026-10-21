@@ -341,7 +341,21 @@ def oof_effs(train, cond, sources, variant, folds: int = 5) -> List[float]:
     return out
 
 
-def selective(train, dev, cond, sources, variant, dev_eff, ysup_dev, targets=(0.99, 0.98, 0.97)) -> dict:
+def cp_upper(k: int, n: int, alpha: float = 0.05) -> float:
+    """One-sided Clopper-Pearson upper bound on an error rate (k errors in n); k=0 gives 1-alpha**(1/n) (~3/n)."""
+    if n == 0:
+        return 1.0
+    if k >= n:
+        return 1.0
+    lo, hi = k / n, 1.0
+    for _ in range(100):                       # P(X <= k | n, p) = alpha, decreasing in p
+        mid = (lo + hi) / 2
+        cdf = sum(math.comb(n, i) * mid ** i * (1 - mid) ** (n - i) for i in range(k + 1))
+        lo, hi = (mid, hi) if cdf > alpha else (lo, mid)
+    return hi
+
+
+def selective(train, dev, cond, sources, variant, dev_eff, ysup_dev, targets=(1.0, 0.99, 0.98, 0.97)) -> dict:
     """Selective mode: the ThresholdLearner picks an abstain band on train OOF posteriors; it is applied to dev unchanged."""
     oof = oof_effs(train, cond, sources, variant)
     tmp = tempfile.mkdtemp(prefix="rwn_p3band_")
@@ -365,6 +379,8 @@ def selective(train, dev, cond, sources, variant, dev_eff, ysup_dev, targets=(0.
                             "dev_coverage": len(dec) / n, "dev_decided": len(dec),
                             "dev_accuracy_decided": (sum(ok) / len(ok)) if ok else None,
                             "dev_accuracy_ci": [bs[int(0.025 * len(bs))], bs[int(0.975 * len(bs)) - 1]] if bs else None,
+                            "dev_errors_decided": int(len(ok) - sum(ok)),
+                            "dev_error_rate_upper95_clopper_pearson": cp_upper(int(len(ok) - sum(ok)), len(ok)),
                             "dev_accepted": len(acc_i),
                             "dev_false_accepts": sum(1 for i in acc_i if not ysup_dev[i]),
                             "dev_false_accept_rate_of_accepted": (sum(1 for i in acc_i if not ysup_dev[i]) / len(acc_i)) if acc_i else None,
