@@ -11,7 +11,10 @@ Invariants enforced by :class:`ClaimTrace`:
    ``a = 0`` and therefore BLOCKs, so descendants of a blocked claim can never enter either.
 3. **Containment.** A blocked claim is invisible: it is not in :meth:`context`, :meth:`get` treats its id
    exactly like an id that never existed, and it can't be used as a parent. HEDGE is admitted only
-   when ``allow_hedge=True`` (off by default).
+   when ``allow_hedge=True`` (off by default). **NOT_SURE** (selective mode) is never admitted, whatever
+   ``allow_hedge`` says: a claim whose posterior falls inside the trace's ``not_sure_band``, or that the caller
+   flags with ``submit(..., not_sure=True)`` (e.g. its sources disagree), is logged with status ``NOT_SURE``
+   and behaves exactly like a blocked claim (invisible, and no descendant can enter).
 4. **Tamper-evident audit.** Every call (admitted or not) appends one record to a JSONL log holding the full
    audit tuple: inputs, reliabilities and cut-off used, eff, opcode, status, parent ids and timestamp.
    Each record carries ``prev`` and ``hash = H(prev || canonical(record))``, so the log is a hash chain.
@@ -90,7 +93,7 @@ class Decision:
     eff: float
     opcode: str
     status: str
-    reason: str                 # "ok" | "hedge_not_allowed" | "blocked" | "parent_not_admitted"
+    reason: str                 # "ok" | "hedge_not_allowed" | "blocked" | "not_sure" | "parent_not_admitted"
     claim: Optional[Claim]      # None unless admitted
     seq: int
 
@@ -131,7 +134,21 @@ def _decide(rec: dict) -> Tuple[float, str, str]:
                             cutoff=None if rec["learned_cutoff"] else rec["cutoff"], dependence=dep)
 
 
+def _apply_not_sure(rec: dict, status: str) -> str:
+    """Selective mode: fail closed to NOT_SURE inside the logged band or when the logged flag is set (BLOCK stays BLOCK)."""
+    if status == "BLOCK":
+        return status
+    band = rec.get("not_sure_band")
+    if rec.get("not_sure_forced"):
+        return "NOT_SURE"
+    if band is not None and band[0] <= rec["eff"] < band[1]:
+        return "NOT_SURE"
+    return status
+
+
 def _admit(status: str, allow_hedge: bool) -> Tuple[bool, str]:
+    if status == "NOT_SURE":
+        return False, "not_sure"
     if status == "ACCEPT":
         return True, "ok"
     if status == "HEDGE":
@@ -160,7 +177,11 @@ class ClaimTrace:
                  prior: float = 0.5, assumed_reliability: float = 0.75,
                  cutoff: Union[None, float, str] = None, allow_hedge: bool = False,
                  hmac_key: Optional[bytes] = None, clock: Callable[[], float] = time.time,
-                 dependence: Optional[object] = None) -> None:
+                 dependence: Optional[object] = None,
+                 not_sure_band: Optional[Tuple[float, float]] = None) -> None:
+        if not_sure_band is not None and not (0.0 <= float(not_sure_band[0]) <= float(not_sure_band[1])):
+            raise ValueError("not_sure_band must be (lo, hi) with 0 <= lo <= hi")
+        self._band = None if not_sure_band is None else [float(not_sure_band[0]), float(not_sure_band[1])]
         if mode == "bayes" and variant in DEP_VARIANTS and dependence is None:
             raise ValueError(f"variant {variant!r} needs dependence=DependenceLearner(...)")
         self._log_path = log_path
@@ -201,7 +222,7 @@ class ClaimTrace:
 
     # ---- the one entry point ----------------------------------------------------------------
     def submit(self, content: str, scores: Mapping[str, float], a: int,
-               parents: Sequence[Union[Claim, str]] = ()) -> Decision:
+               parents: Sequence[Union[Claim, str]] = (), not_sure: bool = False) -> Decision:
         """Evaluate a claim with roman_wheel_node and admit it only if it passes.
 
         ``parents`` may be :class:`Claim` objects or ids. Each must be an admitted claim of *this*
@@ -237,7 +258,13 @@ class ClaimTrace:
         if self._dep is not None:
             voting = [k for k, v in votes_of(sc).items() if v]
             rec["dependence_model"] = self._dep.model(voting, self._cfg["variant"])  # type: ignore[attr-defined]
+        if self._band is not None:
+            rec["not_sure_band"] = list(self._band)
+        if not_sure:
+            rec["not_sure_forced"] = True
         eff, op, status = _decide(rec)
+        rec["eff"] = eff
+        status = _apply_not_sure(rec, status)
         admitted, reason = _admit(status, self._cfg["allow_hedge"])
         if not parents_ok:
             reason = "parent_not_admitted"
@@ -324,6 +351,7 @@ def replay(log_path: str, hmac_key: Optional[bytes] = None) -> ReplayReport:
             eff, op, status = _decide(rec)
         except (ValueError, KeyError, TypeError) as e:
             raise TamperError(f"record {n}: inputs cannot be re-evaluated ({e})") from e
+        status = _apply_not_sure(dict(rec, eff=eff), status)
         admitted, reason = _admit(status, rec["allow_hedge"])
         if not parents_ok:
             reason = "parent_not_admitted"

@@ -229,7 +229,8 @@ def ece(probs: List[float], ys: List[int], bins: int = 10) -> float:
 
 
 # ---------------------------------------------------------------- the node
-def node_run(train, dev, cond, sources, target, cal, variant, gate=True, live_online=False, log_dir=None):
+def node_run(train, dev, cond, sources, target, cal, variant, gate=True, live_online=False, log_dir=None,
+             ltt_margin=None):
     """Learn on train (frozen), decide every dev claim through a ClaimTrace. Returns (admitted list, eff list, info)."""
     tmp = log_dir or tempfile.mkdtemp(prefix="rwn_p3_")
     y = (lambda r: r["label3"] == "SUPPORT") if target == "S" else (lambda r: r["label3"] == "CONTRADICT")
@@ -245,17 +246,23 @@ def node_run(train, dev, cond, sources, target, cal, variant, gate=True, live_on
     for r in train:
         eff, _, _ = roman_wheel_node(1, scores(r), live=lw, mode="bayes", variant=variant, dependence=dep)
         thr.record(eff, y(r), f"bayes:{variant}")
+    cut0 = thr.cutoff(f"bayes:{variant}")
+    band = None if ltt_margin is None else (max(0.0, cut0 - ltt_margin), cut0 + ltt_margin)
     trace = ClaimTrace(os.path.join(tmp, "audit.jsonl"), live=lw, mode="bayes", variant=variant, threshold=thr,
-                       dependence=dep if variant in ("ess", "tan", "stack", "ess_cal") else None)
-    adm, effs = [], []
+                       dependence=dep if variant in ("ess", "tan", "stack", "ess_cal") else None, not_sure_band=band)
+    adm, effs, sts = [], [], []
     for r in dev:
         sc = scores(r)
-        d = trace.submit(r["claim"], sc, a=r["cond"][cond]["a"] if gate else 1)
-        adm.append(d.admitted); effs.append(d.eff)
+        ns = False
+        if ltt_margin is not None:                 # disagreement needs eff: evaluate without logging first
+            e0, _, _ = roman_wheel_node(1, sc, live=lw, mode="bayes", variant=variant, dependence=dep)
+            ns = disagree(r, cond, cal, sources, e0, cut0)
+        d = trace.submit(r["claim"], sc, a=r["cond"][cond]["a"] if gate else 1, not_sure=ns)
+        adm.append(d.admitted); effs.append(d.eff); sts.append(d.status)
         if live_online:
             give_feedback(sc, y(r), live=lw, threshold=thr, eff=d.eff, mode="bayes", variant=variant, dependence=dep)
     trace.verify()
-    info = {"cutoff": thr.cutoff(f"bayes:{variant}"), "reliability": {s: round(lw.reliability(s), 4) for s in sources}}
+    info = {"cutoff": thr.cutoff(f"bayes:{variant}"), "status": sts, "reliability": {s: round(lw.reliability(s), 4) for s in sources}}
     if variant in ("ess", "ess_cal"):
         info["dependence"] = {f"{a}~{b}": [round(v, 4) for v in dep.dependence(a, b)]
                               for i, a in enumerate(sources) for b in sources[i + 1:]}
@@ -328,16 +335,74 @@ def cv_select(train, cond, srcsets, folds: int = 5) -> Tuple[Tuple[str, str], Di
     return order[0], scores
 
 
-def oof_effs(train, cond, sources, variant, folds: int = 5) -> List[float]:
-    """Out-of-fold node posteriors on the training subset (each fold's calibration and learners fit on the rest)."""
-    out = [0.0] * len(train)
+def disagree(r, cond, cal, sources, eff, cut) -> bool:
+    """Pre-registered disagreement rule (fixed before any dev result was seen):
+    * judges split: at least 2 judges vote "supported" AND at least 2 vote "not supported" (calibrated P > 0.5), or
+    * NLI contradicts the panel: the node leans "supported" but DeBERTa-v3-base NLI calibrated P(contradiction) > 0.5."""
+    js = [s for s in sources if s.startswith("J")]
+    v = [platt(cal[(cond, s, "S")], r["cond"][cond]["src"][s]["S"]) > 0.5 for s in js]
+    split = sum(v) >= 2 and (len(v) - sum(v)) >= 2
+    nli_c = ("nli2" in sources and eff >= cut and platt(cal[(cond, "nli2", "C")], r["cond"][cond]["src"]["nli2"]["C"]) > 0.5)
+    return bool(split or nli_c)
+
+
+def oof_effs(train, cond, sources, variant, folds: int = 5):
+    """Out-of-fold node posteriors, cutoffs and disagreement flags on the training subset
+    (each fold's calibration and learners are fit on the other folds only)."""
+    out, dis, cuts = [0.0] * len(train), [False] * len(train), [0.5] * len(train)
     for f in range(folds):
         tr = [r for i, r in enumerate(train) if i % folds != f]
         idx = [i for i in range(len(train)) if i % folds == f]
         cal = fit_cal(tr, cond, sources)
-        _, effs, _ = node_run(tr, [train[i] for i in idx], cond, sources, "S", cal, variant)
+        _, effs, inf = node_run(tr, [train[i] for i in idx], cond, sources, "S", cal, variant)
         for i, e in zip(idx, effs):
-            out[i] = e
+            out[i] = e; cuts[i] = inf["cutoff"]
+            dis[i] = disagree(train[i], cond, cal, sources, e, inf["cutoff"])
+    return out, dis, cuts
+
+
+def ltt_band(oof, ys, dis, cuts, alpha: float, delta: float = 0.05, step: float = 0.005):
+    """Learn-Then-Test (fixed-sequence) risk control on train OOF posteriors.
+
+    Candidate margins m go from widest (decide almost nothing) to narrowest. Each is accepted while the one-sided
+    Clopper-Pearson (1 - delta) upper bound on the decided-claim error rate is <= alpha; we stop at the first failure.
+    A claim is decided iff it shows no disagreement and |eff - cutoff| >= m (relative to its own fold's cutoff).
+    Returns (m, n_decided, errors, upper_bound)."""
+    best = (0.5, 0, 0, 0.0)
+    m = 0.5
+    while m >= -1e-9:
+        dec = [i for i in range(len(oof)) if not dis[i] and (oof[i] >= cuts[i] + m or oof[i] < cuts[i] - m)]
+        k = sum((oof[i] >= cuts[i]) != bool(ys[i]) for i in dec)
+        ub = cp_upper(k, len(dec), delta) if dec else 0.0
+        if ub > alpha:
+            break
+        best = (round(m, 4), len(dec), k, ub)
+        m -= step
+    return best
+
+
+def ltt_eval(train, dev, cond, sources, variant, cal, alphas=(0.01, 0.005)) -> dict:
+    """Fail-closed selective mode: LTT band + disagreement rule, applied to dev through ClaimTrace(NOT_SURE)."""
+    oof, dis, cuts = oof_effs(train, cond, sources, variant)
+    ys_tr = [r["label3"] == "SUPPORT" for r in train]
+    out = {}
+    for al in alphas:
+        m, n_tr, k_tr, ub_tr = ltt_band(oof, ys_tr, dis, cuts, al)
+        # dev: frozen node learned on all of train; NOT_SURE = band cutoff +/- m or disagreement (logged + replayed)
+        adm, effs, inf = node_run(train, dev, cond, sources, "S", cal, variant, ltt_margin=m)
+        cut = inf["cutoff"]
+        status = ["NOT_SURE" if st == "NOT_SURE" else ("ACCEPT" if a_ else "REJECT") for st, a_ in zip(inf["status"], adm)]
+        ys = [r["label3"] == "SUPPORT" for r in dev]
+        dec = [i for i, st in enumerate(status) if st != "NOT_SURE"]
+        errs = sum((status[i] == "ACCEPT") != ys[i] for i in dec)
+        acc_i = [i for i in dec if status[i] == "ACCEPT"]
+        out[f"{al}"] = {"margin": m, "band": [cut - m, cut + m], "train_oof": {"decided": n_tr, "errors": k_tr, "upper95": ub_tr,
+                        "coverage": n_tr / len(train), "disagreements": sum(dis)},
+                        "dev_coverage": len(dec) / len(dev), "dev_decided": len(dec), "dev_errors_decided": errs,
+                        "dev_error_rate_upper95_clopper_pearson": cp_upper(errs, len(dec)),
+                        "dev_accepted": len(acc_i), "dev_false_accepts": sum(1 for i in acc_i if not ys[i]),
+                        "dev_not_sure_disagreement": sum(1 for r, e in zip(dev, effs) if disagree(r, cond, cal, sources, e, cut)),
+                        "dev_status_counts": {k: status.count(k) for k in ("ACCEPT", "REJECT", "NOT_SURE")}}
     return out
 
 
@@ -513,6 +578,8 @@ def main() -> None:
         # selective mode (abstain band chosen on train OOF posteriors) and risk-coverage curves
         sel_mode = selective(train, dev, cond, srcsets[sel_s], sel_v, prob[sel_name], ysup)
         ess_cal_mode = selective(train, dev, cond, allsrc, "ess_cal", prob["bayes-ess_cal"], ysup)
+        ltt = {"selected": ltt_eval(train, dev, cond, srcsets[sel_s], sel_v, cal),
+               "bayes-ess_cal": ltt_eval(train, dev, cond, allsrc, "ess_cal", cal)}
         rc = {"node (selected)": risk_coverage(prob[sel_name], ysup, info["selected"]["cutoff"]),
               "bayes-ess_cal": risk_coverage(prob["bayes-ess_cal"], ysup, info["bayes-ess_cal"]["cutoff"]),
               f"{best_j} alone (calibrated)": risk_coverage(prob[f"{best_j} alone"], ysup)}
@@ -579,7 +646,7 @@ def main() -> None:
                 "unparsed_judge_replies": sum(r["cond"][cond]["src"][j]["unparsed"] for r in dev + train for j in judges),
                 "missing_judge_calls": sum(bool(r["cond"][cond]["src"][j].get("missing")) for r in dev + train for j in judges)}
         report["conditions"][cond] = {"selected": sel_name, "cv_train": cv, "binary": tab, "vs_best_single_judge": vs_best,
-                                      "judge_train_accuracy": tr_acc, "selective": {"selected": sel_mode, "bayes-ess_cal": ess_cal_mode},
+                                      "judge_train_accuracy": tr_acc, "selective": {"selected": sel_mode, "bayes-ess_cal": ess_cal_mode}, "ltt_not_sure": ltt,
                                       "risk_coverage_dev": rc, "accuracy_excluding_label_review": {"n_excluded": len(dev) - len(keep), "acc": excl}, "error_analysis": {k: {"n": len(v), "keys": v} for k, v in cats.items()},
                                       "label_noise_candidates": suspects, "three_way": tab3, "safety_vs_unwrapped_J1": safety,
                                       "score_correlation_dev": corrm, "error_overlap_dev": errov, "gate": gate,
