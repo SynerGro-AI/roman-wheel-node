@@ -1,0 +1,213 @@
+{
+ "dev": [
+  {
+   "key": "dev:1292",
+   "claim": "There is no association between HNF4A mutations and diabetes risks.",
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.7,
+   "quote": "We assessed the in utero and neonatal role of two key regulators of pancreatic insulin secretion by studying birthweight and the incidence of neonatal hypoglycaemia in patients with heterozygous mutations in the maturity-onset diabetes of the young (MODY) genes HNF4A (encoding HNF-4\u03b1) and HNF1A/TCF1 (encoding HNF-1\u03b1), and the effect of pancreatic deletion of Hnf4a on foetal and neonatal insulin secretion in mice.",
+   "rationale": [],
+   "doc": "56893404",
+   "title": "Macrosomia and Hyperinsulinaemic Hypoglycaemia in Patients with Heterozygous Mutations in the HNF4A Gene"
+  },
+  {
+   "key": "dev:1368",
+   "claim": "Vitamin D deficiency effects the term of delivery.",
+   "gold": "SUPPORT",
+   "panel": "NEI",
+   "min_conf": 0.8,
+   "quote": "",
+   "rationale": [
+    "Insufficient serum levels of 25-OHD were associated with gestational diabetes (pooled odds ratio 1.49, 95% confidence interval 1.18 to 1.89), pre-eclampsia (1.79, 1.25 to 2.58), and small for gestational age infants (1.85, 1.52 to 2.26).",
+    "Pregnant women with low serum 25-OHD levels had an increased risk of bacterial vaginosis and low birthweight infants but not delivery by caesarean section.   \n"
+   ],
+   "doc": "2425364",
+   "title": "Association between maternal serum 25-hydroxyvitamin D level and pregnancy and neonatal outcomes: systematic review and meta-analysis of observational studies."
+  },
+  {
+   "key": "dev:1385",
+   "claim": "cSMAC formation enhances weak ligand signalling.",
+   "gold": "SUPPORT",
+   "panel": "CONTRADICT",
+   "min_conf": 0.9,
+   "quote": "This conclusion was supported by experiments that showed that enhancing cSMAC formation reduced stimulatory capacity of the weak peptide.",
+   "rationale": [
+    "This conclusion was supported by experiments that showed that enhancing cSMAC formation reduced stimulatory capacity of the weak peptide."
+   ],
+   "doc": "306006",
+   "title": "The stimulatory potency of T cell antigens is influenced by the formation of the immunological synapse."
+  },
+  {
+   "key": "dev:593",
+   "claim": "Incidence of heart failure decreased by 10% in women since 1979.",
+   "gold": "SUPPORT",
+   "panel": "CONTRADICT",
+   "min_conf": 0.9,
+   "quote": "The incidence of heart failure was higher among men (378/100 000 persons; 95% confidence interval [CI], 361-395 for men; 289/100 000 persons; 95% CI, 277-300 for women) and did not change over time among men or women.",
+   "rationale": [
+    "RESULTS The incidence of heart failure was higher among men (378/100 000 persons; 95% confidence interval [CI], 361-395 for men; 289/100 000 persons; 95% CI, 277-300 for women) and did not change over time among men or women."
+   ],
+   "doc": "19675911",
+   "title": "Trends in heart failure incidence and survival in a community-based population."
+  },
+  {
+   "key": "dev:693",
+   "claim": "Leuko-reduced blood reduces infectious complications in red blood cell transfusion.",
+   "gold": "SUPPORT",
+   "panel": "CONTRADICT",
+   "min_conf": 0.55,
+   "quote": "but serious nosocomial infections did not decrease (adjusted OR, 0.97; 95% confidence interval [CI], 0.87-1.09).",
+   "rationale": [
+    "Compared with the control period, the adjusted odds of death following leukoreduction were reduced (odds ratio [OR], 0.87; 95% confidence interval [CI], 0.75-0.99), but serious nosocomial infections did not decrease (adjusted OR, 0.97; 95% CI, 0.87-1.09).",
+    "The frequency of posttransfusion fevers decreased significantly following leukoreduction (adjusted OR, 0.86; 95% CI, 0.79-0.94), as did antibiotic use (adjusted OR, 0.90; 95% CI, 0.82-0.99).   \n"
+   ],
+   "doc": "24088502",
+   "title": "Clinical outcomes following institution of the Canadian universal leukoreduction program for red blood cell transfusions."
+  },
+  {
+   "key": "dev:783",
+   "claim": "Mice without IFN-\u03b3 or its receptor are resistant to EAM induced with \u03b1-MyHC/CFA.",
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.8,
+   "quote": "However, IFN-gamma-deficient mice developed fatal autoimmune disease",
+   "rationale": [],
+   "doc": "40632104",
+   "title": "Dual role of the IL-12/IFN-gamma axis in the development of autoimmune myocarditis: induction by IL-12 and protection by IFN-gamma."
+  },
+  {
+   "key": "dev:808",
+   "claim": "Most termination events in Okazaki fragments are sequence specific.",
+   "gold": "SUPPORT",
+   "panel": "CONTRADICT",
+   "min_conf": 0.85,
+   "quote": "Using a strain in which late origins can be induced to fire early, we show that replication termination is a largely passive phenomenon that does not rely on cis-acting sequences or replication fork pausing.",
+   "rationale": [
+    "Via the deep sequencing of Okazaki fragments, we comprehensively document replication fork directionality throughout the S. cerevisiae genome, which permits the systematic analysis of initiation, origin efficiency, fork progression, and termination."
+   ],
+   "doc": "36606083",
+   "title": "Quantitative, genome-wide analysis of eukaryotic replication initiation and termination."
+  },
+  {
+   "key": "dev:879",
+   "claim": "Occupancy of ribosomes by IncRNAs do not make functional peptides.",
+   "gold": "CONTRADICT",
+   "panel": "SUPPORT",
+   "min_conf": 0.75,
+   "quote": "Taken together, these results argue that the large majority of lincRNAs do not function through encoded proteins.",
+   "rationale": [
+    "Here, we show that classical noncoding RNAs and 5' UTRs show the same ribosome occupancy as lincRNAs, demonstrating that ribosome occupancy alone is not sufficient to classify transcripts as coding or noncoding."
+   ],
+   "doc": "8426046",
+   "title": "Ribosome Profiling Provides Evidence that Large Noncoding RNAs Do Not Encode Proteins"
+  },
+  {
+   "key": "dev:907",
+   "claim": "PGE 2 promotes intestinal tumor growth by altering the expression of tumor suppressing and DNA repair genes.",
+   "gold": "NEI",
+   "panel": "SUPPORT",
+   "min_conf": 0.85,
+   "quote": "Here we show that prostaglandin E(2) (PGE(2)) silences certain tumor-suppressor and DNA-repair genes through DNA methylation to promote tumor growth.",
+   "rationale": [],
+   "doc": "6923961",
+   "title": "Prostaglandin E2 promotes intestinal tumor growth via DNA methylation"
+  }
+ ],
+ "train": [
+  {
+   "key": "train:610",
+   "claim": "Increased flux of microbial products suppresses immune responses.",
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.63,
+   "quote": "Mice lacking junctional adhesion molecule A (JAM-A, encoded by F11r) exhibit enhanced intestinal epithelial permeability, bacterial translocation, and elevated colonic lymphocyte numbers, yet do not develop colitis.",
+   "rationale": [],
+   "doc": "40096222",
+   "title": "Compromised intestinal epithelial barrier induces adaptive immune compensation that protects from colitis."
+  },
+  {
+   "key": "train:1214",
+   "claim": "The deregulated and prolonged activation of monocytes improves inflammatory disease outcomes.",
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.8,
+   "quote": "this activation process must be under exquisite control to prevent uncontrolled inflammation.",
+   "rationale": [],
+   "doc": "6493422",
+   "title": "The myeloid transcription factor KLF2 regulates the host response to polymicrobial infection and endotoxic shock."
+  },
+  {
+   "key": "train:989",
+   "claim": "Pure neural progenitor cell (NPC) populations can only be obtained from cell cultures that undergo passaging, filtration, or other isolation and cell sorting methods.",
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.77,
+   "quote": "Here we demonstrate that the complex neurosphere environment is dispensable for stem cell maintenance, and that the combination of fibroblast growth factor 2 (FGF-2) and epidermal growth factor (EGF) is sufficient for derivation and continuous expansion by symmetrical division of pure cultures of neural stem (NS) cells.",
+   "rationale": [],
+   "doc": "9988425",
+   "title": "Niche-Independent Symmetrical Self-Renewal of a Mammalian Tissue Stem Cell"
+  },
+  {
+   "key": "train:1386",
+   "claim": "cSMAC formation represses weak ligand signalling.",
+   "gold": "CONTRADICT",
+   "panel": "SUPPORT",
+   "min_conf": 0.82,
+   "quote": "This conclusion was supported by experiments that showed that enhancing cSMAC formation reduced stimulatory capacity of the weak peptide.",
+   "rationale": [
+    "This conclusion was supported by experiments that showed that enhancing cSMAC formation reduced stimulatory capacity of the weak peptide."
+   ],
+   "doc": "306006",
+   "title": "The stimulatory potency of T cell antigens is influenced by the formation of the immunological synapse."
+  },
+  {
+   "key": "train:651",
+   "claim": "Interferon stimulated genes (ISGs) Irf1, Irg1, Ifi27, and Rsad2 encourage West Nile virus replication in cortical neurons.",
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.75,
+   "quote": "By transducing cortical neurons with genes that were expressed more highly in granule cell neurons, we identified three interferon-stimulated genes (ISGs; Ifi27, Irg1 and Rsad2 (also known as Viperin)) that mediated the antiviral effects against different neurotropic viruses.",
+   "rationale": [],
+   "doc": "9433958",
+   "title": "Differential innate immune response programs in neuronal subtypes determine susceptibility to infection in the brain by positive stranded RNA viruses"
+  },
+  {
+   "key": "train:44",
+   "claim": "A mutation in HNF4A leads to an increased risk of developing diabetes by the age of 14 years.",
+   "gold": "SUPPORT",
+   "panel": "NEI",
+   "min_conf": 0.85,
+   "quote": "",
+   "rationale": [
+    "We assessed the in utero and neonatal role of two key regulators of pancreatic insulin secretion by studying birthweight and the incidence of neonatal hypoglycaemia in patients with heterozygous mutations in the maturity-onset diabetes of the young (MODY) genes HNF4A (encoding HNF-4\u03b1) and HNF1A/TCF1 (encoding HNF-1\u03b1), and the effect of pancreatic deletion of Hnf4a on foetal and neonatal insulin secretion in mice."
+   ],
+   "doc": "56893404",
+   "title": "Macrosomia and Hyperinsulinaemic Hypoglycaemia in Patients with Heterozygous Mutations in the HNF4A Gene"
+  },
+  {
+   "key": "train:1193",
+   "claim": "The appearance of brown-like or beige cells primarily occurs in visceral fat, not subcutaneous fat.",
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.75,
+   "quote": "During cold-induced 'browning' of subcutaneous fat, most 'beige' adipocytes stem from de novo\u2013differentiated adipocytes.",
+   "rationale": [],
+   "doc": "20532591",
+   "title": "Tracking adipogenesis during white adipose tissue development, expansion and regeneration"
+  },
+  {
+   "key": "train:169",
+   "claim": "Bariatric surgery reduces postmenopausal breast cancer.",
+   "gold": "CONTRADICT",
+   "panel": "NEI",
+   "min_conf": 0.7,
+   "quote": "No association was detected between bariatric surgery and fractures, cancer, or stroke.",
+   "rationale": [
+    "No association was detected between bariatric surgery and fractures, cancer, or stroke."
+   ],
+   "doc": "5824985",
+   "title": "Bariatric Surgery in the United Kingdom: A Cohort Study of Weight Loss and Clinical Outcomes in Routine Clinical Care."
+  }
+ ]
+}
