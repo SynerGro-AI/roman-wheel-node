@@ -38,7 +38,8 @@ if os.environ.get("RWN_P3_JUDGES"):
     JUDGES = {k: v for k, v in JUDGES.items() if k in os.environ["RWN_P3_JUDGES"].split(",")}
 
 OUT = os.path.join(ROOT, "results", "phase3")
-LOCAL = ("nli", "nli2", "overlap")     # nli = deberta-v3-small int8 ONNX; nli2 = deberta-v3-base (mnli-fever-anli)
+LOCAL = ("nli", "nli2", "overlap", "rerank")
+S_ONLY = ("overlap", "rerank")          # sources with no contradiction score     # nli = deberta-v3-small int8 ONNX; nli2 = deberta-v3-base (mnli-fever-anli)
 B = int(os.environ.get("RWN_P3_BOOT", "10000"))
 EPS = 0.01
 
@@ -83,6 +84,8 @@ def load_rows() -> Dict[str, dict]:
             src = {"nli": {"S": lf["nli_entail"], "C": lf["nli_contra"]}, "overlap": {"S": lf["overlap"]}}
             if "nli2_entail" in lf:
                 src["nli2"] = {"S": lf["nli2_entail"], "C": lf["nli2_contra"]}
+            if lf.get("rerank_scores"):
+                src["rerank"] = {"S": lf["rerank_scores"][0]}     # top cross-encoder relevance (evidence quality)
             quotes, missing = {}, []
             for n, j in judges.items():
                 if cond not in JUDGES[n]["conditions"]:
@@ -298,7 +301,7 @@ def fit_cal(rows, cond, sources) -> dict:
     cal = {}
     for s in sources:
         for t in ("S", "C"):
-            if t == "C" and s == "overlap":
+            if t == "C" and s in S_ONLY:
                 continue
             yy = [int(r["label3"] == ("SUPPORT" if t == "S" else "CONTRADICT")) for r in rows]
             cal[(cond, s, t)] = (iso_fit if CALIBRATOR == "isotonic" else platt_fit)(
@@ -323,6 +326,61 @@ def cv_select(train, cond, srcsets, folds: int = 5) -> Tuple[Tuple[str, str], Di
         scores[f"bayes-{v} [{sn}]"] = ok / len(train)
     order = sorted(CANDIDATES, key=lambda c: (-scores[f"bayes-{c[0]} [{c[1]}]"], CANDIDATES.index(c)))
     return order[0], scores
+
+
+def oof_effs(train, cond, sources, variant, folds: int = 5) -> List[float]:
+    """Out-of-fold node posteriors on the training subset (each fold's calibration and learners fit on the rest)."""
+    out = [0.0] * len(train)
+    for f in range(folds):
+        tr = [r for i, r in enumerate(train) if i % folds != f]
+        idx = [i for i in range(len(train)) if i % folds == f]
+        cal = fit_cal(tr, cond, sources)
+        _, effs, _ = node_run(tr, [train[i] for i in idx], cond, sources, "S", cal, variant)
+        for i, e in zip(idx, effs):
+            out[i] = e
+    return out
+
+
+def selective(train, dev, cond, sources, variant, dev_eff, ysup_dev, targets=(0.99, 0.98, 0.97)) -> dict:
+    """Selective mode: the ThresholdLearner picks an abstain band on train OOF posteriors; it is applied to dev unchanged."""
+    oof = oof_effs(train, cond, sources, variant)
+    tmp = tempfile.mkdtemp(prefix="rwn_p3band_")
+    th = ThresholdLearner(os.path.join(tmp, "t.jsonl"), half_life=None)
+    for e, r in zip(oof, train):
+        th.record(e, r["label3"] == "SUPPORT", "sel")
+    out = {}
+    for tg in targets:
+        lo, hi, cov_tr, acc_tr = th.band("sel", target=tg, min_decided=20)
+        dec = [i for i, e in enumerate(dev_eff) if e < lo or e >= hi]
+        acc_i = [i for i in dec if dev_eff[i] >= hi]
+        ok = [float((dev_eff[i] >= hi) == bool(ysup_dev[i])) for i in dec]
+        rng = random.Random(5); n = len(dev_eff); bs = []
+        for _ in range(B):
+            smp = [rng.randrange(n) for _ in range(n)]
+            d = [i for i in smp if dev_eff[i] < lo or dev_eff[i] >= hi]
+            if d:
+                bs.append(sum((dev_eff[i] >= hi) == bool(ysup_dev[i]) for i in d) / len(d))
+        bs.sort()
+        out[f"{tg:.2f}"] = {"band": [lo, hi], "train_oof_coverage": cov_tr, "train_oof_accuracy": acc_tr,
+                            "dev_coverage": len(dec) / n, "dev_decided": len(dec),
+                            "dev_accuracy_decided": (sum(ok) / len(ok)) if ok else None,
+                            "dev_accuracy_ci": [bs[int(0.025 * len(bs))], bs[int(0.975 * len(bs)) - 1]] if bs else None,
+                            "dev_accepted": len(acc_i),
+                            "dev_false_accepts": sum(1 for i in acc_i if not ysup_dev[i]),
+                            "dev_false_accept_rate_of_accepted": (sum(1 for i in acc_i if not ysup_dev[i]) / len(acc_i)) if acc_i else None,
+                            "dev_unsupported_accepted_of_all_unsupported": sum(1 for i in acc_i if not ysup_dev[i]) / max(1, sum(1 for y in ysup_dev if not y))}
+    shutil.rmtree(tmp)
+    return out
+
+
+def risk_coverage(p: List[float], y: List[int], cut: float = 0.5) -> List[List[float]]:
+    """Dev risk-coverage curve, ordering claims by confidence |p - cut| (for plotting; no selection is made on it)."""
+    order = sorted(range(len(p)), key=lambda i: (-abs(p[i] - cut), i))
+    pts, err = [], 0
+    for c, i in enumerate(order, 1):
+        err += int((p[i] >= cut) != bool(y[i]))
+        pts.append([c / len(p), err / c])
+    return pts
 
 
 # ---------------------------------------------------------------- main
@@ -398,7 +456,7 @@ def main() -> None:
         def tri(sv, cv):
             return ["SUPPORT" if s else ("CONTRADICT" if c else "NEI") for s, c in zip(sv, cv)]
         for v, name in (("hard", "bayes-hard"), ("ess", "bayes-ess"), ("ess_cal", "bayes-ess_cal")):
-            cadm, _, _ = node_run(train, dev, cond, [s for s in allsrc if s != "overlap"], "C", cal, v)
+            cadm, _, _ = node_run(train, dev, cond, [s for s in allsrc if s not in S_ONLY], "C", cal, v)
             three[name] = tri(pol[name], cadm)
         for j in judges:
             three[f"{j} unwrapped (raw argmax)"] = [{"S": "SUPPORT", "C": "CONTRADICT", "N": "NEI"}[max(("S", "C", "N"), key=lambda x: r["cond"][cond]["src"][j][x])] for r in dev]
@@ -436,6 +494,18 @@ def main() -> None:
             vs_best[name] = {"judge": best_j, "judge_train_acc": tr_acc[best_j], "node_acc": sum(cn) / len(cn),
                              "judge_acc": sum(cj) / len(cj), "diff_paired_boot": paired_boot(cn, cj),
                              "node_only_right": n01, "judge_only_right": n10, "mcnemar_p": p}
+        # selective mode (abstain band chosen on train OOF posteriors) and risk-coverage curves
+        sel_mode = selective(train, dev, cond, srcsets[sel_s], sel_v, prob[sel_name], ysup)
+        ess_cal_mode = selective(train, dev, cond, allsrc, "ess_cal", prob["bayes-ess_cal"], ysup)
+        rc = {"node (selected)": risk_coverage(prob[sel_name], ysup, info["selected"]["cutoff"]),
+              "bayes-ess_cal": risk_coverage(prob["bayes-ess_cal"], ysup, info["bayes-ess_cal"]["cutoff"]),
+              f"{best_j} alone (calibrated)": risk_coverage(prob[f"{best_j} alone"], ysup)}
+        # sensitivity: accuracy with the human-review label-noise candidates removed (NOT a headline number)
+        lr_path = os.path.join(OUT if not PARTIAL else os.path.join(ROOT, "results", "phase3"), "label_review.json")
+        noisy = {x["key"] for x in json.load(open(lr_path))["dev"]} if os.path.exists(lr_path) else set()
+        keep = [i for i, k in enumerate(dev_keys) if k not in noisy]
+        excl = {name: sum(pol[name][i] == bool(ysup[i]) for i in keep) / len(keep)
+                for name in (sel_name, "bayes-ess_cal", f"{best_j} unwrapped", "J1 unwrapped (raw argmax, no node)")}
         # error analysis of the selected node on dev
         sel_adm = pol[sel_name]
         cats = {"retrieval_miss": [], "nei_accepted": [], "contradict_accepted": [], "support_rejected_gate": [],
@@ -493,7 +563,8 @@ def main() -> None:
                 "unparsed_judge_replies": sum(r["cond"][cond]["src"][j]["unparsed"] for r in dev + train for j in judges),
                 "missing_judge_calls": sum(bool(r["cond"][cond]["src"][j].get("missing")) for r in dev + train for j in judges)}
         report["conditions"][cond] = {"selected": sel_name, "cv_train": cv, "binary": tab, "vs_best_single_judge": vs_best,
-                                      "judge_train_accuracy": tr_acc, "error_analysis": {k: {"n": len(v), "keys": v} for k, v in cats.items()},
+                                      "judge_train_accuracy": tr_acc, "selective": {"selected": sel_mode, "bayes-ess_cal": ess_cal_mode},
+                                      "risk_coverage_dev": rc, "accuracy_excluding_label_review": {"n_excluded": len(dev) - len(keep), "acc": excl}, "error_analysis": {k: {"n": len(v), "keys": v} for k, v in cats.items()},
                                       "label_noise_candidates": suspects, "three_way": tab3, "safety_vs_unwrapped_J1": safety,
                                       "score_correlation_dev": corrm, "error_overlap_dev": errov, "gate": gate,
                                       "node_info": info,

@@ -199,6 +199,25 @@ class ThresholdLearner:
     def n(self, mode: str = "bayes") -> int:
         return self._n.get(mode, 0)
 
+    def band(self, mode: str = "bayes", target: float = 0.99, min_decided: float = 1.0) -> Tuple[float, float, float, float]:
+        """Selective mode: the abstain band with the widest coverage whose decided accuracy is >= ``target``.
+
+        Claims with eff < lo are rejected, eff >= hi accepted, everything in between abstains (HEDGE). Uses the same
+        decayed ledger as :meth:`cutoff`. Returns ``(lo, hi, coverage, accuracy)`` on the ledger; with no qualifying
+        band, ``(0.0, 1.001, 0.0, 1.0)`` (abstain on everything).
+        """
+        if mode not in self._t:
+            return (0.0, 1.0 + 1.0 / self.GRID, 0.0, 1.0)
+        G = 50                                               # coarse 0.02 grid keeps the search O(G^2)
+        t = [0.0] * G; f = [0.0] * G
+        for i in range(self.GRID + 1):
+            j = min(G - 1, i * G // (self.GRID + 1))
+            t[j] += self._t[mode][i]; f[j] += self._f[mode][i]
+        k = self._w[mode]                                    # bring weights to "latest = 1" scale
+        lo, hi, cov, acc = _band_search([x / k for x in t], [x / k for x in f], target, min_decided)
+        to_eff = lambda b: b * (self.GRID + 1) / G / self.GRID
+        return (to_eff(lo), to_eff(hi) if hi < G else 1.0 + 1.0 / self.GRID, cov, acc)
+
     def cutoff(self, mode: str = "bayes") -> float:
         """Current accuracy-maximising ACCEPT cut-off for ``mode``."""
         if self._n.get(mode, 0) < self.min_obs:
@@ -216,6 +235,30 @@ class ThresholdLearner:
                 best, best_i, d_best = correct, i, d
         self._cache[mode] = best_i / self.GRID
         return self._cache[mode]
+
+
+def _band_search(t: List[float], f: List[float], target: float, min_decided: float) -> Tuple[int, int, float, float]:
+    """Max-coverage (lo, hi) bin pair with decided accuracy >= target. Returns (lo, hi, coverage, accuracy)."""
+    n = len(t)
+    pt, pf = [0.0], [0.0]
+    for i in range(n):
+        pt.append(pt[-1] + t[i]); pf.append(pf[-1] + f[i])
+    tot = pt[-1] + pf[-1]
+    best = (0, n, 0.0, 1.0)                                  # decide nothing
+    if tot <= 0:
+        return best
+    for lo in range(n + 1):                                  # reject bins [0, lo), accept bins [hi, n)
+        rej_ok, rej_n = pf[lo], pt[lo] + pf[lo]
+        for hi in range(n, lo - 1, -1):
+            acc_ok, acc_n = pt[n] - pt[hi], (pt[n] - pt[hi]) + (pf[n] - pf[hi])
+            dec = rej_n + acc_n
+            if dec <= 0 or dec < min_decided:
+                continue
+            a = (rej_ok + acc_ok) / dec
+            cov = dec / tot
+            if a >= target and (cov > best[2] + 1e-12 or (abs(cov - best[2]) <= 1e-12 and a > best[3])):
+                best = (lo, hi, cov, a)
+    return best
 
 
 def _bayes_llr(s: float, r: float, variant: str) -> float:
