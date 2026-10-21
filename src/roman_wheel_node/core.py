@@ -38,9 +38,10 @@ __version__ = "1.0.0"   # package version (algorithm generation: v3)
 
 Result = Tuple[float, str, str]                    # (eff, opcode, status)
 Scores = Union[Mapping[str, float], Sequence[float]]
-BAYES_VARIANTS = ("hard", "soft", "logit")
+BAYES_VARIANTS = ("hard", "soft", "logit")          # + "tan", "ess", "stack" with dependence= (dependence.py)
 _R_MIN, _R_MAX = 0.01, 0.99                         # caps one source's log-odds at +/-4.6
 _BLOCK: Result = (0.0, "000", "BLOCK")
+_DEP_VARIANTS = ("tan", "ess", "stack")             # correlation-aware variants (see dependence.py)
 
 
 def clamp01(x: float) -> float:
@@ -239,7 +240,7 @@ def roman_wheel_node(a: float, scores: Scores, live: Optional[LiveWeights] = Non
                      mode: str = "geomean", log_path: Optional[str] = None, flip: bool = False,
                      threshold: Optional[ThresholdLearner] = None, variant: str = "hard",
                      prior: float = 0.5, assumed_reliability: float = 0.75,
-                     cutoff: Union[None, float, str] = None) -> Result:
+                     cutoff: Union[None, float, str] = None, dependence: Optional[object] = None) -> Result:
     """Gate, fuse and classify one claim.
 
     Args:
@@ -251,6 +252,9 @@ def roman_wheel_node(a: float, scores: Scores, live: Optional[LiveWeights] = Non
         flip: geomean/product only - invert sources with r < 0.5 (bayes always does this).
         threshold: optional :class:`ThresholdLearner`; if given, ACCEPT iff eff >= its learned
             cut-off for key ``mode`` (``"bayes:<variant>"`` for bayes).
+        dependence: a :class:`~roman_wheel_node.dependence.DependenceLearner` (or a replay snapshot). It is
+            required for the correlation-aware bayes variants ``"tan"``, ``"ess"`` and ``"stack"``, which use the
+            learner's own reliabilities and dependence model, so ``live`` is ignored for them.
         cutoff: used only when ``threshold`` is None. ``None`` (default): geomean/product use the
             fixed v1 bands (ACCEPT >= 0.35); bayes uses 0.5, the decision boundary of a posterior.
             A float sets a fixed ACCEPT cut-off with relative bands; ``"fixed"`` forces v1 bands.
@@ -271,6 +275,13 @@ def roman_wheel_node(a: float, scores: Scores, live: Optional[LiveWeights] = Non
         ws = {k: clamp01(v) for k, v in scores.items()}
         if any(v == 0.0 for v in ws.values()):
             result = _BLOCK                                # hard veto
+        elif mode == "bayes" and variant in _DEP_VARIANTS:
+            if dependence is None:
+                raise ValueError(f"variant {variant!r} needs dependence=DependenceLearner(...)")
+            p0 = min(1 - 1e-9, max(1e-9, prior))
+            z = _logit(p0) + dependence.llr(ws, variant)  # type: ignore[attr-defined]
+            eff = round(_sigmoid(z), 3)
+            result = (eff, *_decide(eff, threshold, key, 0.5 if cutoff is None else cutoff))
         elif mode == "bayes":
             p0 = min(1 - 1e-9, max(1e-9, prior))
             z = _logit(p0) + sum(_bayes_llr(ws[k], live.reliability(k) if live else assumed_reliability, variant)
@@ -319,18 +330,20 @@ def _fuse_v2(ws: Dict[str, float], live: Optional[LiveWeights], mode: str, flip:
 
 def give_feedback(scores: Mapping[str, float], truth: bool, live: Optional[LiveWeights] = None,
                   threshold: Optional[ThresholdLearner] = None, eff: Optional[float] = None,
-                  mode: str = "bayes", variant: str = "hard") -> None:
+                  mode: str = "bayes", variant: str = "hard", dependence: Optional[object] = None) -> None:
     """Close the loop once a claim's truth is known.
 
     Each source is marked right if its vote (score > 0.5) matched ``truth``; if ``threshold``
     and ``eff`` are given, the outcome is also added to the threshold ledger under the same
-    key the node uses. Both writes are append-only.
+    key the node uses; if ``dependence`` is given, the claim is added to its ledger. All writes are append-only.
     """
     if live is not None:
         for k, v in scores.items():
             live.observe(k, 1.0 if (clamp01(v) > 0.5) == bool(truth) else 0.0)
     if threshold is not None and eff is not None:
         threshold.record(eff, truth, f"bayes:{variant}" if mode == "bayes" else mode)
+    if dependence is not None:
+        dependence.record(scores, truth)  # type: ignore[attr-defined]
 
 
 if __name__ == "__main__":

@@ -4,11 +4,13 @@ import json, os, subprocess, sys
 import pytest
 
 from roman_wheel_node.bench import SCENARIOS, stream, run, run_one, to_json, to_text
+from roman_wheel_node.bench.generator import ALL_SCENARIOS, DEPENDENCE_SCENARIOS
 from roman_wheel_node.bench.generator import main as gen_main, oracle_llr
 from roman_wheel_node.bench.runner import R
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMMITTED = os.path.join(ROOT, "results", "benchmark.json")
+COMMITTED_DEP = os.path.join(ROOT, "results", "dependence", "benchmark.json")
 
 
 def test_six_standard_scenarios():
@@ -60,7 +62,7 @@ def test_generator_cli(tmp_path, capsys):
     c0 = next(stream(SCENARIOS["copycats"], 3, 1))
     assert len(lines) == 10 and first["scores"] == c0.scores and first["truth"] == c0.truth
     assert gen_main(["--list"]) == 0
-    assert set(json.loads(capsys.readouterr().out)) == set(SCENARIOS)
+    assert set(json.loads(capsys.readouterr().out)) == set(ALL_SCENARIOS)
 
 
 def test_output_identical_across_runs_and_worker_counts(tmp_path):
@@ -97,4 +99,57 @@ def test_committed_results_reproduce(key, seeds):
 def test_full_benchmark_byte_identical_to_committed():
     chk = subprocess.run([sys.executable, "-m", "roman_wheel_node.bench", "--seeds", "20",
                           "--check", os.path.join(ROOT, "results")], capture_output=True, text=True)
+    assert chk.returncode == 0, chk.stdout + chk.stderr
+
+
+# --- dependence scenarios ---------------------------------------------------------------------------
+def test_dependence_scenarios_registered_and_v1_specs_unchanged():
+    assert list(DEPENDENCE_SCENARIOS) == ["partial_corr", "two_clusters", "leader_switch"]
+    assert "groups" not in SCENARIOS["copycats"].spec() and SCENARIOS["copycats"].spec()["copy"]["leader"] == "lead"
+
+
+def test_leader_switch_schedule_and_marginals():
+    sc = DEPENDENCE_SCENARIOS["leader_switch"]
+    assert sc.true_accuracy(1499)["f1"] == pytest.approx(0.9 * 0.75 + 0.1 * 0.55)
+    assert sc.true_accuracy(1500)["f1"] == pytest.approx(0.9 * 0.60 + 0.1 * 0.55)
+    cs = list(stream(sc, 0))
+    agree = lambda a, b, part: sum((c.scores[a] > .5) == (c.scores[b] > .5) for c in part) / len(part)
+    assert agree("f1", "L1", cs[:1500]) > .85 and agree("f1", "L2", cs[1500:]) > .85
+    assert agree("f1", "L2", cs[:1500]) < .7
+
+
+def test_partial_corr_is_partially_correlated():
+    cs = list(stream(DEPENDENCE_SCENARIOS["partial_corr"], 0))
+    both_wrong = sum((c.scores["p1"] > .5) != c.truth and (c.scores["p2"] > .5) != c.truth for c in cs) / len(cs)
+    assert 0.12 < both_wrong < 0.20          # independence would give 0.09; full copying 0.3
+
+
+@pytest.mark.parametrize("key", list(DEPENDENCE_SCENARIOS))
+def test_dependence_oracle_is_a_proper_posterior(key):
+    cs = list(stream(DEPENDENCE_SCENARIOS[key], 1, 3000))
+    acc = sum((c.oracle_llr > 0) == c.truth for c in cs) / len(cs)
+    assert acc > 0.74
+    import math
+    # calibration of the oracle posterior: mean posterior ~ frequency of truth
+    p = [1 / (1 + math.exp(-c.oracle_llr)) for c in cs]
+    assert abs(sum(p) / len(p) - sum(c.truth for c in cs) / len(cs)) < 0.03
+
+
+@pytest.mark.skipif(not os.path.exists(COMMITTED_DEP), reason="committed dependence results not present")
+@pytest.mark.parametrize("key,seeds", [("copycats", [3]), ("cold_start", range(20)), ("leader_switch", [0])])
+def test_committed_dependence_results_reproduce(key, seeds):
+    res = json.load(open(COMMITTED_DEP))
+    assert res["config"]["seeds"] >= 20 and res["config"]["suite"] == "dependence"
+    pol = res["scenarios"][key]["policies"]
+    for s in seeds:
+        got = run_one(key, s, suite="dependence")
+        for p, metrics in got["policies"].items():
+            for m, v in metrics.items():
+                assert R(v) == pol[p][m]["per_seed"][s], (key, s, p, m)
+
+
+@pytest.mark.skipif(os.environ.get("RWN_FULL_BENCH") != "1", reason="set RWN_FULL_BENCH=1 (~70 s on 8 cores)")
+def test_full_dependence_benchmark_byte_identical_to_committed():
+    chk = subprocess.run([sys.executable, "-m", "roman_wheel_node.bench", "--seeds", "20", "--suite", "dependence",
+                          "--check", os.path.join(ROOT, "results", "dependence")], capture_output=True, text=True)
     assert chk.returncode == 0, chk.stdout + chk.stderr

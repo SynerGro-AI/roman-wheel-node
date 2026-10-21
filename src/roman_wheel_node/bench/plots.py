@@ -9,12 +9,32 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 SHOW = ["static-geomean", "live+flip+decay", "flip+decay+thr", "bayes-hard", "bayes-hard+thr", "oracle"]
+SHOW_DEP = ["bayes-hard", "bayes-hard+thr", "bayes-ess", "bayes-stack", "bayes-tan", "bayes-tan+thr", "oracle"]
 
 
 def plot_all(res: dict, out: str) -> List[str]:
-    paths = [_accuracy(res, out), _h2h(res, out), _calibration(res, out), _tracking(res, out)]
+    if res["config"].get("suite", "standard") == "dependence":
+        paths = [_accuracy(res, out, SHOW_DEP, "dep_accuracy.png"), _dep_h2h(res, out),
+                 _calibration(res, out, "dep_calibration.png")]
+    else:
+        paths = [_accuracy(res, out), _h2h(res, out), _calibration(res, out), _tracking(res, out)]
     plt.close("all")
     return paths
+
+
+def _dep_h2h(res, out):
+    sc = res["scenarios"]; fig, ax = plt.subplots(figsize=(14, 5))
+    pairs = [(h["a"], h["b"]) for h in next(iter(sc.values()))["head_to_head"]]
+    w = 0.8 / len(pairs)
+    for j, (a, b) in enumerate(pairs):
+        m = [100 * d["head_to_head"][j]["a_minus_b"]["mean"] for d in sc.values()]
+        e = [100 * d["head_to_head"][j]["a_minus_b"]["ci95"] for d in sc.values()]
+        ax.bar([i + (j - (len(pairs) - 1) / 2) * w for i in range(len(sc))], m, w, yerr=e, capsize=3, label=f"{a} − {b}")
+    ax.axhline(0, color="k", lw=.8)
+    ax.set_xticks(range(len(sc))); ax.set_xticklabels([d["spec"]["title"] for d in sc.values()], rotation=20, ha="right", fontsize=8)
+    ax.set_ylabel("accuracy difference (pts)"); ax.grid(axis="y", alpha=.3); ax.legend(fontsize=8)
+    ax.set_title("Correlation-aware variants vs naive Bayes on identical streams (paired, 95% CI)")
+    fig.tight_layout(); p = os.path.join(out, "dep_paired.png"); fig.savefig(p, dpi=120); return p
 
 
 def _grid(n):
@@ -26,12 +46,13 @@ def _grid(n):
     return fig, axes.flat
 
 
-def _accuracy(res, out):
+def _accuracy(res, out, show=SHOW, name="bench_accuracy.png"):
+    SHOW = show
     sc = res["scenarios"]; fig, axes = _grid(len(sc))
     for ax, (k, d) in zip(axes, sc.items()):
         m = [100 * d["policies"][p]["accuracy"]["mean"] for p in SHOW]
         e = [100 * d["policies"][p]["accuracy"]["ci95"] for p in SHOW]
-        ax.bar(range(len(SHOW)), m, yerr=e, capsize=3, color=["#9aa"] + ["#2a5d9f"] * 4 + ["#7a7"])
+        ax.bar(range(len(SHOW)), m, yerr=e, capsize=3, color=["#9aa"] + ["#2a5d9f"] * (len(SHOW) - 2) + ["#7a7"])
         ax.axhline(100 * d["ceiling"], color="#c0392b", ls="--", lw=1.2, label="Bayes-optimal ceiling")
         ax.axhline(90, color="#555", ls=":", lw=1, label="90%")
         for i, v in enumerate(m):
@@ -41,7 +62,7 @@ def _accuracy(res, out):
         ax.grid(axis="y", alpha=.3)
     axes[0].legend(fontsize=7, loc="lower right"); axes[0].set_ylabel("correct calls (%)")
     fig.suptitle(f"Accuracy, mean and 95% CI over {res['config']['seeds']} seeds")
-    fig.tight_layout(); p = os.path.join(out, "bench_accuracy.png"); fig.savefig(p, dpi=120); return p
+    fig.tight_layout(); p = os.path.join(out, name); fig.savefig(p, dpi=120); return p
 
 
 def _h2h(res, out):
@@ -60,10 +81,11 @@ def _h2h(res, out):
     fig.tight_layout(); p = os.path.join(out, "bench_product_vs_geomean.png"); fig.savefig(p, dpi=120); return p
 
 
-def _calibration(res, out):
+def _calibration(res, out, name="bench_calibration.png"):
     sc = res["scenarios"]; fig, axes = _grid(len(sc))
     styles = {"bayes-hard": ("#2a5d9f", "o"), "bayes-soft": ("#8e44ad", "s"),
-              "live+flip+decay": ("#e67e22", "^"), "oracle": ("#27ae60", "d")}
+              "live+flip+decay": ("#e67e22", "^"), "oracle": ("#27ae60", "d"),
+              "bayes-tan": ("#c0392b", "v"), "bayes-ess": ("#8e44ad", "s"), "bayes-stack": ("#e67e22", "^")}
     for ax, (k, d) in zip(axes, sc.items()):
         ax.plot([0, 1], [0, 1], color="#999", lw=1, ls="--")
         for p, c in d["eff_calibration"].items():
@@ -74,7 +96,7 @@ def _calibration(res, out):
         ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.set_title(d["spec"]["title"], fontsize=10)
         ax.set_xlabel("mean eff in bin"); ax.set_ylabel("fraction actually true"); ax.legend(fontsize=7); ax.grid(alpha=.3)
     fig.suptitle("Calibration of eff (pooled over seeds, bins with >= 20 claims). Only bayes eff is meant to be a probability")
-    fig.tight_layout(); p = os.path.join(out, "bench_calibration.png"); fig.savefig(p, dpi=120); return p
+    fig.tight_layout(); p = os.path.join(out, name); fig.savefig(p, dpi=120); return p
 
 
 def _tracking(res, out):

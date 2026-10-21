@@ -14,7 +14,8 @@ from multiprocessing import Pool
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..core import LiveWeights, ThresholdLearner, give_feedback, roman_wheel_node
-from .generator import SCENARIOS, Scenario, stream
+from ..dependence import DependenceLearner
+from .generator import ALL_SCENARIOS, DEPENDENCE_SCENARIOS, SCENARIOS, Scenario, stream
 
 BENCH_VERSION = 1
 ECE_BINS = 10
@@ -40,6 +41,27 @@ HEAD_TO_HEAD = [("static-geomean", "static-product"),
                 ("live+flip+decay", "live+flip+decay-product"),
                 ("flip+decay+thr", "flip+decay+thr-product")]
 CALIBRATED = ["bayes-hard", "bayes-soft", "live+flip+decay", "oracle"]   # eff calibration (ECE) reported for these
+
+# ---- dependence suite (correlation-aware combiners); the standard suite above is frozen -------------
+# live ledger "dep" = DependenceLearner(half_life=150); the variant decides which combiner reads it.
+DEP_POLICIES: Dict[str, Tuple[Optional[str], dict, bool]] = {
+    "bayes-hard":     ("150", {"mode": "bayes", "variant": "hard"}, False),
+    "bayes-hard+thr": ("150", {"mode": "bayes", "variant": "hard"}, True),
+    "bayes-tan":      ("dep", {"mode": "bayes", "variant": "tan"}, False),
+    "bayes-ess":      ("dep", {"mode": "bayes", "variant": "ess"}, False),
+    "bayes-stack":    ("dep", {"mode": "bayes", "variant": "stack"}, False),
+    "bayes-tan+thr":  ("dep", {"mode": "bayes", "variant": "tan"}, True),
+    "oracle":         ("oracle", {}, False),
+}
+DEP_HEAD_TO_HEAD = [("bayes-tan", "bayes-hard"), ("bayes-ess", "bayes-hard"), ("bayes-stack", "bayes-hard"),
+                    ("bayes-tan", "bayes-ess")]
+DEP_CALIBRATED = ["bayes-hard", "bayes-tan", "bayes-ess", "bayes-stack", "oracle"]
+SUITES = {
+    "standard":   dict(policies=POLICIES, h2h=HEAD_TO_HEAD, calibrated=CALIBRATED, scenarios=SCENARIOS,
+                       labels=("geomean", "product")),
+    "dependence": dict(policies=DEP_POLICIES, h2h=DEP_HEAD_TO_HEAD, calibrated=DEP_CALIBRATED, scenarios=ALL_SCENARIOS,
+                       labels=("a", "b")),
+}
 
 # two-sided 95% Student-t critical values
 _T95 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
@@ -87,12 +109,15 @@ def _calib(effs: List[float], truth: List[bool]) -> Tuple[float, float, List[Lis
     return ece, brier, bins
 
 
-def run_one(key: str, seed: int) -> dict:
-    """Run every policy on one (scenario, seed) stream. Returns raw per-run metrics."""
-    sc = SCENARIOS[key]
+def run_one(key: str, seed: int, suite: str = "standard") -> dict:
+    """Run every policy of ``suite`` on one (scenario, seed) stream. Returns raw per-run metrics."""
+    cfg = SUITES[suite]
+    POLICIES, CALIBRATED = cfg["policies"], cfg["calibrated"]
+    sc = cfg["scenarios"][key]
     with tempfile.TemporaryDirectory() as tmp:
         lws = {"none": LiveWeights(os.path.join(tmp, "w_none.jsonl"), half_life=None),
                "150": LiveWeights(os.path.join(tmp, "w_150.jsonl"), half_life=150)}
+        dep = DependenceLearner(os.path.join(tmp, "dep.jsonl"), half_life=150) if suite == "dependence" else None
         tl = ThresholdLearner(os.path.join(tmp, "thr.jsonl"), half_life=500)
         acc = {p: [] for p in POLICIES}
         effs = {p: [] for p in CALIBRATED}
@@ -112,6 +137,9 @@ def run_one(key: str, seed: int) -> dict:
                     z = max(-700.0, min(700.0, c.oracle_llr))
                     eff = 1.0 / (1.0 + math.exp(-z))
                     accepted = c.oracle_llr > 0
+                elif lw == "dep":
+                    eff, _, s = roman_wheel_node(1, c.scores, None, threshold=tl if thr else None, dependence=dep, **kw)
+                    accepted = s == "ACCEPT"
                 else:
                     eff, _, s = roman_wheel_node(1, c.scores, lws.get(lw), threshold=tl if thr else None, **kw)
                     accepted = s == "ACCEPT"
@@ -125,6 +153,8 @@ def run_one(key: str, seed: int) -> dict:
                                   mode=kw.get("mode", "geomean"), variant=kw.get("variant", "hard"))
             for lw in lws.values():
                 give_feedback(c.scores, c.truth, live=lw)
+            if dep is not None:
+                give_feedback(c.scores, c.truth, dependence=dep)
     half = sc.n // 2
     out = {"policies": {}, "reliability_mae": {h: {"mean_over_run": st.fmean(v), "final": v[-1]} for h, v in mae.items()},
            "eff_calibration": {}, "tracking": track}
@@ -135,6 +165,9 @@ def run_one(key: str, seed: int) -> dict:
         if sc.sources[0].drift:
             k = sc.sources[0].drift[0]
             m["post_drift_accuracy"] = _rates(acc[p][k:], truth[k:])["accuracy"]
+        sw = [g.switch[0] for g in sc.groups if g.switch]
+        if sw:
+            m["post_switch_accuracy"] = _rates(acc[p][sw[0]:], truth[sw[0]:])["accuracy"]
         out["policies"][p] = m
     for p in CALIBRATED:
         ece, brier, bins = _calib(effs[p], truth)
@@ -143,22 +176,25 @@ def run_one(key: str, seed: int) -> dict:
 
 
 def _job(args):
-    return args, run_one(*args)
+    return args[:2], run_one(*args)
 
 
 def ceiling(key: str, n_claims: int = 200_000, seed: int = 12345) -> float:
     """Large-sample Bayes-optimal accuracy over ceil(n_claims / n) complete streams (seeds 12345, 12346, ...),
     so time-varying scenarios (drift) are weighted exactly like a real run."""
-    sc = SCENARIOS[key]
+    sc = ALL_SCENARIOS[key]
     k = max(1, math.ceil(n_claims / sc.n))
     ok = sum((c.oracle_llr > 0) == c.truth for j in range(k) for c in stream(sc, seed + j))
     return ok / (k * sc.n)
 
 
 def run(seeds: int = 20, scenarios: Optional[Sequence[str]] = None, ceiling_claims: int = 200_000,
-        jobs: Optional[int] = None) -> dict:
-    keys = list(scenarios or SCENARIOS)
-    tasks = [(k, s) for k in keys for s in range(seeds)]
+        jobs: Optional[int] = None, suite: str = "standard") -> dict:
+    cfg = SUITES[suite]
+    POLICIES, HEAD_TO_HEAD, CALIBRATED = cfg["policies"], cfg["h2h"], cfg["calibrated"]
+    la, lb = cfg["labels"]
+    keys = list(scenarios or cfg["scenarios"])
+    tasks = [(k, s, suite) for k in keys for s in range(seeds)]
     jobs = jobs or os.cpu_count() or 1
     if jobs > 1:
         with Pool(min(jobs, len(tasks))) as pool:
@@ -171,17 +207,19 @@ def run(seeds: int = 20, scenarios: Optional[Sequence[str]] = None, ceiling_clai
            "ceiling_claims": ceiling_claims, "ceiling_seed": 12345, "ece_bins": ECE_BINS,
            "policies": {p: {"live": lw, "kwargs": kw, "learned_threshold": thr} for p, (lw, kw, thr) in POLICIES.items()}},
            "scenarios": {}}
+    if suite != "standard":
+        res["config"]["suite"] = suite
     for k in keys:
         runs = [raw[(k, s)] for s in range(seeds)]
-        d = {"spec": SCENARIOS[k].spec(), "ceiling": R(ceils[k]), "policies": {}, "head_to_head": [],
+        d = {"spec": ALL_SCENARIOS[k].spec(), "ceiling": R(ceils[k]), "policies": {}, "head_to_head": [],
              "reliability_mae": {}, "eff_calibration": {}, "tracking_seed0": runs[0]["tracking"]}
         for p in POLICIES:
             d["policies"][p] = {m: ci([r["policies"][p][m] for r in runs]) for m in runs[0]["policies"][p]}
         for g, pr in HEAD_TO_HEAD:
             diffs = [r["policies"][g]["accuracy"] - r["policies"][pr]["accuracy"] for r in runs]
-            d["head_to_head"].append({"geomean": g, "product": pr, "geomean_minus_product": ci(diffs),
-                                      "geomean_wins": sum(x > 0 for x in diffs), "ties": sum(x == 0 for x in diffs),
-                                      "product_wins": sum(x < 0 for x in diffs)})
+            d["head_to_head"].append({la: g, lb: pr, f"{la}_minus_{lb}": ci(diffs),
+                                      f"{la}_wins": sum(x > 0 for x in diffs), "ties": sum(x == 0 for x in diffs),
+                                      f"{lb}_wins": sum(x < 0 for x in diffs)})
         for h in ("150", "none"):
             d["reliability_mae"][h] = {m: ci([r["reliability_mae"][h][m] for r in runs]) for m in ("mean_over_run", "final")}
         for p in CALIBRATED:
@@ -198,7 +236,8 @@ def to_json(res: dict) -> str:
 
 
 def to_text(res: dict) -> str:
-    L = [f"Roman Wheel Node benchmark v{res['bench_version']}  |  {res['config']['seeds']} seeds "
+    suite = res["config"].get("suite", "standard")
+    L = [f"Roman Wheel Node benchmark v{res['bench_version']}{'' if suite == 'standard' else ' [' + suite + ' suite]'}  |  {res['config']['seeds']} seeds "
          f"(0..{res['config']['seeds'] - 1})  |  mean +/- 95% CI (Student t)", ""]
     pct = lambda x: f"{100 * x['mean']:5.1f} +/-{100 * x['ci95']:4.1f}"
     for k, d in res["scenarios"].items():
@@ -210,12 +249,21 @@ def to_text(res: dict) -> str:
                     f"{100 * m['train_accuracy']['mean']:6.1f}% {100 * m['test_accuracy']['mean']:6.1f}%")
             if "post_drift_accuracy" in m:
                 line += f"  post-drift {100 * m['post_drift_accuracy']['mean']:5.1f}%"
+            if "post_switch_accuracy" in m:
+                line += f"  post-switch {100 * m['post_switch_accuracy']['mean']:5.1f}%"
             L.append(line)
-        L.append("  product vs geomean (paired, same streams): accuracy difference geomean - product")
-        for h in d["head_to_head"]:
-            x = h["geomean_minus_product"]
-            L.append(f"    {h['geomean']:18} vs {h['product']:26} {100 * x['mean']:+6.2f} +/-{100 * x['ci95']:4.2f} pts"
-                     f"   wins g/tie/p = {h['geomean_wins']}/{h['ties']}/{h['product_wins']}")
+        if res["config"].get("suite", "standard") == "standard":
+            L.append("  product vs geomean (paired, same streams): accuracy difference geomean - product")
+            for h in d["head_to_head"]:
+                x = h["geomean_minus_product"]
+                L.append(f"    {h['geomean']:18} vs {h['product']:26} {100 * x['mean']:+6.2f} +/-{100 * x['ci95']:4.2f} pts"
+                         f"   wins g/tie/p = {h['geomean_wins']}/{h['ties']}/{h['product_wins']}")
+        else:
+            L.append("  paired comparisons (same streams): accuracy difference a - b")
+            for h in d["head_to_head"]:
+                x = h["a_minus_b"]
+                L.append(f"    {h['a']:18} vs {h['b']:18} {100 * x['mean']:+6.2f} +/-{100 * x['ci95']:4.2f} pts"
+                         f"   wins a/tie/b = {h['a_wins']}/{h['ties']}/{h['b_wins']}")
         r = d["reliability_mae"]
         L.append(f"  learned-reliability error |r - true accuracy| (mean over sources):"
                  f" half_life=150: run-avg {r['150']['mean_over_run']['mean']:.3f}, final {r['150']['final']['mean']:.3f};"

@@ -37,6 +37,7 @@ from types import MappingProxyType
 from typing import Callable, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple, Union
 
 from .core import LiveWeights, ThresholdLearner, clamp01, roman_wheel_node
+from .dependence import DEP_VARIANTS, FrozenDependence, votes_of
 
 __all__ = ["Claim", "Decision", "ClaimTrace", "replay", "ReplayReport", "TamperError"]
 
@@ -123,10 +124,11 @@ def _decide(rec: dict) -> Tuple[float, str, str]:
     """Recompute a decision purely from a logged record."""
     live = _Frozen(rec["reliability"]) if rec["reliability"] is not None else None
     thr = _Frozen(cutoff=rec["cutoff"], hedge_width=rec["hedge_width"]) if rec["learned_cutoff"] else None
+    dep = FrozenDependence(rec["dependence_model"]) if rec.get("dependence_model") is not None else None
     return roman_wheel_node(rec["a_eff"], rec["scores"], live, mode=rec["mode"], flip=rec["flip"],
                             threshold=thr, variant=rec["variant"], prior=rec["prior"],
                             assumed_reliability=rec["assumed_reliability"],
-                            cutoff=None if rec["learned_cutoff"] else rec["cutoff"])
+                            cutoff=None if rec["learned_cutoff"] else rec["cutoff"], dependence=dep)
 
 
 def _admit(status: str, allow_hedge: bool) -> Tuple[bool, str]:
@@ -146,6 +148,8 @@ class ClaimTrace:
         live: learned reliabilities (:class:`LiveWeights`), or None.
         mode, flip, variant, prior, assumed_reliability, cutoff: passed to ``roman_wheel_node``.
         threshold: optional :class:`ThresholdLearner` (its current cut-off is logged with each call).
+        dependence: optional :class:`~roman_wheel_node.dependence.DependenceLearner`, required for the variants
+            ``"ess"``, ``"tan"`` and ``"stack"``. The exact model snapshot used is logged with each call.
         allow_hedge: admit HEDGE results into context (default False).
         hmac_key: optional secret; makes the chain an HMAC chain.
         clock: timestamp source (injectable for tests).
@@ -155,8 +159,12 @@ class ClaimTrace:
                  flip: bool = False, threshold: Optional[ThresholdLearner] = None, variant: str = "hard",
                  prior: float = 0.5, assumed_reliability: float = 0.75,
                  cutoff: Union[None, float, str] = None, allow_hedge: bool = False,
-                 hmac_key: Optional[bytes] = None, clock: Callable[[], float] = time.time) -> None:
+                 hmac_key: Optional[bytes] = None, clock: Callable[[], float] = time.time,
+                 dependence: Optional[object] = None) -> None:
+        if mode == "bayes" and variant in DEP_VARIANTS and dependence is None:
+            raise ValueError(f"variant {variant!r} needs dependence=DependenceLearner(...)")
         self._log_path = log_path
+        self._dep = dependence if (mode == "bayes" and variant in DEP_VARIANTS) else None
         self._live, self._threshold = live, threshold
         self._cfg = dict(mode=mode, flip=bool(flip), variant=variant, prior=float(prior),
                          assumed_reliability=float(assumed_reliability), allow_hedge=bool(allow_hedge))
@@ -226,6 +234,9 @@ class ClaimTrace:
                "reliability": rel, "learned_cutoff": learned,
                "cutoff": self._threshold.cutoff(key) if learned else self._fixed_cutoff,
                "hedge_width": self._threshold.hedge_width if learned else 0.15, **self._cfg}
+        if self._dep is not None:
+            voting = [k for k, v in votes_of(sc).items() if v]
+            rec["dependence_model"] = self._dep.model(voting, self._cfg["variant"])  # type: ignore[attr-defined]
         eff, op, status = _decide(rec)
         admitted, reason = _admit(status, self._cfg["allow_hedge"])
         if not parents_ok:
@@ -309,7 +320,10 @@ def replay(log_path: str, hmac_key: Optional[bytes] = None) -> ReplayReport:
         parents_ok = all(p in by_id for p in rec["parents"])
         if parents_ok != rec["parents_ok"] or rec["a_eff"] != (rec["a"] if parents_ok else 0):
             raise TamperError(f"record {n}: parent admission inconsistent with trace")
-        eff, op, status = _decide(rec)
+        try:
+            eff, op, status = _decide(rec)
+        except (ValueError, KeyError, TypeError) as e:
+            raise TamperError(f"record {n}: inputs cannot be re-evaluated ({e})") from e
         admitted, reason = _admit(status, rec["allow_hedge"])
         if not parents_ok:
             reason = "parent_not_admitted"
