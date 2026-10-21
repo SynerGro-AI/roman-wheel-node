@@ -1,5 +1,8 @@
 # Phase 3 results: SciFact through the Roman Wheel Node
 
+Sections up to "Spend" are the Phase 3b run (commit f70cc79, `scifact_p3b.txt`). `scifact.txt`/`scifact.json` are now the
+Phase 3c re-run with the strict verifier J11 (last section).
+
 Protocol: 350 SciFact train claims (stratified, hashed order) were used for every learned quantity: calibration
 (isotonic), reliabilities, dependence, cutoff, model selection (5-fold CV), abstain bands and LTT margins. Reporting is
 on all 300 dev claims, used once. Binary task: SUPPORT vs (CONTRADICT or NEI); 176 dev claims are unsupported.
@@ -54,4 +57,22 @@ condition, so coverage is ≈ 0 and nothing is accepted. This is the sample-size
 claims (sensitivity only): gold node 93.5%, rv3 node 89.3%, rv3 ess_cal 89.7%, rv3 J4 87.6%.
 
 ## Spend
-$80.82 of the $100 cap (`phase3/cache/spend.jsonl`), all responses cached.
+Phase 3b: $80.82. Phase 3c: +$12.81 (J11 1,300 calls, J12 47 calls) → **$93.63 of the $100 cap** (`phase3/cache/spend.jsonl`).
+
+## Phase 3c: strict proof verifier J11 (prompt V, grok-4.20 reasoning), selection on train CV only
+| | gold before → after | rv3 before → after |
+|---|---|---|
+| train-CV, no verifier → J11 as source | .9114 → .9143 | .8886 → .8914 |
+| train-CV with J11 hard veto | .754 | .797 (so the veto is OFF) |
+| J11 verified-proof rate on train S / C / NEI | .42 / .013 / .015 | .55 / .027 / .038 |
+| selected node, dev accuracy | 91.3 (bayes-logit) → 90.3 [87.0, 93.7] (bayes-ess) | 87.3 → 87.3 [83.3, 91.0] |
+| bayes-ess_cal, dev accuracy | 91.0 → 91.3 | 87.7 → 87.3 |
+| false accepts of 176, selected node | 6 → 8 | 12 → 12 |
+| false accepts, bayes-ess_cal | 7 → 7 | 16 → 11 |
+| node + J11 veto: accuracy / false accepts | 77.3% / 1 (0.6%) | 78.7% / 4 (2.3%) |
+| proof-or-NOT_SURE (dev): coverage, FA/accepted (upper) | 82.3%, 1/58 (7.92%) | 86.0%, 4/68 (12.96%) |
+| selective, zero-error target (dev) | 0/56 (5.21%) → 0/47 (6.18%) | none → none (ess_cal: 0/12, 22.1%) |
+| NEI claims accepted (selected node errors) | – | 10 → 10 |
+
+J11 alone: gold 82.7% (calibrated) with 0.6% false accepts; rv3 84.7%. Its error correlation with the other reasoning
+judges is high (phi .44–.58 on rv3), so the dependence-aware combiner gives it little extra weight.

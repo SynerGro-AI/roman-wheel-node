@@ -297,6 +297,8 @@ Held-out SciFact dev (300 claims; everything learned on 350 train claims), binar
 On retrieved evidence the node ties the best judges. It does not reach 90%. Its gain there is the false-accept rate,
 which falls by 59%. Selective mode on gold evidence decides 56/300 claims with 0 errors (95% upper bound 5.21%). A
 risk-controlled ≤ 1% NOT_SURE band cannot be certified with 350 calibration claims, so the node abstains (fails closed).
+Phase 3c added a strict proof verifier (J11). As a hard veto it cuts rv3 false accepts from 12 to 4 but costs about 9
+accuracy points, so train CV leaves it off. As a source it leaves rv3 at 87.3%. See SAFETY.md §b5.
 Details: [results/phase3/RESULTS.md](results/phase3/RESULTS.md), `results/phase3/scifact.txt`, and the charts in `results/phase3/`
 (`scifact_accuracy.png`, `scifact_false_accept.png`, `scifact_correlation.png`, `risk_coverage.png`).
 
@@ -309,7 +311,7 @@ Details: [results/phase3/RESULTS.md](results/phase3/RESULTS.md), `results/phase3
 * `results/`: the committed 20-seed standard suite (frozen). `results/dependence/`: the 20-seed dependence suite.
 * `phase3/`: the Phase 3 SciFact pipeline (retrieval, NLI, xAI judges, evaluation, reports; not part of the package).
 * `SAFETY.md`: guarantees by construction (with tests) vs measured guarantees.
-* `tests/`: 164 tests (`PYTHONPATH=src python -m pytest -q`: 162 pass; two full-benchmark byte checks run only with `RWN_FULL_BENCH=1`).
+* `tests/`: 165 tests (`PYTHONPATH=src python -m pytest -q`: 163 pass; two full-benchmark byte checks run only with `RWN_FULL_BENCH=1`).
 * `benchmarks/train_sim.py` and `benchmarks/results_v1.0.0.*`: the original demo and the 1.0.0 five-seed results, kept for history.
 
 ## Next steps

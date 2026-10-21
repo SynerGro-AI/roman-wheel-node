@@ -96,3 +96,10 @@ def test_quote_gate_is_byte_exact():
     assert not quote_verbatim("Aspirin irreversibly inhibits COX-1 in platelets!", [d], hashes)  # one byte
     assert not quote_verbatim("COX-1", [d], hashes)                                             # too short
     assert not quote_verbatim("Aspirin irreversibly inhibits COX-1 in platelets.", [d], set())  # sentence not in corpus
+
+
+def test_verifier_prompts_parse_quote_and_probabilities():
+    p, q = parse_judge("V", '{"quote": "Aspirin inhibits COX-1.", "support": 0.9, "contradict": 0.05, "nei": 0.05}')
+    assert q == "Aspirin inhibits COX-1." and abs(p["SUPPORT"] - 0.9) < 1e-9
+    p, q = parse_judge("W", 'Step 2: support: partial\n{"quote": "x y z", "support": 0.1, "contradict": 0.0, "nei": 0.9}')
+    assert q == "x y z" and max(p, key=p.get) == "NEI"

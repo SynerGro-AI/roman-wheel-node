@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased: Phase 3c step 1, strict proof verifier
+- J11: a strict proof verifier (prompt V: quote first, no extrapolation; the quote must pass the byte-exact gate),
+  usable as a node source, a hard ACCEPT veto (`node_run(veto=...)`), or ACCEPT-only-with-proof → NOT_SURE.
+  `phase3/p3c_select.py` chooses on train CV only; `judges.py --split`.
+- Result: it is too strict for SciFact. As a veto it cuts false accepts (rv3 12 → 4) but costs about 9 accuracy points,
+  so it is off by CV. As a source it adds +0.3 CV points; rv3 dev stays at 87.3%. Spend $93.63 of $100.
+- `phase3/STEP2_PLAN.md`: scoping for a larger certification set (datasets, licences, costs, CP sample sizes).
+
 ## Unreleased: Phase 3 (SciFact) and SAFETY.md
 ### Added
 - `SAFETY.md`: guarantees by construction (fail-closed, NOT_SURE never accepted, zero-propagation, non-bypassable gate,

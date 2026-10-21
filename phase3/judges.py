@@ -49,6 +49,8 @@ JUDGES = {
     "J7": J("grok-4.6", "E", 4000, 1300, ("gold", "retrieved5", "rv3"), note="two-sided support-vs-refute"),
     "J9": J("grok-4.20-0309-reasoning", "G", 3000, 900, ("gold", "retrieved5", "rv3"), note="few-shot (10 train examples) + guidelines"),
     "J10": J("grok-4.20-0309-reasoning", "H", 3000, 900, ("rv3",), note="primary-abstract / NEI-focused"),
+    "J11": J("grok-4.20-0309-reasoning", "V", 3000, 900, ("gold", "rv3"), note="Phase 3c strict proof verifier (quote first)"),
+    "J12": J("grok-4.20-0309-reasoning", "W", 3500, 1100, (), note="Phase 3c component-wise verifier: dropped after 47 calls (measured $0.010/call, 2x the estimate; budget)"),
     "J8": J("grok-4.20-0309-non-reasoning", "A", 300, 75, ("gold",), temperature=1.0, samples=3,
             note="self-consistency: 3 samples at T=1, averaged"),
 }
@@ -111,6 +113,7 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--only", default="", help="comma-separated judge names to run (default: all)")
     ap.add_argument("--conds", default="", help="comma-separated conditions (default: all)")
+    ap.add_argument("--split", default="", help="train or dev: only claims of that split")
     ap.add_argument("--shard", default="0/1", help="i/n: only claims whose sha256(key) mod n == i (parallel runs)")
     args = ap.parse_args()
     feats = json.load(open(os.path.join(CACHE, "local_features.json")))
@@ -122,6 +125,8 @@ def main() -> None:
     todo = [j for j in jobs(feats, load_cond_files(), corpus, judges) if not j[3].cached(j[4], j[5])]
     if args.conds:
         todo = [j for j in todo if j[1] in args.conds.split(",")]
+    if args.split:
+        todo = [j for j in todo if j[0].startswith(args.split)]
     si, sn = (int(x) for x in args.shard.split("/"))
     todo = [j for j in todo if int(hashlib.sha256(j[0].encode()).hexdigest(), 16) % sn == si]
     todo.sort(key=lambda j: (j[2] == "J2", j[0], j[1], j[2]))     # cheap fixed-cost judges first, J2 (reasoning) last

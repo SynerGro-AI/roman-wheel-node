@@ -78,6 +78,12 @@ def text(R) -> str:
                     L.append(f"  {pol_:14s} alpha {al}: log-odds margin {v['margin_logodds']:.2f}; train OOF {t['errors']}/{t['decided']} err, UB {100 * t['upper95']:.2f}% "
                              f"-> dev coverage {100 * v['dev_coverage']:.1f}% ({v['dev_decided']}), errors {v['dev_errors_decided']}, "
                              f"UB95 {100 * v['dev_error_rate_upper95_clopper_pearson']:.2f}%, FA {v['dev_false_accepts']}/{v['dev_accepted']}, {v['dev_status_counts']}")
+        for nm, v in C.get("p3c_proof_or_not_sure", {}).items():
+            for part in ("train_oof", "dev"):
+                x = v[part]
+                L.append(f"  Phase 3c {nm} [{part}]: coverage {100 * x['coverage']:.1f}% ({x['decided']}), errors {x['errors_decided']}, "
+                         f"UB95 {100 * x['error_rate_upper95_clopper_pearson']:.2f}%, false accepts {x['false_accepts']}/{x['accepted']} "
+                         f"(UB95 {100 * x['false_accept_upper95_of_accepted']:.2f}%), {x['status_counts']}")
         if C.get("accuracy_excluding_label_review"):
             x = C["accuracy_excluding_label_review"]
             L.append(f"Sensitivity, {x['n_excluded']} label_review dev claims excluded (not a headline): "

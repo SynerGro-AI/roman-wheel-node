@@ -41,7 +41,8 @@ Setup: SciFact dev, n = 300 held-out claims (124 SUPPORT, 64 CONTRADICT, 112 NEI
 so 176 claims are unsupported. Every reliability, dependence estimate, calibration, cutoff and abstain band was learned
 on 350 SciFact **train** claims (5-fold CV for selection). Dev was used once, for reporting. CIs are 95% bootstrap
 (10,000 resamples), "upper" is the one-sided 95% Clopper-Pearson bound, and paired tests are exact McNemar.
-Source: `results/phase3/scifact.txt` / `scifact.json`, chart `results/phase3/risk_coverage.png`.
+Source for b1–b4: the Phase 3b run (commit f70cc79), kept as `results/phase3/scifact_p3b.txt`. `results/phase3/scifact.txt` / `scifact.json`
+now hold the Phase 3c re-run with the strict verifier J11 added (section b5). Chart: `results/phase3/risk_coverage.png` (3c run).
 
 ### b1. Decide-everything mode (no abstention)
 
@@ -103,6 +104,34 @@ The claim to certify is: decided-claim error ≤ α with 95% confidence, calibra
   this run is reproducible, but a re-run against live models is not guaranteed to match.
 * 1 judge call (dev:971, J5, gold) timed out repeatedly and is treated as an abstaining (uniform) vote.
 * The binary task merges CONTRADICT and NEI. The 3-way accuracy is lower (rv3: node 79.7% [75.0, 84.0], best judge J10 81.7%).
+
+### b5. Phase 3c: strict proof verifier (J11), aimed at NEI claims accepted as supported
+
+J11 (grok-4.20 reasoning, prompt V) must copy one evidence sentence and answer PROVEN only when that quote directly
+entails the claim, with the same population, outcome and direction and no hedge. A PROVEN verdict also needs the quote
+to pass the byte-exact gate. Prompt and use were chosen on train CV only (`phase3/p3c_select.py`,
+`results/phase3/p3c_selection.json`). A second prompt (W) was dropped after 47 calls for budget.
+
+* **J11 is very strict.** On train it gives a verified proof for only 42% (gold) / 55% (rv3) of SUPPORT claims, but for
+  just 1.5% / 3.8% of NEI claims. SciFact labels paraphrased or generalised findings as SUPPORT, so strict entailment
+  under-accepts.
+* **As a hard ACCEPT veto it fails the accuracy test.** Train CV: gold .911 → .754, rv3 .889 → .797, so the veto is
+  OFF in the headline policy. Dev confirms it: with the veto, false accepts are rv3 4/176 (2.3%, against 12) and gold
+  1/176 (0.6%), but accuracy falls to 78.7% / 77.3%.
+* **As an extra source it changes little.** Train CV +0.3 pts. On dev, rv3 node 87.3% [83.3, 91.0] (unchanged), false
+  accepts 29 → 12 (unchanged), and still 10 NEI claims accepted. Gold: train CV now selects bayes-ess with J11, at
+  90.3% [87.0, 93.7] and 19 → 8 false accepts (p = 0.0034). Before J11, bayes-logit scored 91.3%, and bayes-ess_cal
+  still scores 91.3% [88.0, 94.3].
+* **"ACCEPT only with proof, otherwise NOT_SURE"** (fail-closed; node rejects stay REJECT): on rv3 dev, coverage 86.0%,
+  4 false accepts among 68 accepted (upper 12.96%), and 30 errors among 258 decided (mostly supported claims the node
+  rejected). On gold dev, 1 false accept among 58 accepted (upper 7.92%).
+* **Selective bands with J11 (3c run):** on gold, the selected node at target 0.99/1.00 decides 47/300 (15.7%) with 0
+  errors (upper 6.18%), and ess_cal at target 1.00 decides 63 with 1 error (upper 7.31%). On rv3, no band reaches 98% or
+  higher at usable coverage (ess_cal decides 12 claims with 0 errors, upper 22.1%). LTT at α ≤ 5% still certifies nothing.
+
+Net: a strict verifier makes accepted claims cleaner (the false-accept rate falls about 5×) at the cost of rejecting
+about half of the true supports. It does not raise accuracy on SciFact, and it does not change the certification
+picture. That still needs the larger, cleaner test set scoped in `phase3/STEP2_PLAN.md`.
 
 **Bottom line.** By construction (a), nothing unverified and nothing NOT_SURE is ever emitted as verified. Measured (b),
 when the node does decide on held-out data its error rate is bounded at about 5% (gold evidence, 19% coverage) to

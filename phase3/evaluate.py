@@ -31,6 +31,8 @@ from features import CACHE, DATA, evidence_text                                 
 from judges import COND_FILES, CONDITIONS, JUDGES, _register_fewshot, load_cond_files, selected  # noqa: E402
 
 # judge calls that timed out on every retry (180 s x 5); listed explicitly so nothing else can silently go missing
+VERIFIERS = ("J11", "J12")     # Phase 3c strict proof verifiers (prompts V / W)
+SELECTION_3C = os.path.join(ROOT, "results", "phase3", "p3c_selection.json")
 MISSING_OK = {"dev:971": ("J5",)}
 CALIBRATOR = os.environ.get("RWN_P3_CAL", "isotonic")     # isotonic (default) | platt
 PARTIAL = os.environ.get("RWN_P3_PARTIAL") == "1"          # development only: skip claims without all responses
@@ -113,7 +115,11 @@ def load_rows() -> Dict[str, dict]:
             # the quote must occur byte-for-byte inside one shown sentence (>= 20 chars), and that sentence's sha256
             # must be in the corpus set. A paraphrased, stitched or invented quote closes the gate.
             quote_ok = (not commits) or quote_verbatim(q, [corpus[d] for d in lf["docs"]], hashes)
-            row["cond"][cond] = {"src": src, "a": int(shown_ok and quote_ok), "quote_ok": quote_ok,
+            # Phase 3c verifier proof: SUPPORT is its argmax AND its quote passes the same byte-exact gate
+            verify = {n: max(("S", "C", "N"), key=lambda x: src[n][x]) == "S"
+                      and quote_verbatim(quotes.get(n, ""), [corpus[d] for d in lf["docs"]], hashes)
+                      for n in VERIFIERS if n in src}
+            row["cond"][cond] = {"src": src, "a": int(shown_ok and quote_ok), "quote_ok": quote_ok, "verify": verify,
                                  "j1_commits": commits, "quote_given": bool(q)}
         row["rv3_docs"] = extra["rv3"].get(k, {}).get("docs", [])
         if all(c in row["cond"] for c in CONDITIONS if extra.get(c, True)) or PARTIAL and row["cond"]:
@@ -230,7 +236,7 @@ def ece(probs: List[float], ys: List[int], bins: int = 10) -> float:
 
 # ---------------------------------------------------------------- the node
 def node_run(train, dev, cond, sources, target, cal, variant, gate=True, live_online=False, log_dir=None,
-             ltt_margin=None):
+             ltt_margin=None, veto=None):
     """Learn on train (frozen), decide every dev claim through a ClaimTrace. Returns (admitted list, eff list, info)."""
     tmp = log_dir or tempfile.mkdtemp(prefix="rwn_p3_")
     y = (lambda r: r["label3"] == "SUPPORT") if target == "S" else (lambda r: r["label3"] == "CONTRADICT")
@@ -257,7 +263,10 @@ def node_run(train, dev, cond, sources, target, cal, variant, gate=True, live_on
         if ltt_margin is not None:                 # disagreement needs eff: evaluate without logging first
             e0, _, _ = roman_wheel_node(1, sc, live=lw, mode="bayes", variant=variant, dependence=dep)
             ns = disagree(r, cond, cal, sources, e0, cut0)
-        d = trace.submit(r["claim"], sc, a=r["cond"][cond]["a"] if gate else 1, not_sure=ns)
+        a_in = r["cond"][cond]["a"] if gate else 1
+        if veto:                                   # hard veto: ACCEPT needs the verifier's byte-exact proof (else gate closes)
+            a_in = int(a_in == 1 and r["cond"][cond]["verify"][veto])
+        d = trace.submit(r["claim"], sc, a=a_in, not_sure=ns)
         adm.append(d.admitted); effs.append(d.eff); sts.append(d.status)
         if live_online:
             give_feedback(sc, y(r), live=lw, threshold=thr, eff=d.eff, mode="bayes", variant=variant, dependence=dep)
@@ -346,7 +355,7 @@ def disagree(r, cond, cal, sources, eff, cut) -> bool:
     return bool(split or nli_c)
 
 
-def oof_effs(train, cond, sources, variant, folds: int = 5):
+def oof_effs(train, cond, sources, variant, folds: int = 5, veto=None):
     """Out-of-fold node posteriors, cutoffs and disagreement flags on the training subset
     (each fold's calibration and learners are fit on the other folds only)."""
     out, dis, cuts = [0.0] * len(train), [False] * len(train), [0.5] * len(train)
@@ -354,10 +363,10 @@ def oof_effs(train, cond, sources, variant, folds: int = 5):
         tr = [r for i, r in enumerate(train) if i % folds != f]
         idx = [i for i in range(len(train)) if i % folds == f]
         cal = fit_cal(tr, cond, sources)
-        _, effs, inf = node_run(tr, [train[i] for i in idx], cond, sources, "S", cal, variant)
+        _, effs, inf = node_run(tr, [train[i] for i in idx], cond, sources, "S", cal, variant, veto=veto)
         for i, e in zip(idx, effs):
             out[i] = e; cuts[i] = inf["cutoff"]
-            dis[i] = train[i]["cond"][cond]["a"] == 1 and disagree(train[i], cond, cal, sources, e, inf["cutoff"])  # gate BLOCK is decided, as on dev
+            dis[i] = effs[idx.index(i)] > 0.0 and train[i]["cond"][cond]["a"] == 1 and disagree(train[i], cond, cal, sources, e, inf["cutoff"])  # gate BLOCK is decided, as on dev
     return out, dis, cuts
 
 
@@ -393,15 +402,15 @@ def ltt_band(oof, ys, dis, cuts, alpha: float, delta: float = 0.05, K: int = 20)
     return best
 
 
-def ltt_eval(train, dev, cond, sources, variant, cal, alphas=(0.10, 0.05, 0.02, 0.01, 0.005)) -> dict:
+def ltt_eval(train, dev, cond, sources, variant, cal, alphas=(0.10, 0.05, 0.02, 0.01, 0.005), veto=None) -> dict:
     """Fail-closed selective mode: LTT band + disagreement rule, applied to dev through ClaimTrace(NOT_SURE)."""
-    oof, dis, cuts = oof_effs(train, cond, sources, variant)
+    oof, dis, cuts = oof_effs(train, cond, sources, variant, veto=veto)
     ys_tr = [r["label3"] == "SUPPORT" for r in train]
     out = {}
     for al in alphas:
         m, n_tr, k_tr, ub_tr = ltt_band(oof, ys_tr, dis, cuts, al)
         # dev: frozen node learned on all of train; NOT_SURE = band cutoff +/- m or disagreement (logged + replayed)
-        adm, effs, inf = node_run(train, dev, cond, sources, "S", cal, variant, ltt_margin=m)
+        adm, effs, inf = node_run(train, dev, cond, sources, "S", cal, variant, ltt_margin=m, veto=veto)
         cut = inf["cutoff"]
         status = ["NOT_SURE" if st == "NOT_SURE" else ("ACCEPT" if a_ else "REJECT") for st, a_ in zip(inf["status"], adm)]
         ys = [r["label3"] == "SUPPORT" for r in dev]
@@ -418,6 +427,30 @@ def ltt_eval(train, dev, cond, sources, variant, cal, alphas=(0.10, 0.05, 0.02, 
     return out
 
 
+def proof_or_not_sure(train, dev, cond, sources, variant, cal, vname) -> dict:
+    """Phase 3c fail-closed option: the node may ACCEPT only with the verifier's byte-exact proof. A node-accept without
+    proof becomes NOT_SURE (not proven is not disproven); node rejects stay REJECT. Train OOF and dev, same rule."""
+    def stats(effs, cuts, rows):
+        st = []
+        for e, c, r in zip(effs, cuts, rows):
+            if e >= c and e > 0.0:
+                st.append("ACCEPT" if r["cond"][cond]["verify"][vname] else "NOT_SURE")
+            else:
+                st.append("REJECT")
+        ys = [r["label3"] == "SUPPORT" for r in rows]
+        dec = [i for i, x in enumerate(st) if x != "NOT_SURE"]
+        err = sum((st[i] == "ACCEPT") != ys[i] for i in dec)
+        acc = [i for i in dec if st[i] == "ACCEPT"]
+        return {"coverage": len(dec) / len(rows), "decided": len(dec), "errors_decided": err,
+                "error_rate_upper95_clopper_pearson": cp_upper(err, len(dec)), "accepted": len(acc),
+                "false_accepts": sum(1 for i in acc if not ys[i]),
+                "false_accept_upper95_of_accepted": cp_upper(sum(1 for i in acc if not ys[i]), len(acc)),
+                "status_counts": {k: st.count(k) for k in ("ACCEPT", "REJECT", "NOT_SURE")}}
+    oof, _, cuts = oof_effs(train, cond, sources, variant)
+    _, effs, inf = node_run(train, dev, cond, sources, "S", cal, variant)
+    return {"train_oof": stats(oof, cuts, train), "dev": stats(effs, [inf["cutoff"]] * len(dev), dev)}
+
+
 def cp_upper(k: int, n: int, alpha: float = 0.05) -> float:
     """One-sided Clopper-Pearson upper bound on an error rate (k errors in n); k=0 gives 1-alpha**(1/n) (~3/n)."""
     if n == 0:
@@ -432,9 +465,9 @@ def cp_upper(k: int, n: int, alpha: float = 0.05) -> float:
     return hi
 
 
-def selective(train, dev, cond, sources, variant, dev_eff, ysup_dev, targets=(1.0, 0.99, 0.98, 0.97)) -> dict:
+def selective(train, dev, cond, sources, variant, dev_eff, ysup_dev, targets=(1.0, 0.99, 0.98, 0.97), veto=None) -> dict:
     """Selective mode: the ThresholdLearner picks an abstain band on train OOF posteriors; it is applied to dev unchanged."""
-    oof, _, _ = oof_effs(train, cond, sources, variant)
+    oof, _, _ = oof_effs(train, cond, sources, variant, veto=veto)
     ys_tr = [r["label3"] == "SUPPORT" for r in train]
     tmp = tempfile.mkdtemp(prefix="rwn_p3band_")
     out = {}
@@ -546,8 +579,21 @@ def main() -> None:
         pol["bayes-ess, judges only"], prob["bayes-ess, judges only"] = a, e
         a, e, _ = node_run(train, dev, cond, [s for s in allsrc if s not in judges], "S", cal, "ess")
         pol["bayes-ess, local only (no API)"], prob["bayes-ess, local only (no API)"] = a, e
-        a, e, inf = node_run(train, dev, cond, srcsets[sel_s], "S", cal, sel_v)
-        pol[sel_name], prob[sel_name], info["selected"] = a, e, dict(inf, variant=sel_v, sources=sel_s, cv_accuracy=cv)
+        sel3c = json.load(open(SELECTION_3C)) if os.path.exists(SELECTION_3C) else {}
+        vname = sel3c.get("verifier") if sel3c.get("verifier") in judges else None
+        veto = vname if (vname and sel3c.get("veto", {}).get(cond)) else None
+        if vname:                                  # report both, whatever train CV chose for the headline
+            a, e, _ = node_run(train, dev, cond, srcsets[sel_s], "S", cal, sel_v)
+            pol[f"{sel_name}, no veto"], prob[f"{sel_name}, no veto"] = a, e
+            a, e, _ = node_run(train, dev, cond, srcsets[sel_s], "S", cal, sel_v, veto=vname)
+            pol[f"{sel_name} + {vname} veto"], prob[f"{sel_name} + {vname} veto"] = a, e
+            a, e, _ = node_run(train, dev, cond, allsrc, "S", cal, "ess_cal", veto=vname)
+            pol[f"bayes-ess_cal + {vname} veto"], prob[f"bayes-ess_cal + {vname} veto"] = a, e
+            pol[f"{vname} proof alone (argmax S + verbatim quote)"] = [bool(r["cond"][cond]["verify"][vname]) for r in dev]
+        if veto:
+            sel_name = f"{sel_name} + {veto} veto"
+        a, e, inf = node_run(train, dev, cond, srcsets[sel_s], "S", cal, sel_v, veto=veto)
+        pol[sel_name], prob[sel_name], info["selected"] = a, e, dict(inf, variant=sel_v, sources=sel_s, cv_accuracy=cv, veto=veto)
         ref = stack_reference(train, dev, cond, allsrc, "S", cal)
         pol["reference: logistic stack (not gated)"], prob["reference: logistic stack (not gated)"] = [p > 0.5 for p in ref], ref
         # every judge unwrapped (raw argmax); the best single judge is chosen on TRAIN, then compared on dev
@@ -614,9 +660,10 @@ def main() -> None:
                              "judge_acc": sum(cj) / len(cj), "diff_paired_boot": paired_boot(cn, cj),
                              "node_only_right": n01, "judge_only_right": n10, "mcnemar_p": p}
         # selective mode (abstain band chosen on train OOF posteriors) and risk-coverage curves
-        sel_mode = selective(train, dev, cond, srcsets[sel_s], sel_v, prob[sel_name], ysup)
+        sel_mode = selective(train, dev, cond, srcsets[sel_s], sel_v, prob[sel_name], ysup, veto=veto)
         ess_cal_mode = selective(train, dev, cond, allsrc, "ess_cal", prob["bayes-ess_cal"], ysup)
-        ltt = {"selected": ltt_eval(train, dev, cond, srcsets[sel_s], sel_v, cal),
+        p3c = {"proof_or_not_sure (selected config)": proof_or_not_sure(train, dev, cond, srcsets[sel_s], sel_v, cal, vname)} if vname else {}
+        ltt = {"selected": ltt_eval(train, dev, cond, srcsets[sel_s], sel_v, cal, veto=veto),
                "bayes-ess_cal": ltt_eval(train, dev, cond, allsrc, "ess_cal", cal)}
         rc = {"node (selected)": risk_coverage(prob[sel_name], ysup, info["selected"]["cutoff"]),
               "bayes-ess_cal": risk_coverage(prob["bayes-ess_cal"], ysup, info["bayes-ess_cal"]["cutoff"]),
@@ -684,7 +731,7 @@ def main() -> None:
                 "unparsed_judge_replies": sum(r["cond"][cond]["src"][j]["unparsed"] for r in dev + train for j in judges),
                 "missing_judge_calls": sum(bool(r["cond"][cond]["src"][j].get("missing")) for r in dev + train for j in judges)}
         report["conditions"][cond] = {"selected": sel_name, "cv_train": cv, "binary": tab, "vs_best_single_judge": vs_best,
-                                      "judge_train_accuracy": tr_acc, "selective": {"selected": sel_mode, "bayes-ess_cal": ess_cal_mode}, "ltt_not_sure": ltt,
+                                      "judge_train_accuracy": tr_acc, "selective": {"selected": sel_mode, "bayes-ess_cal": ess_cal_mode}, "ltt_not_sure": ltt, "p3c_proof_or_not_sure": p3c, "p3c_verifier": vname, "p3c_veto": veto,
                                       "risk_coverage_dev": rc, "accuracy_excluding_label_review": {"n_excluded": len(dev) - len(keep), "acc": excl}, "error_analysis": {k: {"n": len(v), "keys": v} for k, v in cats.items()},
                                       "label_noise_candidates": suspects, "three_way": tab3, "safety_vs_unwrapped_J1": safety,
                                       "score_correlation_dev": corrm, "error_overlap_dev": errov, "gate": gate,

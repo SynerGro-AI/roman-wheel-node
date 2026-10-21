@@ -284,6 +284,29 @@ JUDGE_PROMPTS = {
           "statements, do not count.\n\nClaim: {claim}\n\nAbstracts:\n{evidence}\n\n"
           "Return JSON only: {\"doc\": \"<doc id or empty>\", \"support\": p, \"contradict\": p, \"nei\": p} "
           "with probabilities summing to 1."),
+    # V: strict proof verifier (Phase 3c). Quote first, then a no-extrapolation entailment test.
+    "V": ("You are a strict proof checker. Your job is to decide whether the evidence below PROVES the claim, with no "
+          "extrapolation. First copy, character for character, the single evidence sentence that comes closest to proving "
+          "the claim (a contiguous span of one sentence; do not paraphrase, do not join sentences). Then test the claim "
+          "against that quote. It is PROVEN only if the quoted finding directly states the claim (or something that "
+          "logically entails it) for the same population/species/system, the same intervention or entity, the same "
+          "outcome or measure, and the same direction. Answer NOT PROVEN if the quote is hedged or speculative "
+          "(\"may\", \"suggests\", \"could\", hypotheses, background or introduction statements), supports only part "
+          "of the claim, concerns a different population (e.g. mice or cells vs humans), a different outcome or measure, "
+          "a different dose or condition, or turns an association into causation. Answer DISPROVEN only if the quote "
+          "directly states the opposite or an incompatible result. Use no outside knowledge.\n\n"
+          "Claim: {claim}\n\nEvidence:\n{evidence}\n\n"
+          "Return JSON only, in this key order: {\"quote\": \"...\", \"support\": p, \"contradict\": p, \"nei\": p} where "
+          "support = P(PROVEN), contradict = P(DISPROVEN), nei = P(NOT PROVEN), summing to 1."),
+    # W: component-wise verifier (Phase 3c): decompose the claim, check each part against one quote, then decide.
+    "W": ("Claim: {claim}\n\nEvidence (numbered sentences from research abstracts):\n{evidence}\n\n"
+          "Verify the claim like an auditor. Step 1: copy exactly (character for character) the one evidence sentence "
+          "most relevant to the claim. Step 2: split the claim into its components (subject/population, intervention or "
+          "entity, outcome, direction or magnitude, causal vs associative wording) and, for each, say in a few words "
+          "whether the quote states it explicitly. Step 3: the claim is SUPPORTED only if every component is explicitly "
+          "stated by the quote, as a finding (not a hypothesis, aim, background claim or hedge). It is REFUTED only if "
+          "the quote states the opposite. Otherwise it is NOT SUPPORTED. End with a final line of JSON only: "
+          "{\"quote\": \"...\", \"support\": p, \"contradict\": p, \"nei\": p} (probabilities summing to 1)."),
     # C: plain question-answering framing
     "C": ("Question: based only on these study abstracts, is the following statement true?\n"
           "Statement: {claim}\n\n{evidence}\n\n"
@@ -300,8 +323,8 @@ def _num(text: str, key: str) -> Optional[float]:
 def parse_judge(style: str, text: str) -> Tuple[Dict[str, float], str]:
     """Map a judge reply to (P(SUPPORT), P(CONTRADICT), P(NEI)) and its quote. Unparseable -> uniform (counted)."""
     quote = ""
-    if style in ("A", "D", "E", "F", "G", "H"):
-        if style == "E":                             # use the final JSON line
+    if style in ("A", "D", "E", "F", "G", "H", "V", "W"):
+        if style in ("E", "W"):                      # use the final JSON line
             i = text.rfind("{")
             text = text[i:] if i >= 0 else text
         ps = {k: _num(text, k) for k in ("support", "contradict", "nei")}
