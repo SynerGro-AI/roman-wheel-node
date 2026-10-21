@@ -26,6 +26,10 @@ jobs:
           python -m pip install -e ".[test]"
       - name: Unit tests
         run: python -m pytest -q
+      - name: Benchmark CLI smoke (byte-identical check on a small config)
+        run: |
+          python -m roman_wheel_node.bench --seeds 2 --scenarios cold_start --ceiling-claims 500 --no-plots --out /tmp/b1 --jobs 1
+          python -m roman_wheel_node.bench --seeds 2 --scenarios cold_start --ceiling-claims 500 --check /tmp/b1 --jobs 1
       - name: Original six reference calls
         run: python -m roman_wheel_node
 

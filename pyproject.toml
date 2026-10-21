@@ -21,7 +21,7 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-test = ["pytest>=7"]
+test = ["pytest>=7", "hypothesis>=6"]
 bench = ["matplotlib>=3.5"]
 
 [project.urls]
