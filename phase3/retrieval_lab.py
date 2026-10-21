@@ -103,7 +103,10 @@ def main(split="train", methods=None):
     R["rrf_bm25_medcpt"] = [rrf(a, b) for a, b in zip(R["bm25"], R["medcpt"])]
     R["rrf_all3"] = [rrf(a, b, c) for a, b, c in zip(R["bm25"], R["medcpt"], R["bge"])]
     for base in ("rrf_all3",):
-        for m, tag in (("ncbi/MedCPT-Cross-Encoder", "ce_medcpt"), ("cross-encoder/ms-marco-MiniLM-L-6-v2", "ce_minilm")):
+        rerankers = (("ncbi/MedCPT-Cross-Encoder", "ce_medcpt"), ("cross-encoder/ms-marco-MiniLM-L-6-v2", "ce_minilm"))
+        if split != "train":   # the reranker was selected on train recall/MRR; dev runs only the chosen pipeline
+            rerankers = rerankers[:1]
+        for m, tag in rerankers:
             key = f"{tag}({base})"
             if key not in R:
                 R[key] = rerank(m, list(zip(claims, R[base])), corpus)

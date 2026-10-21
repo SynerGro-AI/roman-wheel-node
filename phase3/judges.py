@@ -39,7 +39,8 @@ def J(model, style, max_tokens, out_tokens, conditions=ALL, temperature=0.0, sam
 # J5, J6, J8 run on gold only: on retrieved5 the budget went to the judges with the best TRAIN accuracy per dollar
 # on gold (J4 .903, J9 .900, J7 .891 vs J5 .840, J6 .831, J8 .860), plus the cheap J1-J3.
 JUDGES = {
-    "J1": J("grok-4.20-0309-non-reasoning", "A", 300, 75, note="fact-checker, 3-way + verbatim quote"),
+    "J1": J("grok-4.20-0309-non-reasoning", "A", 300, 75, ALL + ("rv3",),
+            note="fact-checker, 3-way + verbatim quote (exact-copy gate; unwrapped baseline)"),
     "J2": J("grok-4.3", "B", 2000, 450, ALL + ("rv3",), note="skeptical peer reviewer"),
     "J3": J("grok-4.20-0309-non-reasoning", "C", 60, 20, note="plain QA framing"),
     "J4": J("grok-4.20-0309-reasoning", "D", 3000, 900, ("gold", "retrieved5", "rv3"), note="SciFact annotation guidelines"),

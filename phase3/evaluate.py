@@ -422,7 +422,7 @@ def cp_upper(k: int, n: int, alpha: float = 0.05) -> float:
 
 def selective(train, dev, cond, sources, variant, dev_eff, ysup_dev, targets=(1.0, 0.99, 0.98, 0.97)) -> dict:
     """Selective mode: the ThresholdLearner picks an abstain band on train OOF posteriors; it is applied to dev unchanged."""
-    oof = oof_effs(train, cond, sources, variant)
+    oof, _, _ = oof_effs(train, cond, sources, variant)
     tmp = tempfile.mkdtemp(prefix="rwn_p3band_")
     th = ThresholdLearner(os.path.join(tmp, "t.jsonl"), half_life=None)
     for e, r in zip(oof, train):

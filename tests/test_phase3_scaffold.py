@@ -81,3 +81,18 @@ def test_exact_mcnemar_and_platt():
     assert mcnemar([True] * 6 + [False] * 4, [False] * 6 + [False] * 4) == (6, 0, pytest.approx(2 / 64))
     ab = platt_fit([0.9, 0.8, 0.7, 0.3, 0.2, 0.1, 0.6, 0.4], [1, 1, 1, 0, 0, 0, 0, 1])
     assert platt(ab, 0.9) > 0.5 > platt(ab, 0.1)
+
+
+def test_quote_gate_is_byte_exact():
+    """The judge-quote half of the exact-copy gate (phase3/evaluate.py:quote_verbatim): paraphrase, a one-byte edit,
+    a stitched quote across two documents' sentences that are not in the corpus set, or a short quote all close it."""
+    from factcheck.scifact import Doc, sha
+    from evaluate import quote_verbatim
+    d = Doc("1", "Aspirin and the heart", ("Aspirin irreversibly inhibits COX-1 in platelets.", "Dosing was daily."))
+    hashes = {sha(s) for s in d.sentences} | {sha(d.title)}
+    assert quote_verbatim("Aspirin irreversibly inhibits COX-1 in platelets.", [d], hashes)
+    assert quote_verbatim("irreversibly inhibits COX-1 in platelets", [d], hashes)        # substring of one sentence
+    assert not quote_verbatim("Aspirin irreversibly blocks COX-1 in platelets.", [d], hashes)   # paraphrase
+    assert not quote_verbatim("Aspirin irreversibly inhibits COX-1 in platelets!", [d], hashes)  # one byte
+    assert not quote_verbatim("COX-1", [d], hashes)                                             # too short
+    assert not quote_verbatim("Aspirin irreversibly inhibits COX-1 in platelets.", [d], set())  # sentence not in corpus
