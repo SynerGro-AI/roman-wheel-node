@@ -16,6 +16,7 @@ import json
 import math
 import os
 import re
+import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Protocol, Sequence, Tuple
@@ -193,6 +194,10 @@ def usage_cost_usd(model: str, usage: Optional[dict]) -> float:
     if reasoning and out < reasoning + 1:          # some APIs exclude reasoning from completion_tokens
         out += reasoning
     return ((prompt - cached) * pin + cached * pcache + out * pout) / 1e6
+
+
+class BillingError(RuntimeError):
+    """xAI refused the call for billing, credit or auth reasons: stop the whole run cleanly."""
 
 
 class BudgetExceeded(RuntimeError):
@@ -415,6 +420,17 @@ class XAIJudge:
                 with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                     out = json.loads(resp.read())
                 break
+            except urllib.error.HTTPError as e:  # billing / auth errors stop immediately (never echo headers or key)
+                body = ""
+                try:
+                    body = e.read().decode("utf-8", "replace")[:300]
+                except Exception:
+                    pass
+                if e.code in (401, 402, 403) or re.search(r"credit|billing|quota|insufficient|spending limit", body, re.I):
+                    raise BillingError(f"xAI HTTP {e.code}: {body}") from None
+                if attempt == 4:
+                    raise
+                _t.sleep(2 ** attempt)
             except Exception:                    # rate limit / transient error: back off, never echo headers
                 if attempt == 4:
                     raise
