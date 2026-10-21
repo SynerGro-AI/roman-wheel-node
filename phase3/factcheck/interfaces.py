@@ -275,6 +275,15 @@ JUDGE_PROMPTS = {
           "is merely related. Only if the abstracts clearly establish the claim despite your audit, say so. If they "
           "clearly establish the opposite, say that.\n\nClaim: {claim}\n\nAbstracts:\n{evidence}\n\n"
           "Output JSON only: {\"support\": p, \"contradict\": p, \"nei\": p} (probabilities summing to 1)."),
+    # H: primary-abstract / NEI-focused (designed against spurious support from merely related abstracts)
+    "H": ("Several abstracts were retrieved for the claim below; most may be only loosely related. Step 1: find the ONE "
+          "abstract whose own reported results are about the claim's specific subject (same intervention or entity, same "
+          "outcome, same population or system). If no abstract is, the answer is NOINFO. Step 2: using only that "
+          "abstract's results, decide whether they establish the claim (SUPPORTS), establish its negation or an "
+          "incompatible result (REFUTES), or neither (NOINFO). Related findings about other entities, or background "
+          "statements, do not count.\n\nClaim: {claim}\n\nAbstracts:\n{evidence}\n\n"
+          "Return JSON only: {\"doc\": \"<doc id or empty>\", \"support\": p, \"contradict\": p, \"nei\": p} "
+          "with probabilities summing to 1."),
     # C: plain question-answering framing
     "C": ("Question: based only on these study abstracts, is the following statement true?\n"
           "Statement: {claim}\n\n{evidence}\n\n"
@@ -291,7 +300,7 @@ def _num(text: str, key: str) -> Optional[float]:
 def parse_judge(style: str, text: str) -> Tuple[Dict[str, float], str]:
     """Map a judge reply to (P(SUPPORT), P(CONTRADICT), P(NEI)) and its quote. Unparseable -> uniform (counted)."""
     quote = ""
-    if style in ("A", "D", "E", "F", "G"):
+    if style in ("A", "D", "E", "F", "G", "H"):
         if style == "E":                             # use the final JSON line
             i = text.rfind("{")
             text = text[i:] if i >= 0 else text

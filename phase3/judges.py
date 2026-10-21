@@ -23,9 +23,11 @@ from features import CACHE, DATA, evidence_text                                 
 from factcheck.interfaces import JUDGE_PROMPTS                                        # noqa: E402
 
 N_TRAIN = 350
-CONDITIONS = ("retrieved", "gold", "retrieved5")
+CONDITIONS = ("retrieved", "gold", "retrieved5", "rv3")
 CAP_USD = 100.0            # hard cap on total spend (raised from $10 by the user), including all earlier calls
 ALL = ("retrieved", "gold", "retrieved5")
+# conditions whose evidence lists live in their own feature file (key -> {"docs": [...], local scores})
+COND_FILES = {"retrieved5": "local_features_r5.json", "rv3": "local_features_rv3.json"}
 
 
 def J(model, style, max_tokens, out_tokens, conditions=ALL, temperature=0.0, samples=1, note=""):
@@ -38,13 +40,14 @@ def J(model, style, max_tokens, out_tokens, conditions=ALL, temperature=0.0, sam
 # on gold (J4 .903, J9 .900, J7 .891 vs J5 .840, J6 .831, J8 .860), plus the cheap J1-J3.
 JUDGES = {
     "J1": J("grok-4.20-0309-non-reasoning", "A", 300, 75, note="fact-checker, 3-way + verbatim quote"),
-    "J2": J("grok-4.3", "B", 2000, 450, note="skeptical peer reviewer"),
+    "J2": J("grok-4.3", "B", 2000, 450, ALL + ("rv3",), note="skeptical peer reviewer"),
     "J3": J("grok-4.20-0309-non-reasoning", "C", 60, 20, note="plain QA framing"),
-    "J4": J("grok-4.20-0309-reasoning", "D", 3000, 900, ("gold", "retrieved5"), note="SciFact annotation guidelines"),
+    "J4": J("grok-4.20-0309-reasoning", "D", 3000, 900, ("gold", "retrieved5", "rv3"), note="SciFact annotation guidelines"),
     "J5": J("grok-4.7", "D", 4000, 700, ("gold",), note="SciFact guidelines, strongest model"),
     "J6": J("grok-4.5", "F", 3000, 300, ("gold",), note="adversarial devil's advocate"),
-    "J7": J("grok-4.6", "E", 4000, 1300, ("gold", "retrieved5"), note="two-sided support-vs-refute"),
-    "J9": J("grok-4.20-0309-reasoning", "G", 3000, 900, ("gold", "retrieved5"), note="few-shot (10 train examples) + guidelines"),
+    "J7": J("grok-4.6", "E", 4000, 1300, ("gold", "retrieved5", "rv3"), note="two-sided support-vs-refute"),
+    "J9": J("grok-4.20-0309-reasoning", "G", 3000, 900, ("gold", "retrieved5", "rv3"), note="few-shot (10 train examples) + guidelines"),
+    "J10": J("grok-4.20-0309-reasoning", "H", 3000, 900, ("rv3",), note="primary-abstract / NEI-focused"),
     "J8": J("grok-4.20-0309-non-reasoning", "A", 300, 75, ("gold",), temperature=1.0, samples=3,
             note="self-consistency: 3 samples at T=1, averaged"),
 }
@@ -75,17 +78,25 @@ def make_judges(spend: SpendLedger) -> dict:
             for n, c in JUDGES.items()}
 
 
-def docs_for(feats, r5, k, cond):
-    return r5[k]["docs"] if cond == "retrieved5" else feats[k][cond]["docs"]
+def load_cond_files() -> dict:
+    out = {}
+    for c, fn in COND_FILES.items():
+        p = os.path.join(CACHE, fn)
+        out[c] = json.load(open(p)) if os.path.exists(p) else {}
+    return out
 
 
-def jobs(feats, r5, corpus, judges):
+def docs_for(feats, extra, k, cond):
+    return extra[cond][k]["docs"] if cond in COND_FILES else feats[k][cond]["docs"]
+
+
+def jobs(feats, extra, corpus, judges):
     for k in selected(feats):
         f = feats[k]
         for cond in CONDITIONS:
-            if cond == "retrieved5" and k not in r5:
+            if cond in COND_FILES and k not in extra[cond]:
                 continue
-            ev = evidence_text(corpus, docs_for(feats, r5, k, cond))
+            ev = evidence_text(corpus, docs_for(feats, extra, k, cond))
             for n, j in judges.items():
                 if cond not in JUDGES[n]["conditions"]:
                     continue
@@ -107,9 +118,7 @@ def main() -> None:
     judges = make_judges(spend)
     if args.only:
         judges = {k: v for k, v in judges.items() if k in args.only.split(",")}
-    r5p = os.path.join(CACHE, "local_features_r5.json")
-    r5 = json.load(open(r5p)) if os.path.exists(r5p) else {}
-    todo = [j for j in jobs(feats, r5, corpus, judges) if not j[3].cached(j[4], j[5])]
+    todo = [j for j in jobs(feats, load_cond_files(), corpus, judges) if not j[3].cached(j[4], j[5])]
     if args.conds:
         todo = [j for j in todo if j[1] in args.conds.split(",")]
     si, sn = (int(x) for x in args.shard.split("/"))

@@ -28,7 +28,7 @@ from roman_wheel_node.trace import ClaimTrace                                   
 from factcheck.interfaces import XAIJudge, parse_judge                                 # noqa: E402
 from factcheck.scifact import load_corpus, sentence_hashes, sha                        # noqa: E402
 from features import CACHE, DATA, evidence_text                                        # noqa: E402
-from judges import CONDITIONS, JUDGES, _register_fewshot, selected                     # noqa: E402
+from judges import COND_FILES, CONDITIONS, JUDGES, _register_fewshot, load_cond_files, selected  # noqa: E402
 
 # judge calls that timed out on every retry (180 s x 5); listed explicitly so nothing else can silently go missing
 MISSING_OK = {"dev:971": ("J5",)}
@@ -63,8 +63,8 @@ def quote_verbatim(q: str, docs, hashes) -> bool:
 def load_rows() -> Dict[str, dict]:
     _register_fewshot()
     feats = json.load(open(os.path.join(CACHE, "local_features.json")))
-    r5p = os.path.join(CACHE, "local_features_r5.json")
-    r5 = json.load(open(r5p)) if os.path.exists(r5p) else {}
+    extra = load_cond_files()
+    r5 = extra["retrieved5"]
     corpus = load_corpus(DATA)
     hashes = sentence_hashes(corpus)
     judges = {n: XAIJudge(c["model"], name=n, cache_path=os.path.join(CACHE, f"judge_{n}.jsonl"), style=c["style"],
@@ -76,9 +76,9 @@ def load_rows() -> Dict[str, dict]:
         row = {"split": f["split"], "label3": f["label3"], "claim": f["claim"], "cited": f["cited"],
                "retrieved_docs": f["retrieved"]["docs"], "retrieved5_docs": r5.get(k, {}).get("docs", []), "cond": {}}
         for cond in CONDITIONS:
-            if cond == "retrieved5" and k not in r5:
-                break
-            lf = r5[k] if cond == "retrieved5" else f[cond]
+            if cond in COND_FILES and k not in extra[cond]:
+                continue
+            lf = extra[cond][k] if cond in COND_FILES else f[cond]
             ev = evidence_text(corpus, lf["docs"])
             src = {"nli": {"S": lf["nli_entail"], "C": lf["nli_contra"]}, "overlap": {"S": lf["overlap"]}}
             if "nli2_entail" in lf:
@@ -112,7 +112,8 @@ def load_rows() -> Dict[str, dict]:
             quote_ok = (not commits) or quote_verbatim(q, [corpus[d] for d in lf["docs"]], hashes)
             row["cond"][cond] = {"src": src, "a": int(shown_ok and quote_ok), "quote_ok": quote_ok,
                                  "j1_commits": commits, "quote_given": bool(q)}
-        if len(row["cond"]) == len(CONDITIONS) or PARTIAL and row["cond"]:
+        row["rv3_docs"] = extra["rv3"].get(k, {}).get("docs", [])
+        if all(c in row["cond"] for c in CONDITIONS if extra.get(c, True)) or PARTIAL and row["cond"]:
             rows[k] = row
     return rows
 
@@ -439,7 +440,7 @@ def main() -> None:
         sel_adm = pol[sel_name]
         cats = {"retrieval_miss": [], "nei_accepted": [], "contradict_accepted": [], "support_rejected_gate": [],
                 "support_rejected_panel_consensus": [], "support_rejected_split_panel": [], "panel_unanimous_vs_gold": []}
-        docs_key = {"retrieved": "retrieved_docs", "retrieved5": "retrieved5_docs"}.get(cond)
+        docs_key = {"retrieved": "retrieved_docs", "retrieved5": "retrieved5_docs", "rv3": "rv3_docs"}.get(cond)
         for i, r in enumerate(dev):
             y = r["label3"] == "SUPPORT"
             votes = [am(r["cond"][cond]["src"][j]) for j in judges]
@@ -505,6 +506,9 @@ def main() -> None:
     report["retrieval"] = {"recall_at_3_supported_or_contradicted": None}
     ev_rows = [r for r in dev if r["label3"] != "NEI"]
     report["retrieval"]["recall_at_3_supported_or_contradicted"] = sum(any(d in r["retrieved_docs"] for d in r["cited"]) for r in ev_rows) / len(ev_rows)
+    if any(r["rv3_docs"] for r in ev_rows):
+        report["retrieval"]["recall_rv3"] = sum(any(d in r["rv3_docs"] for d in r["cited"]) for r in ev_rows) / len(ev_rows)
+        report["retrieval"]["mean_docs_rv3"] = sum(len(r["rv3_docs"]) for r in dev) / len(dev)
     report["retrieval"]["recall_at_5_reranked"] = sum(any(d in r["retrieved5_docs"] for d in r["cited"]) for r in ev_rows) / len(ev_rows)
     json.dump(report, open(os.path.join(OUT, "scifact.json"), "w"), indent=1, sort_keys=True)
     print("wrote", os.path.join(OUT, "scifact.json"))
