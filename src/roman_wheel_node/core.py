@@ -38,10 +38,10 @@ __version__ = "1.0.0"   # package version (algorithm generation: v3)
 
 Result = Tuple[float, str, str]                    # (eff, opcode, status)
 Scores = Union[Mapping[str, float], Sequence[float]]
-BAYES_VARIANTS = ("hard", "soft", "logit")          # + "tan", "ess", "stack" with dependence= (dependence.py)
+BAYES_VARIANTS = ("hard", "soft", "logit")          # + "tan", "ess", "stack", "ess_cal" with dependence= (dependence.py)
 _R_MIN, _R_MAX = 0.01, 0.99                         # caps one source's log-odds at +/-4.6
 _BLOCK: Result = (0.0, "000", "BLOCK")
-_DEP_VARIANTS = ("tan", "ess", "stack")             # correlation-aware variants (see dependence.py)
+_DEP_VARIANTS = ("tan", "ess", "stack", "ess_cal")  # correlation-aware variants (see dependence.py)
 
 
 def clamp01(x: float) -> float:

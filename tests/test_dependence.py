@@ -182,3 +182,40 @@ def test_trace_tampered_dependence_model_detected(tmp_path):
 def test_trace_requires_learner_for_dependence_variant(tmp_path):
     with pytest.raises(ValueError):
         ClaimTrace(str(tmp_path / "a.jsonl"), mode="bayes", variant="ess")
+
+
+# ---- ess_cal: ESS discount on calibrated confidences ------------------------------------------------------------
+def test_ess_cal_reduces_to_calibrated_naive_bayes_without_dependence(tmp_path):
+    import math
+    from roman_wheel_node import DependenceLearner, roman_wheel_node
+    rng = random.Random(7)
+    dep = DependenceLearner(str(tmp_path / "d.jsonl"), half_life=None)
+    for _ in range(400):                               # two independent sources, base rate 0.5
+        t = rng.random() < 0.5
+        dep.record({"a": 0.8 if (rng.random() < 0.8) == t else 0.2, "b": 0.7 if (rng.random() < 0.7) == t else 0.3}, t)
+    m = dep.model(["a", "b"], "ess_cal")
+    assert m["w"] == {"a": 1.0, "b": 1.0} and abs(m["prior"] - 0.5) < 0.06
+    lp = math.log(m["prior"] / (1 - m["prior"]))
+    want = lp + (math.log(0.9 / 0.1) - lp) + (math.log(0.6 / 0.4) - lp)
+    assert abs(dep.llr({"a": 0.9, "b": 0.6}, "ess_cal") - want) < 1e-12
+    eff, _, _ = roman_wheel_node(1, {"a": 0.9, "b": 0.6}, mode="bayes", variant="ess_cal", dependence=dep)
+    assert eff == round(1 / (1 + math.exp(-want)), 3)
+
+
+def test_ess_cal_discounts_copies_and_replays_in_trace(tmp_path):
+    from roman_wheel_node import DependenceLearner
+    from roman_wheel_node.trace import ClaimTrace, replay
+    rng = random.Random(3)
+    dep = DependenceLearner(str(tmp_path / "d.jsonl"), half_life=None)
+    for _ in range(500):
+        t = rng.random() < 0.5
+        lead = (rng.random() < 0.7) == t
+        dep.record({"l": 0.8 if lead else 0.2, "c1": 0.8 if lead else 0.2, "c2": 0.8 if lead else 0.2,
+                    "x": 0.8 if (rng.random() < 0.7) == t else 0.2}, t)
+    m = dep.model(["l", "c1", "c2", "x"], "ess_cal")
+    assert m["w"]["l"] < 0.5 and m["w"]["x"] > 0.9
+    tr = ClaimTrace(str(tmp_path / "a.jsonl"), mode="bayes", variant="ess_cal", dependence=dep)
+    d1 = tr.submit("c", {"l": 0.8, "c1": 0.8, "c2": 0.8, "x": 0.2}, a=1)
+    assert 0.5 < d1.eff < 0.8                          # the copies count about once against x
+    rep = replay(str(tmp_path / "a.jsonl"))
+    assert rep.n_records == 1 and tr.verify().head == rep.head
