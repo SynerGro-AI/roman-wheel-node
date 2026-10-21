@@ -34,16 +34,18 @@ def J(model, style, max_tokens, out_tokens, conditions=ALL, temperature=0.0, sam
 
 
 # out_tokens = expected output incl. reasoning tokens (from probe calls); used only for the cost estimate
+# J5, J6, J8 run on gold only: on retrieved5 the budget went to the judges with the best TRAIN accuracy per dollar
+# on gold (J4 .903, J9 .900, J7 .891 vs J5 .840, J6 .831, J8 .860), plus the cheap J1-J3.
 JUDGES = {
     "J1": J("grok-4.20-0309-non-reasoning", "A", 300, 75, note="fact-checker, 3-way + verbatim quote"),
     "J2": J("grok-4.3", "B", 2000, 450, note="skeptical peer reviewer"),
     "J3": J("grok-4.20-0309-non-reasoning", "C", 60, 20, note="plain QA framing"),
     "J4": J("grok-4.20-0309-reasoning", "D", 3000, 900, ("gold", "retrieved5"), note="SciFact annotation guidelines"),
-    "J5": J("grok-4.7", "D", 4000, 700, ("gold", "retrieved5"), note="SciFact guidelines, strongest model"),
-    "J6": J("grok-4.5", "F", 3000, 300, ("gold", "retrieved5"), note="adversarial devil's advocate"),
+    "J5": J("grok-4.7", "D", 4000, 700, ("gold",), note="SciFact guidelines, strongest model"),
+    "J6": J("grok-4.5", "F", 3000, 300, ("gold",), note="adversarial devil's advocate"),
     "J7": J("grok-4.6", "E", 4000, 1300, ("gold", "retrieved5"), note="two-sided support-vs-refute"),
     "J9": J("grok-4.20-0309-reasoning", "G", 3000, 900, ("gold", "retrieved5"), note="few-shot (10 train examples) + guidelines"),
-    "J8": J("grok-4.20-0309-non-reasoning", "A", 300, 75, ("gold", "retrieved5"), temperature=1.0, samples=3,
+    "J8": J("grok-4.20-0309-non-reasoning", "A", 300, 75, ("gold",), temperature=1.0, samples=3,
             note="self-consistency: 3 samples at T=1, averaged"),
 }
 def _register_fewshot() -> None:
@@ -97,6 +99,7 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--only", default="", help="comma-separated judge names to run (default: all)")
     ap.add_argument("--conds", default="", help="comma-separated conditions (default: all)")
+    ap.add_argument("--shard", default="0/1", help="i/n: only claims whose sha256(key) mod n == i (parallel runs)")
     args = ap.parse_args()
     feats = json.load(open(os.path.join(CACHE, "local_features.json")))
     corpus = load_corpus(DATA)
@@ -109,6 +112,8 @@ def main() -> None:
     todo = [j for j in jobs(feats, r5, corpus, judges) if not j[3].cached(j[4], j[5])]
     if args.conds:
         todo = [j for j in todo if j[1] in args.conds.split(",")]
+    si, sn = (int(x) for x in args.shard.split("/"))
+    todo = [j for j in todo if int(hashlib.sha256(j[0].encode()).hexdigest(), 16) % sn == si]
     todo.sort(key=lambda j: (j[2] == "J2", j[0], j[1], j[2]))     # cheap fixed-cost judges first, J2 (reasoning) last
     est = 0.0
     per = {}
