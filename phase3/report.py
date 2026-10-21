@@ -61,6 +61,27 @@ def text(R) -> str:
             L.append(f"Label-noise candidates (every judge confidently disagrees with gold, gold evidence): {len(C['label_noise_candidates'])}")
             for x in C["label_noise_candidates"]:
                 L.append(f"  {x['key']:12s} gold={x['gold']:10s} panel={x['panel']:10s} {x['claim'][:110]}")
+        if C.get("selective"):
+            L.append("Selective mode (abstain band picked on TRAIN out-of-fold posteriors, applied to dev unchanged):")
+            for pol_, S in C["selective"].items():
+                for tg, v in S.items():
+                    acc = v["dev_accuracy_decided"]
+                    L.append(f"  {pol_:14s} target {tg}: band [{v['band'][0]:.3f}, {v['band'][1]:.3f}) train-OOF cov {100 * v['train_oof_coverage']:.1f}% "
+                             f"-> dev coverage {100 * v['dev_coverage']:.1f}% ({v['dev_decided']} decided), errors {v['dev_errors_decided']}, "
+                             f"acc {'-' if acc is None else f'{100 * acc:.1f}%'}, error-rate 95% upper (Clopper-Pearson) {100 * v['dev_error_rate_upper95_clopper_pearson']:.2f}%, "
+                             f"false accepts {v['dev_false_accepts']}/{v['dev_accepted']} accepted")
+        if C.get("ltt_not_sure"):
+            L.append("Fail-closed NOT_SURE (Learn-Then-Test margin on train OOF + disagreement rule; through ClaimTrace):")
+            for pol_, S in C["ltt_not_sure"].items():
+                for al, v in S.items():
+                    t = v["train_oof"]
+                    L.append(f"  {pol_:14s} alpha {al}: log-odds margin {v['margin_logodds']:.2f}; train OOF {t['errors']}/{t['decided']} err, UB {100 * t['upper95']:.2f}% "
+                             f"-> dev coverage {100 * v['dev_coverage']:.1f}% ({v['dev_decided']}), errors {v['dev_errors_decided']}, "
+                             f"UB95 {100 * v['dev_error_rate_upper95_clopper_pearson']:.2f}%, FA {v['dev_false_accepts']}/{v['dev_accepted']}, {v['dev_status_counts']}")
+        if C.get("accuracy_excluding_label_review"):
+            x = C["accuracy_excluding_label_review"]
+            L.append(f"Sensitivity, {x['n_excluded']} label_review dev claims excluded (not a headline): "
+                     + ", ".join(f"{k} {100 * v:.1f}%" for k, v in x["acc"].items()))
         L.append(f"Gate: {C['gate']}")
         L.append(f"Learned reliabilities (train): {C['node_info'].get('bayes-ess', {}).get('reliability')}")
         L.append("")
@@ -106,6 +127,20 @@ def charts(R) -> list:
         ax.set_xticks(range(n)); ax.set_xticklabels(src, fontsize=7); ax.set_yticks(range(n)); ax.set_yticklabels(src, fontsize=7)
         ax.set_title(f"{cond}: score correlation (dev)")
     fig.colorbar(im, ax=axes, shrink=0.8); p = os.path.join(OUT, "scifact_correlation.png"); fig.savefig(p, dpi=120); plt.close(fig); paths.append(p)
+    fig, axes = plt.subplots(1, nc, figsize=(6 * nc, 4.8), sharey=True)
+    for ax, (cond, C) in zip(axes, R["conditions"].items()):
+        for (name, pts), col in zip(C.get("risk_coverage_dev", {}).items(), ("#a22", "#c84", "#48a")):
+            ax.plot([100 * p[0] for p in pts], [100 * p[1] for p in pts], color=col, label=name)
+        for pol_, mk in (("selected", "o"), ("bayes-ess_cal", "s")):
+            for tg, v in C.get("selective", {}).get(pol_, {}).items():
+                ax.plot(100 * v["dev_coverage"], 100 * (v["dev_errors_decided"] / max(1, v["dev_decided"])), mk, color="k", ms=5)
+                ax.annotate(tg, (100 * v["dev_coverage"], 100 * v["dev_errors_decided"] / max(1, v["dev_decided"])), fontsize=6)
+            for al, v in C.get("ltt_not_sure", {}).get(pol_, {}).items():
+                ax.plot(100 * v["dev_coverage"], 100 * v["dev_errors_decided"] / max(1, v["dev_decided"]), "^", color="g", ms=6)
+                ax.annotate(f"LTT {al}", (100 * v["dev_coverage"], 100 * v["dev_errors_decided"] / max(1, v["dev_decided"])), fontsize=6, color="g")
+        ax.set_xlabel("coverage (% of dev claims decided)"); ax.set_ylabel("error rate on decided (%)")
+        ax.set_title(f"{cond}: risk-coverage (dev); markers = train-chosen bands"); ax.legend(fontsize=7); ax.set_ylim(0, 20)
+    fig.tight_layout(); p = os.path.join(OUT, "risk_coverage.png"); fig.savefig(p, dpi=120); plt.close(fig); paths.append(p)
     return paths
 
 

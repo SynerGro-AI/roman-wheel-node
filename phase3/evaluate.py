@@ -247,7 +247,7 @@ def node_run(train, dev, cond, sources, target, cal, variant, gate=True, live_on
         eff, _, _ = roman_wheel_node(1, scores(r), live=lw, mode="bayes", variant=variant, dependence=dep)
         thr.record(eff, y(r), f"bayes:{variant}")
     cut0 = thr.cutoff(f"bayes:{variant}")
-    band = None if ltt_margin is None else (max(0.0, cut0 - ltt_margin), cut0 + ltt_margin)
+    band = None if ltt_margin is None else ltt_interval(cut0, ltt_margin)
     trace = ClaimTrace(os.path.join(tmp, "audit.jsonl"), live=lw, mode="bayes", variant=variant, threshold=thr,
                        dependence=dep if variant in ("ess", "tan", "stack", "ess_cal") else None, not_sure_band=band)
     adm, effs, sts = [], [], []
@@ -357,31 +357,43 @@ def oof_effs(train, cond, sources, variant, folds: int = 5):
         _, effs, inf = node_run(tr, [train[i] for i in idx], cond, sources, "S", cal, variant)
         for i, e in zip(idx, effs):
             out[i] = e; cuts[i] = inf["cutoff"]
-            dis[i] = disagree(train[i], cond, cal, sources, e, inf["cutoff"])
+            dis[i] = train[i]["cond"][cond]["a"] == 1 and disagree(train[i], cond, cal, sources, e, inf["cutoff"])  # gate BLOCK is decided, as on dev
     return out, dis, cuts
 
 
-def ltt_band(oof, ys, dis, cuts, alpha: float, delta: float = 0.05, step: float = 0.005):
-    """Learn-Then-Test (fixed-sequence) risk control on train OOF posteriors.
+def ltt_interval(cut: float, m: float) -> Tuple[float, float]:
+    """NOT_SURE band for a log-odds margin m around the cutoff: [sig(lg(cut) - m), sig(lg(cut) + m)).
+    m >= 50 means "decide nothing" (hi above any posterior)."""
+    if m >= 50:
+        return (0.0, 1.001)
+    return (_sig(_lg(cut) - m), _sig(_lg(cut) + m))
 
-    Candidate margins m go from widest (decide almost nothing) to narrowest. Each is accepted while the one-sided
-    Clopper-Pearson (1 - delta) upper bound on the decided-claim error rate is <= alpha; we stop at the first failure.
-    A claim is decided iff it shows no disagreement and |eff - cutoff| >= m (relative to its own fold's cutoff).
-    Returns (m, n_decided, errors, upper_bound)."""
-    best = (0.5, 0, 0, 0.0)
-    m = 0.5
-    while m >= -1e-9:
-        dec = [i for i in range(len(oof)) if not dis[i] and (oof[i] >= cuts[i] + m or oof[i] < cuts[i] - m)]
+
+def ltt_band(oof, ys, dis, cuts, alpha: float, delta: float = 0.05, K: int = 20):
+    """Learn-Then-Test risk control (Bonferroni over a fixed grid) on train OOF posteriors.
+
+    A claim is decided iff it shows no disagreement and its log-odds distance from its own fold's cutoff
+    |lg(eff) - lg(cut)| >= m. The K candidate margins are fixed in advance as the distances that decide the top
+    1/K, 2/K, ..., K/K of the non-disagreeing train claims. Each candidate's one-sided Clopper-Pearson upper bound on
+    the decided-claim error rate is computed at level delta / K (Bonferroni), so with probability >= 1 - delta every
+    certified candidate's true risk is <= alpha; we take the certified candidate with the widest coverage.
+    Returns (m, n_decided, errors, upper_bound); m = 99 (abstain on everything) when none is certified."""
+    z = [abs(_lg(o) - _lg(c)) for o, c in zip(oof, cuts)]
+    zs = sorted((z[i] for i in range(len(z)) if not dis[i]), reverse=True)
+    best = (99.0, 0, 0, 0.0)
+    if not zs:
+        return best
+    for q in range(1, K + 1):
+        m = zs[max(0, int(round(q * len(zs) / K)) - 1)]
+        dec = [i for i in range(len(oof)) if not dis[i] and z[i] >= m]
         k = sum((oof[i] >= cuts[i]) != bool(ys[i]) for i in dec)
-        ub = cp_upper(k, len(dec), delta) if dec else 0.0
-        if ub > alpha:
-            break
-        best = (round(m, 4), len(dec), k, ub)
-        m -= step
+        ub = cp_upper(k, len(dec), delta / K)
+        if ub <= alpha and len(dec) > best[1]:
+            best = (round(m, 6), len(dec), k, ub)
     return best
 
 
-def ltt_eval(train, dev, cond, sources, variant, cal, alphas=(0.01, 0.005)) -> dict:
+def ltt_eval(train, dev, cond, sources, variant, cal, alphas=(0.10, 0.05, 0.02, 0.01, 0.005)) -> dict:
     """Fail-closed selective mode: LTT band + disagreement rule, applied to dev through ClaimTrace(NOT_SURE)."""
     oof, dis, cuts = oof_effs(train, cond, sources, variant)
     ys_tr = [r["label3"] == "SUPPORT" for r in train]
@@ -396,7 +408,7 @@ def ltt_eval(train, dev, cond, sources, variant, cal, alphas=(0.01, 0.005)) -> d
         dec = [i for i, st in enumerate(status) if st != "NOT_SURE"]
         errs = sum((status[i] == "ACCEPT") != ys[i] for i in dec)
         acc_i = [i for i in dec if status[i] == "ACCEPT"]
-        out[f"{al}"] = {"margin": m, "band": [cut - m, cut + m], "train_oof": {"decided": n_tr, "errors": k_tr, "upper95": ub_tr,
+        out[f"{al}"] = {"margin_logodds": m, "band": list(ltt_interval(cut, m)), "train_oof": {"decided": n_tr, "errors": k_tr, "upper95": ub_tr,
                         "coverage": n_tr / len(train), "disagreements": sum(dis)},
                         "dev_coverage": len(dec) / len(dev), "dev_decided": len(dec), "dev_errors_decided": errs,
                         "dev_error_rate_upper95_clopper_pearson": cp_upper(errs, len(dec)),
@@ -423,13 +435,11 @@ def cp_upper(k: int, n: int, alpha: float = 0.05) -> float:
 def selective(train, dev, cond, sources, variant, dev_eff, ysup_dev, targets=(1.0, 0.99, 0.98, 0.97)) -> dict:
     """Selective mode: the ThresholdLearner picks an abstain band on train OOF posteriors; it is applied to dev unchanged."""
     oof, _, _ = oof_effs(train, cond, sources, variant)
+    ys_tr = [r["label3"] == "SUPPORT" for r in train]
     tmp = tempfile.mkdtemp(prefix="rwn_p3band_")
-    th = ThresholdLearner(os.path.join(tmp, "t.jsonl"), half_life=None)
-    for e, r in zip(oof, train):
-        th.record(e, r["label3"] == "SUPPORT", "sel")
     out = {}
     for tg in targets:
-        lo, hi, cov_tr, acc_tr = th.band("sel", target=tg, min_decided=20)
+        lo, hi, cov_tr, acc_tr = band_exact(oof, ys_tr, tg, min_decided=10)
         dec = [i for i, e in enumerate(dev_eff) if e < lo or e >= hi]
         acc_i = [i for i in dec if dev_eff[i] >= hi]
         ok = [float((dev_eff[i] >= hi) == bool(ysup_dev[i])) for i in dec]
@@ -452,6 +462,34 @@ def selective(train, dev, cond, sources, variant, dev_eff, ysup_dev, targets=(1.
                             "dev_unsupported_accepted_of_all_unsupported": sum(1 for i in acc_i if not ysup_dev[i]) / max(1, sum(1 for y in ysup_dev if not y))}
     shutil.rmtree(tmp)
     return out
+
+
+def band_exact(oof: List[float], ys: List[bool], target: float, min_decided: int = 10):
+    """Exact (lo, hi) abstain band on train OOF posteriors: reject eff < lo, accept eff >= hi, abstain in between.
+    Unlike ThresholdLearner.band's 0.02 grid this searches every distinct posterior, which matters because the node's
+    posteriors pile up near 0 and 1. Widest coverage with decided accuracy >= target; ties -> higher accuracy.
+    No qualifying band -> (0, 1.001) = abstain on everything."""
+    n = len(oof)
+    o = sorted(range(n), key=lambda i: oof[i])
+    e = [oof[i] for i in o]
+    pt = [0]
+    for i in o:
+        pt.append(pt[-1] + int(ys[i]))
+    cuts = [c for c in range(n + 1) if c in (0, n) or e[c - 1] < e[c]]     # cut between distinct posteriors only
+    val = lambda c: e[c] if c < n else 1.001
+    best = (0.0, 1.001, 0.0, 1.0)
+    for a in cuts:                                   # reject o[:a]
+        r_ok = a - pt[a]
+        for b in cuts:                               # accept o[b:]
+            if b < a:
+                continue
+            d = a + (n - b)
+            if d < max(1, min_decided):
+                continue
+            acc = (r_ok + pt[n] - pt[b]) / d
+            if acc >= target and (d / n > best[2] + 1e-12 or (abs(d / n - best[2]) <= 1e-12 and acc > best[3])):
+                best = (val(a) if a < n else 1.001, val(b), d / n, acc)
+    return best
 
 
 def risk_coverage(p: List[float], y: List[int], cut: float = 0.5) -> List[List[float]]:

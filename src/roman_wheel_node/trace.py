@@ -135,8 +135,12 @@ def _decide(rec: dict) -> Tuple[float, str, str]:
 
 
 def _apply_not_sure(rec: dict, status: str) -> str:
-    """Selective mode: fail closed to NOT_SURE inside the logged band or when the logged flag is set (BLOCK stays BLOCK)."""
-    if status == "BLOCK":
+    """Selective mode: fail closed to NOT_SURE inside the logged band or when the logged flag is set.
+
+    A gate failure (a != 1, incl. a parent that is not admitted) stays BLOCK: that is a decided rejection by construction. A claim the
+    node would reject on its posterior but that falls inside the band (or is flagged) becomes NOT_SURE too, so
+    "decided" means confident in either direction. Neither BLOCK nor NOT_SURE is ever admitted."""
+    if status == "BLOCK" and rec.get("a_eff", rec.get("a")) != 1:
         return status
     band = rec.get("not_sure_band")
     if rec.get("not_sure_forced"):

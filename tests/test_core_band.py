@@ -81,3 +81,15 @@ def test_old_logs_unchanged_without_band(tmp_path):
 def test_bad_band_rejected(tmp_path):
     with pytest.raises(ValueError):
         _tr(tmp_path, not_sure_band=(0.9, 0.1))
+
+
+def test_low_posterior_inside_band_is_not_sure_but_gate_block_stays_block(tmp_path):
+    from roman_wheel_node.trace import ClaimTrace
+    t = ClaimTrace(str(tmp_path / "b.jsonl"), mode="geomean", not_sure_band=(0.2, 0.8))
+    lowish = t.submit("x", {"a": 0.3}, a=1)            # geomean 0.3 -> BLOCK below 0.5, but inside the band
+    assert lowish.status == "NOT_SURE" and not lowish.admitted
+    gate = t.submit("y", {"a": 0.3}, a=0)              # gate failure is a decided rejection
+    assert gate.status == "BLOCK" and not gate.admitted
+    orphan = t.submit("z", {"a": 0.9}, a=1, parents=["missing"])
+    assert orphan.status == "BLOCK" and not orphan.admitted
+    t.verify()
