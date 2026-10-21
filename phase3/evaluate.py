@@ -30,6 +30,8 @@ from factcheck.scifact import load_corpus, sentence_hashes, sha                 
 from features import CACHE, DATA, evidence_text                                        # noqa: E402
 from judges import CONDITIONS, JUDGES, _register_fewshot, selected                     # noqa: E402
 
+# judge calls that timed out on every retry (180 s x 5); listed explicitly so nothing else can silently go missing
+MISSING_OK = {"dev:971": ("J5",)}
 CALIBRATOR = os.environ.get("RWN_P3_CAL", "isotonic")     # isotonic (default) | platt
 PARTIAL = os.environ.get("RWN_P3_PARTIAL") == "1"          # development only: skip claims without all responses
 if os.environ.get("RWN_P3_JUDGES"):
@@ -86,6 +88,11 @@ def load_rows() -> Dict[str, dict]:
                 if cond not in JUDGES[n]["conditions"]:
                     continue
                 if not j.cached(f["claim"], ev):
+                    if n in MISSING_OK.get(k, ()):
+                        # a call that repeatedly timed out: the judge abstains (uniform), and it is counted in the report
+                        src[n] = {"S": 1 / 3, "C": 1 / 3, "N": 1 / 3, "unparsed": True, "missing": True}
+                        quotes[n] = ""
+                        continue
                     missing.append(n); continue
                 p, q = j.judge(f["claim"], ev)
                 src[n] = {"S": p["SUPPORT"], "C": p["CONTRADICT"], "N": p["NEI"], "unparsed": "_unparsed" in p}
@@ -482,7 +489,8 @@ def main() -> None:
                 "gate_closed_dev_supported": sum(1 - r["cond"][cond]["a"] for r in dev if r["label3"] == "SUPPORT"),
                 "j1_commits_without_quote": sum(r["cond"][cond]["j1_commits"] and not r["cond"][cond]["quote_given"] for r in dev),
                 "gate_closed_train": sum(1 - r["cond"][cond]["a"] for r in train),
-                "unparsed_judge_replies": sum(r["cond"][cond]["src"][j]["unparsed"] for r in dev + train for j in judges)}
+                "unparsed_judge_replies": sum(r["cond"][cond]["src"][j]["unparsed"] for r in dev + train for j in judges),
+                "missing_judge_calls": sum(bool(r["cond"][cond]["src"][j].get("missing")) for r in dev + train for j in judges)}
         report["conditions"][cond] = {"selected": sel_name, "cv_train": cv, "binary": tab, "vs_best_single_judge": vs_best,
                                       "judge_train_accuracy": tr_acc, "error_analysis": {k: {"n": len(v), "keys": v} for k, v in cats.items()},
                                       "label_noise_candidates": suspects, "three_way": tab3, "safety_vs_unwrapped_J1": safety,
