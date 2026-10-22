@@ -23,6 +23,8 @@ dependencies = []
 [project.optional-dependencies]
 test = ["pytest>=7", "hypothesis>=6"]
 bench = ["matplotlib>=3.5"]
+local-nli = ["onnxruntime>=1.16", "tokenizers>=0.15", "numpy"]
+local-nli2 = ["torch", "transformers>=4.40", "sentencepiece", "protobuf"]
 
 [project.urls]
 Homepage = "https://github.com/SynerGro-AI/roman-wheel-node"
@@ -32,7 +34,7 @@ Issues = "https://github.com/SynerGro-AI/roman-wheel-node/issues"
 where = ["src"]
 
 [tool.setuptools.package-data]
-roman_wheel_node = ["py.typed"]
+roman_wheel_node = ["py.typed", "policies/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

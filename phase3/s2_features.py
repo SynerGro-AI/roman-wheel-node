@@ -15,7 +15,7 @@ from features import CACHE                                           # noqa: E40
 NLI2 = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
 
 
-def main() -> None:
+def main(items_path: str = "", out_path: str = "") -> None:
     import torch
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
     torch.set_num_threads(6)
@@ -25,8 +25,8 @@ def main() -> None:
     lab = {v.lower(): int(k) for k, v in nm.config.id2label.items()}
     nli = NLIScorer(os.path.join(HERE, "models", "nli-deberta-v3-small"))
     ov = OverlapScorer()
-    items = json.load(open(os.path.join(CACHE, "step2", "items.json")))
-    path = os.path.join(CACHE, "step2", "local.json")
+    items = json.load(open(items_path or os.path.join(CACHE, "step2", "items.json")))
+    path = out_path or os.path.join(CACHE, "step2", "local.json")
     out = json.load(open(path)) if os.path.exists(path) else {}
     t0 = time.time()
     for n, it in enumerate(items):
