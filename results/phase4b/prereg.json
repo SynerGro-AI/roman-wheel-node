@@ -1,0 +1,30 @@
+{
+ "created": "2026-10-22T10:50:34-0600",
+ "rule": {
+  "version": "4b.0",
+  "veto_fields": [
+   "identifier_mutation",
+   "fragment",
+   "near_copy_swap"
+  ],
+  "swap_context": 5,
+  "swap_min_side": 1,
+  "mutation_suffix": 4,
+  "on_veto": "NOT_SURE"
+ },
+ "rule_sha256": "dc2299c9a92c33f8adcd9f01a154856bd4d12816f7fe27948cf7903f7efe78bb",
+ "panel_policy": "254804f8ac9b500ef1951879fb64328b0f54303b8bef20e38b1684545f876eb1",
+ "split_seed": "rwn-phase4b-structural-2026-10-22",
+ "split": "sha256(seed:evidence-group) parity; A even, B odd",
+ "half_B_items": 1856,
+ "half_B_groups": 678,
+ "alphas": [
+  0.01,
+  0.02,
+  0.05
+ ],
+ "delta": 0.05,
+ "risk": "false accepts among ACCEPTs (one-sided Clopper-Pearson)",
+ "primary": "half B of COVID-Fact, scored once; secondary: SciFact dev, HealthVer test, Climate-FEVER, hv_test_unjudged",
+ "note": "rule designed on half A only; half B not scored before this file"
+}
