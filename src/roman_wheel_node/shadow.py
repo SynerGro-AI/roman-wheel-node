@@ -29,6 +29,7 @@ from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Seque
 
 from .core import roman_wheel_node
 from .policy import ACCEPT, BLOCK, NOT_SURE, Policy, Profile, load_policy
+from .fingerprint import exact_gate_v2, quote_verbatim_v2, trusted_set
 from .sources import BM25, exact_gate, sha256
 from .trace import ClaimTrace
 
@@ -131,6 +132,8 @@ class ShadowRunner:
             built from ``nli_dir`` / ``nli2``; with neither, only ``overlap`` is available, so profiles fail closed).
         corpus: trusted ``{doc_id: [sentence, ...]}``; gives the exact-copy gate its hash set and BM25 retrieval.
         trusted_hashes: extra sha256 set for the gate (e.g. evidence the agent quoted from a verified store).
+            Under an fp2 policy (4.1.0+) entries may also be ``fingerprint.fp2`` values.
+        trusted_units: extra trusted sentences (hashed with the policy's fingerprint version).
         judges: an opt-in :class:`~roman_wheel_node.sources.XAIPanel` (paid). None (default) = no judges.
         enforce: False (default) = shadow; True = release outputs only when every claim is ACCEPTed.
         on_withhold: enforce-mode replacement, ``(output, verdicts) -> object`` (default returns None).
@@ -141,7 +144,8 @@ class ShadowRunner:
                  trusted_hashes: Optional[Iterable[str]] = None, judges: Optional[Callable] = None,
                  enforce: bool = False, on_withhold: Optional[Callable] = None, nli_dir: Optional[str] = None,
                  nli2: Optional[str] = None, hf_cache: Optional[str] = None, device: str = "cpu", retrieve_k: int = 1,
-                 hmac_key: Optional[bytes] = None, clock: Callable[[], float] = time.time) -> None:
+                 hmac_key: Optional[bytes] = None, clock: Callable[[], float] = time.time,
+                 trusted_units: Optional[Iterable[str]] = None) -> None:
         os.makedirs(log_dir, exist_ok=True)
         self.log_dir, self.enforce, self.clock = log_dir, bool(enforce), clock
         self.node = FrozenNode(os.path.join(log_dir, "audit.jsonl"), policy, profile, hmac_key)
@@ -152,10 +156,16 @@ class ShadowRunner:
             sources = LocalSources(nli_dir=nli_dir, nli2=nli2, hf_cache=hf_cache, device=device)
         self.sources, self.judges = sources, judges
         self.bm25 = BM25(corpus) if corpus else None
+        self.fingerprint = self.node.policy.fingerprint
         hs = set(trusted_hashes or ())
         if self.bm25 is not None:
             hs |= self.bm25.hashes()
-        self.hashes = hs if (hs or corpus is not None or trusted_hashes is not None) else None
+            if self.fingerprint == "fp2":
+                hs |= trusted_set((s for v in self.bm25.docs.values() for s in v), "fp2")
+        if trusted_units is not None:
+            hs |= trusted_set(trusted_units, self.fingerprint)
+        given = corpus is not None or trusted_hashes is not None or trusted_units is not None
+        self.hashes = hs if (hs or given) else None
         self.on_withhold = on_withhold or (lambda output, verdicts: None)
         self.retrieve_k = retrieve_k
         self.fresh_path = os.path.join(log_dir, "fresh_claims.jsonl")
@@ -181,7 +191,8 @@ class ShadowRunner:
         retrieved = False
         if not sents and self.bm25 is not None:
             sents, retrieved = self.bm25.retrieve(claim, self.retrieve_k), True
-        a = exact_gate(sents, self.hashes)
+        fp2 = self.fingerprint == "fp2"
+        a = exact_gate_v2(sents, self.hashes) if fp2 else exact_gate(sents, self.hashes)
         raw: Dict[str, Dict[str, float]] = {}
         try:
             raw.update(self.sources(claim, sents))
@@ -197,7 +208,8 @@ class ShadowRunner:
         gq = self.node.prof.gate_judge_quote
         if gq and a == 1 and gq in raw:                    # Phase 3d gate: a committing judge must quote verbatim
             commits = max(("S", "C", "N"), key=lambda x: raw[gq].get(x, 0.0)) != "N"
-            if commits and not quote_verbatim(quotes.get(gq, ""), sents, self.hashes or set()):
+            qv = quote_verbatim_v2 if fp2 else quote_verbatim
+            if commits and not qv(quotes.get(gq, ""), sents, self.hashes or set()):
                 a = 0
         v = self.node.decide(claim, raw, a)
         rec = {"id": f"{v.seq}:{v.record_hash[:16]}", "ts": float(self.clock()), "seq": v.seq, "record_hash": v.record_hash,
@@ -277,6 +289,8 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("claims", help="input JSONL; '-' for stdin")
     ap.add_argument("--log-dir", default="rwn_shadow")
     ap.add_argument("--profile", default=None, help="local (default), local-lite, or panel (needs --enable-xai-judges)")
+    ap.add_argument("--policy", default=None, choices=[None, "4.0.0", "4.1.0"],
+                    help="frozen policy: 4.0.0 (default, raw-byte gate) or 4.1.0 (fp2 NFC-normalized gate)")
     ap.add_argument("--corpus", default=None, help="trusted corpus JSONL {doc_id, sentences:[..]} (gate + retrieval)")
     ap.add_argument("--trust-given-evidence", action="store_true",
                     help="treat evidence given in the stream as trusted exact copies (only if your pipeline verified it)")
@@ -301,7 +315,14 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     src = sys.stdin if args.claims == "-" else open(args.claims)
     items = [json.loads(l) for l in src if l.strip()]
     trusted = {sha256(s) for it in items for s in it.get("evidence") or []} if args.trust_given_evidence else None
-    r = ShadowRunner(args.log_dir, profile=args.profile, corpus=corpus, trusted_hashes=trusted, judges=judges,
+    if trusted is not None and args.policy == "4.1.0":
+        from .fingerprint import trusted_set
+        trusted |= trusted_set((s for it in items for s in it.get("evidence") or []), "fp2")
+    pol = None
+    if args.policy == "4.1.0":
+        from .policy import POLICY_4_1_PATH
+        pol = load_policy(POLICY_4_1_PATH)
+    r = ShadowRunner(args.log_dir, policy=pol, profile=args.profile, corpus=corpus, trusted_hashes=trusted, judges=judges,
                      enforce=args.enforce, nli_dir=args.nli_dir, nli2=args.nli2, hf_cache=args.hf_cache,
                      device=args.device)
     for it, v in r.stream(items):

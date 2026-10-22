@@ -1,0 +1,64 @@
+{
+ "certification": {
+  "alphas": [
+   0.01,
+   0.02,
+   0.05
+  ],
+  "delta": 0.05,
+  "feasibility_note": "zero-error accepts needed: 299 (1%), 149 (2%), 59 (5%). The Phase 4b rule accepted 289 of the B items, so 1% cannot be certified on B by any veto",
+  "method": "Learn-Then-Test fixed-sequence over tau_sequence in order (strict -> loose), each hypothesis 'false-accept share > alpha' rejected iff the one-sided Clopper-Pearson upper bound at delta is <= alpha; stop at the first failure"
+ },
+ "checker": {
+  "base_model": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
+  "input": "(evidence units joined by a space, claim), evidence truncated first",
+  "score": "P(entailment), softmax over 3 classes, fp32",
+  "targets": "true claim -> entailment, fake claim -> contradiction (3-way head kept)",
+  "train_on": "A_train only"
+ },
+ "format": "rwn-phase5-protocol",
+ "frozen_policy": "rwn-policy-4.0.0 254804f8ac9b500ef1951879fb64328b0f54303b8bef20e38b1684545f876eb1",
+ "heldout": "B_test COVID-Fact items the panel judged (the 1,856 of Phase 4b); scored exactly once",
+ "no_regression": {
+  "base": "panel_4b",
+  "pass_if": "precision after >= precision before AND correct accepts lost <= max(1, 5% of correct accepts before)",
+  "sets": [
+   "scifact_dev",
+   "healthver_test",
+   "climatefever",
+   "hv_test_unjudged"
+  ],
+  "setting": "primary"
+ },
+ "note": "HealthVer and COVID-Fact: internal, unlicensed datasets; aggregates only, no text or per-item output committed",
+ "primary": {
+  "base": "panel_4b",
+  "setting": "r0.90",
+  "why": "panel + frozen Phase 4b structural veto is the current best frozen rule; r0.90 is the middle of the declared sequence"
+ },
+ "secondary_bases": [
+  "panel",
+  "local"
+ ],
+ "sha256": "8251c5298ad6b38642710538eebfa54902be232c0838bde0c73de079077af63a",
+ "split_manifest_sha256": "f1edca3583c2c0a63dc9843e09e5fe8b76a08232f42ff007db411bc9e855f169",
+ "success": "primary setting certified at 5% on B AND every no-regression set passes",
+ "tau_rule": "for retention r, tau_r = ascending-sorted P(support) of ALL true A_dev claims at index floor((1-r)*n)",
+ "tau_sequence": [
+  {
+   "name": "r0.80",
+   "retention": 0.8
+  },
+  {
+   "name": "r0.90",
+   "retention": 0.9
+  },
+  {
+   "name": "r0.95",
+   "retention": 0.95
+  }
+ ],
+ "version": 1,
+ "veto": "accept-only: ACCEPT -> NOT_SURE iff checker P(support) < tau or the score is missing; BLOCK and NOT_SURE never change, so the checker can only remove accepts",
+ "written": "2026-10-22 (America/Edmonton)"
+}
