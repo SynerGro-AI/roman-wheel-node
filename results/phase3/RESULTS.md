@@ -76,3 +76,45 @@ Phase 3b: $80.82. Phase 3c: +$12.81 (J11 1,300 calls, J12 47 calls) → **$93.63
 
 J11 alone: gold 82.7% (calibrated) with 0.6% false accepts; rv3 84.7%. Its error correlation with the other reasoning
 judges is high (phi .44–.58 on rv3), so the dependence-aware combiner gives it little extra weight.
+
+## Phase 3d (step 2): larger calibration pool, three out-of-sample test sets, full 6-judge panel
+Script `phase3/s2_eval.py`; aggregates only in `results/phase3/step2.txt` / `step2.json`. Every choice (isotonic source
+calibration, node variant and source set by 5-fold CV, reliabilities, dependence, cutoff, LTT margins) was fit on the
+calibration pool only: SciFact train 350 + 449 unused train claims + HealthVer train 1,999 pairs = **2,798 claims**, gold
+evidence, judges J1 J2 J4 J7 J9 J10 + local NLI. Test sets were used once. HealthVer is an internal, unlicensed dataset:
+its data and per-item outputs are not redistributed, only aggregate numbers appear here. Climate-FEVER (unanimous-vote
+pairs, CC BY-SA) has no calibration data, so it is a transfer test (measured, not certified).
+
+Selected on calibration CV: bayes-hard [judges only] (CV accuracy .823; cutoff 0.065). Best single judge on calibration: J4.
+
+| Test set (binary: supported vs not) | n | Node, full coverage | Unwrapped J1 | J4 | False accepts node / J1 / J4 | McNemar node vs J1 |
+|---|---|---|---|---|---|---|
+| HealthVer test (internal) | 1,515 | **78.6%** [76.6, 80.7] | 75.2% | 75.8% | 124 / 93 / 76 of 951 (8.2% / 6.1% / 5.0%) | 140 vs 89, p = 0.0009 |
+| Climate-FEVER (transfer) | 1,500 | **78.8%** [76.7, 80.9] | 74.5% | 74.3% | 26 / 17 / 13 of 867 (1.7% / 1.1% / 0.9%) | 98 vs 34, p < 1e-7 |
+| SciFact dev | 300 | 87.3% [83.3, 91.0] | 86.7% | **90.0%** | 29 / 19 / 15 of 176 (9.7% / 6.3% / 5.0%) | 19 vs 17, p = 0.87 |
+
+At full coverage the node is more accurate than J1 on HealthVer and Climate-FEVER, but it is tuned for accuracy and
+accepts more unsupported claims than J1 or J4 on all three sets. On SciFact dev the mixed-domain pool does worse than the
+SciFact-only Phase 3b node (91.3% gold); HealthVer dominates the pool.
+
+**LTT NOT_SURE (δ = 0.05):**
+* Pre-registered protocol (the CV-selected node, Bonferroni over 20 margins): **nothing is certifiable at α = 1%, 2%, 5%
+  or even 10%**. Among the most confident calibration claims, 22 of the top 139 are already errors (mostly confident
+  accepts of claims HealthVer labels NEI/CONTRADICT). The node abstains on every non-BLOCK claim. The only decided test
+  claims are exact-copy-gate BLOCKs (HealthVer 2, Climate-FEVER 11 with 4 wrong blocks, SciFact 2 with 1 wrong block):
+  **0 accepts, so 0 false accepts**.
+* Supplement (all 10 candidates × 20 margins, Bonferroni δ/200, chosen on calibration only): α = 10% is certifiable
+  (bayes-logit [all]: 127 calibration decided, 1 error, upper 8.2%, 4.5% calibration coverage). α ≤ 5% again certifies nothing.
+  Applied to test at α = 10%: HealthVer 7.0% coverage, 4/106 errors (upper 8.4%), 0 false accepts of 19 accepted;
+  SciFact 21.7% coverage, 2/65 errors (upper 9.4%), 1 false accept of 63; Climate-FEVER (transfer, not covered by the
+  certificate) 9.5% coverage, 15/142 errors (10.6%, upper 15.8%), 0 false accepts of 36.
+
+**Certified coverage at ≤ 1% and ≤ 2% error: 0%** (fail-closed abstention), with 2,798 calibration claims. The
+blocker is no longer sample size alone: the confident-error tail (label disagreement with HealthVer/SciFact gold) is
+far above 2%, so no margin isolates an error-free region big enough to certify.
+
+HealthVer test coverage: 1,515 of the 1,823 test pairs have all six judges cached; 308 were not judged because judge
+collection stopped at the $215 script cap (items are processed in a fixed hash order, so the judged subset is a
+pseudo-random sample). The SciFact dev J10 votes (299 calls, $1.38) were collected afterwards under a $218 guard.
+
+Spend: **$216.60** of the $220 hard cap (`phase3/cache/spend.jsonl`).

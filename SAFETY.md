@@ -136,3 +136,22 @@ picture. That still needs the larger, cleaner test set scoped in `phase3/STEP2_P
 **Bottom line.** By construction (a), nothing unverified and nothing NOT_SURE is ever emitted as verified. Measured (b),
 when the node does decide on held-out data its error rate is bounded at about 5% (gold evidence, 19% coverage) to
 about 9–12% (broader coverage). It cannot yet certify ≤ 1%. Getting there needs a much larger calibration set and cleaner labels.
+
+### b6. Phase 3d: larger calibration pool (2,798 claims) and three out-of-sample test sets
+
+Full details: `results/phase3/RESULTS.md` (last section), `results/phase3/step2.txt`. Calibration was SciFact train plus
+HealthVer train, and every choice was fit on that pool only. HealthVer is internal (aggregates only).
+
+* **α = 1% and 2%: still nothing certifiable, with 8× more calibration data.** Coverage is 0%, and no test claim is
+  accepted, so there are 0 false accepts. That is the fail-closed outcome. The reason is now the confident-error tail, not
+  only sample size: about 16% of the most confident calibration decisions disagree with gold. Most are accepts of claims
+  that HealthVer labels NEI or CONTRADICT.
+* α = 10% can be certified only through the family supplement (Bonferroni over 10 configurations × 20 margins), with 4.5%
+  calibration coverage. On test: HealthVer 4/106 errors (upper 8.4%), SciFact 2/65 (upper 9.4%). Climate-FEVER has no
+  calibration data and exceeds the bound (15/142, 10.6%). This is a measured example of why certificates do not transfer
+  across sources.
+* Decide-everything accuracy: HealthVer 78.6%, Climate-FEVER 78.8%, SciFact 87.3%. False accepts of unsupported claims are
+  8.2% / 1.7% / 9.7%, higher than the best single judge's. The full-coverage node is not a safety mode; NOT_SURE is.
+* Net: 99% accuracy on decided claims is **not** demonstrated on any real dataset. The supported safety statement is
+  structural: an uncertain claim becomes NOT_SURE and is never accepted (section a). The measured bound is ≤ 10% on
+  exchangeable claims, at small coverage.

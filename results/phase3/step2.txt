@@ -1,0 +1,55 @@
+Phase 3d (step 2): Roman Wheel Node, larger calibration, out-of-sample tests
+
+Calibration pool: {'healthver_train': 1999, 'scifact_train_unused': 449, 'scifact_train350': 350}  (HealthVer: internal, unlicensed dataset, data not redistributed)
+Selected on calibration CV: bayes-hard [judges]; cutoff 0.0650
+Best single judge on calibration: J4
+
+LTT certificates (delta=0.05, Bonferroni K=20, calibration OOF):
+  alpha 10%: none certifiable; margin 99.0; calib coverage 0.0% (0 decided, 0 errors, UB 0.0%)
+  alpha 5%: none certifiable; margin 99.0; calib coverage 0.0% (0 decided, 0 errors, UB 0.0%)
+  alpha 2%: none certifiable; margin 99.0; calib coverage 0.0% (0 decided, 0 errors, UB 0.0%)
+  alpha 1%: none certifiable; margin 99.0; calib coverage 0.0% (0 decided, 0 errors, UB 0.0%)
+LTT over the full candidate family (10 configs x 20 margins, Bonferroni delta/200, calibration OOF):
+  alpha 10%: CERTIFIED bayes-logit [all]; margin 11.183866; calib coverage 4.5% (127 decided, 1 errors, UB 8.2%)
+  alpha 5%: none certifiable (abstain on all non-BLOCK claims)
+  alpha 2%: none certifiable (abstain on all non-BLOCK claims)
+  alpha 1%: none certifiable (abstain on all non-BLOCK claims)
+
+== healthver_test (n=1515, labels {'CONTRADICT': 333, 'NEI': 618, 'SUPPORT': 564})  [internal, unlicensed dataset, data not redistributed]
+  node_full_coverage     acc 78.6% [76.6%, 80.7%]  false accepts 124/951 (8.2% [6.9%, 9.6%])
+  unwrapped_J1           acc 75.2% [73.1%, 77.4%]  false accepts 93/951 (6.1% [5.0%, 7.4%])
+  best_judge_J4          acc 75.8% [73.6%, 78.0%]  false accepts 76/951 (5.0% [4.0%, 6.1%])
+  McNemar node vs J1: (140, 89, 0.0009124227083924228)
+  LTT 10%: coverage 0.1% (2/1515), errors 0 (rate 0.0%, CP UB 77.6%), false accepts 0/0 accepted
+  LTT 5%: coverage 0.1% (2/1515), errors 0 (rate 0.0%, CP UB 77.6%), false accepts 0/0 accepted
+  LTT 2%: coverage 0.1% (2/1515), errors 0 (rate 0.0%, CP UB 77.6%), false accepts 0/0 accepted
+  LTT 1%: coverage 0.1% (2/1515), errors 0 (rate 0.0%, CP UB 77.6%), false accepts 0/0 accepted
+  family LTT 10%: coverage 7.0% (106/1515), errors 4 (rate 3.8%, CP UB 8.4%), false accepts 0/19 accepted
+
+== climatefever (n=1500, labels {'SUPPORT': 633, 'NEI': 634, 'CONTRADICT': 233})  [transfer: no calibration data from this source]
+  node_full_coverage     acc 78.8% [76.7%, 80.9%]  false accepts 26/867 (1.7% [1.1%, 2.4%])
+  unwrapped_J1           acc 74.5% [72.4%, 76.7%]  false accepts 17/867 (1.1% [0.7%, 1.7%])
+  best_judge_J4          acc 74.3% [72.1%, 76.5%]  false accepts 13/867 (0.9% [0.4%, 1.3%])
+  McNemar node vs J1: (98, 34, 2.225708250524145e-08)
+  LTT 10%: coverage 0.7% (11/1500), errors 4 (rate 36.4%, CP UB 65.0%), false accepts 0/0 accepted
+  LTT 5%: coverage 0.7% (11/1500), errors 4 (rate 36.4%, CP UB 65.0%), false accepts 0/0 accepted
+  LTT 2%: coverage 0.7% (11/1500), errors 4 (rate 36.4%, CP UB 65.0%), false accepts 0/0 accepted
+  LTT 1%: coverage 0.7% (11/1500), errors 4 (rate 36.4%, CP UB 65.0%), false accepts 0/0 accepted
+  family LTT 10%: coverage 9.5% (142/1500), errors 15 (rate 10.6%, CP UB 15.8%), false accepts 0/36 accepted
+
+== scifact_dev (n=300, labels {'SUPPORT': 124, 'NEI': 112, 'CONTRADICT': 64})
+  node_full_coverage     acc 87.3% [83.3%, 91.0%]  false accepts 29/176 (9.7% [6.3%, 13.0%])
+  unwrapped_J1           acc 86.7% [82.7%, 90.3%]  false accepts 19/176 (6.3% [3.7%, 9.3%])
+  best_judge_J4          acc 90.0% [86.3%, 93.0%]  false accepts 15/176 (5.0% [2.7%, 7.7%])
+  McNemar node vs J1: (19, 17, 0.8679394004284404)
+  LTT 10%: coverage 0.7% (2/300), errors 1 (rate 50.0%, CP UB 97.5%), false accepts 0/0 accepted
+  LTT 5%: coverage 0.7% (2/300), errors 1 (rate 50.0%, CP UB 97.5%), false accepts 0/0 accepted
+  LTT 2%: coverage 0.7% (2/300), errors 1 (rate 50.0%, CP UB 97.5%), false accepts 0/0 accepted
+  LTT 1%: coverage 0.7% (2/300), errors 1 (rate 50.0%, CP UB 97.5%), false accepts 0/0 accepted
+  family LTT 10%: coverage 21.7% (65/300), errors 2 (rate 3.1%, CP UB 9.4%), false accepts 1/63 accepted
+
+== pooled in-distribution tests ['healthver_test', 'scifact_dev']
+  LTT 10%: coverage 0.2% (4/1815), errors 1 (CP UB 75.1%), false accepts 0
+  LTT 5%: coverage 0.2% (4/1815), errors 1 (CP UB 75.1%), false accepts 0
+  LTT 2%: coverage 0.2% (4/1815), errors 1 (CP UB 75.1%), false accepts 0
+  LTT 1%: coverage 0.2% (4/1815), errors 1 (CP UB 75.1%), false accepts 0

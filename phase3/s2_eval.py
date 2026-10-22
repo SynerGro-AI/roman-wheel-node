@@ -8,6 +8,8 @@ Protocol (no test label is used for any choice):
 * LTT: Bonferroni over K=20 log-odds margins, delta=0.05, one-sided Clopper-Pearson on out-of-fold decided errors.
   The guarantee is for claims exchangeable with the calibration pool. Climate-FEVER has no calibration data at all, so
   it is a transfer test: its numbers are measured, not certified.
+* Supplement: LTT over the whole pre-specified candidate family (all 10 CV candidates x 20 margins, Bonferroni
+  delta/200), the certified candidate with the widest calibration coverage chosen per alpha on calibration OOF only.
 * Tests (frozen node): HealthVer test (internal, unlicensed dataset, data not redistributed), Climate-FEVER unanimous-vote
   subset (CC BY-SA), SciFact dev (if J10 is complete there).
 Outputs: results/phase3/step2.json + step2.txt (aggregates only); per-item outputs in cache/step2/eval_items.json (gitignored).
@@ -124,6 +126,27 @@ def main() -> None:
                                             "coverage": n_tr / len(cal_rows), "disagreements": sum(dis)},
                         "status": st}
         print(f"LTT alpha={al}: margin {m}, calib decided {n_tr}/{len(cal_rows)} errors {k_tr} ub {ub_tr:.4f}", flush=True)
+    # supplement: LTT over the whole candidate family (every CV candidate x 20 margins, Bonferroni delta/(20*|family|)),
+    # chosen per alpha by calibration OOF coverage only; still valid because the family is fixed before looking at data
+    fam = {}
+    nf = len(E.CANDIDATES)
+    for al in ALPHAS:
+        bestf = None
+        for fv, fsn in E.CANDIDATES:
+            o2, d2, c2 = E.oof_effs(cal_rows, COND, srcsets[fsn], fv)
+            m, n_tr, k_tr, ub_tr = E.ltt_band(o2, ys_c, d2, c2, al, delta=0.05 / nf)
+            if m < 50 and (bestf is None or n_tr > bestf[2]):
+                bestf = (fv, fsn, n_tr, k_tr, ub_tr, m)
+        if bestf is None:
+            fam[f"{al}"] = {"certified": False, "status": ["NOT_SURE"] * len(alltest)}
+        else:
+            fv, fsn, n_tr, k_tr, ub_tr, m = bestf
+            a2, _, inf2 = E.node_run(cal_rows, alltest, COND, srcsets[fsn], "S", cal, fv, ltt_margin=m)
+            st = ["NOT_SURE" if x == "NOT_SURE" else ("ACCEPT" if a else "REJECT") for x, a in zip(inf2["status"], a2)]
+            fam[f"{al}"] = {"certified": True, "variant": fv, "sources": fsn, "margin_logodds": m,
+                            "calibration_oof": {"decided": n_tr, "errors": k_tr, "upper95_bonferroni": ub_tr,
+                                                "coverage": n_tr / len(cal_rows)}, "status": st}
+        print(f"family LTT alpha={al}:", {k: x for k, x in fam[f'{al}'].items() if k != 'status'}, flush=True)
     res["datasets"] = {}
     off = 0
     per_item = {}
@@ -136,7 +159,8 @@ def main() -> None:
              "node_full_coverage": stats(rs, st_node[sl]), "unwrapped_J1": stats(rs, j1), f"best_judge_{best}": stats(rs, bj),
              "mcnemar_node_vs_J1": E.mcnemar(node_ok, [(s == "ACCEPT") == y for s, y in zip(j1, ys)]),
              f"mcnemar_node_vs_{best}": E.mcnemar(node_ok, [(s == "ACCEPT") == y for s, y in zip(bj, ys)]),
-             "ltt": {al: stats(rs, x["status"][sl]) for al, x in ltt.items()}}
+             "ltt": {al: stats(rs, x["status"][sl]) for al, x in ltt.items()},
+             "ltt_family": {al: stats(rs, x["status"][sl]) for al, x in fam.items() if x["certified"]}}
         if ds in INTERNAL:
             d["note"] = NOTE
         res["datasets"][ds] = d
@@ -154,6 +178,7 @@ def main() -> None:
         res["pooled_in_distribution"] = {"datasets": exch, "node_full_coverage": stats(rs, [st_node[i] for i in idx]),
                                          "ltt": {al: stats(rs, [x["status"][i] for i in idx]) for al, x in ltt.items()}}
     res["ltt_certificates"] = {al: {k: x[k] for k in ("margin_logodds", "certified", "calibration_oof")} for al, x in ltt.items()}
+    res["ltt_family_certificates"] = {al: {k: v_ for k, v_ in x.items() if k != "status"} for al, x in fam.items()}
     json.dump(per_item, open(os.path.join(CACHE, "step2", "eval_items.json"), "w"))
     out = os.path.join(E.ROOT, "results", "phase3")
     json.dump(res, open(os.path.join(out, "step2.json"), "w"), indent=1, default=float)
@@ -174,6 +199,14 @@ def report(res) -> str:
         o = c["calibration_oof"]
         L.append(f"  alpha {float(al):.0%}: {'CERTIFIED' if c['certified'] else 'none certifiable'}; margin {c['margin_logodds']}; "
                  f"calib coverage {pct(o['coverage'])} ({o['decided']} decided, {o['errors']} errors, UB {pct(o['upper95_bonferroni'])})")
+    L.append("LTT over the full candidate family (10 configs x 20 margins, Bonferroni delta/200, calibration OOF):")
+    for al, c in res.get("ltt_family_certificates", {}).items():
+        if c["certified"]:
+            o = c["calibration_oof"]
+            L.append(f"  alpha {float(al):.0%}: CERTIFIED bayes-{c['variant']} [{c['sources']}]; margin {c['margin_logodds']}; "
+                     f"calib coverage {pct(o['coverage'])} ({o['decided']} decided, {o['errors']} errors, UB {pct(o['upper95_bonferroni'])})")
+        else:
+            L.append(f"  alpha {float(al):.0%}: none certifiable (abstain on all non-BLOCK claims)")
     for ds, d in res["datasets"].items():
         L += ["", f"== {ds} (n={d['node_full_coverage']['n']}, labels {d['labels']})" + (f"  [{d['note']}]" if "note" in d else "")
               + ("  [transfer: no calibration data from this source]" if ds == "climatefever" else "")]
@@ -184,6 +217,9 @@ def report(res) -> str:
         L.append(f"  McNemar node vs J1: {d['mcnemar_node_vs_J1']}")
         for al, s in d["ltt"].items():
             L.append(f"  LTT {float(al):.0%}: coverage {pct(s['coverage'])} ({s['decided']}/{s['n']}), errors {s['errors']} "
+                     f"(rate {pct(s['error_rate'])}, CP UB {pct(s['error_upper95_cp'])}), false accepts {s['false_accepts']}/{s['accepted']} accepted")
+        for al, s in d.get("ltt_family", {}).items():
+            L.append(f"  family LTT {float(al):.0%}: coverage {pct(s['coverage'])} ({s['decided']}/{s['n']}), errors {s['errors']} "
                      f"(rate {pct(s['error_rate'])}, CP UB {pct(s['error_upper95_cp'])}), false accepts {s['false_accepts']}/{s['accepted']} accepted")
     if "pooled_in_distribution" in res:
         p = res["pooled_in_distribution"]; L += ["", f"== pooled in-distribution tests {p['datasets']}"]

@@ -460,7 +460,9 @@ def cp_upper(k: int, n: int, alpha: float = 0.05) -> float:
     lo, hi = k / n, 1.0
     for _ in range(100):                       # P(X <= k | n, p) = alpha, decreasing in p
         mid = (lo + hi) / 2
-        cdf = sum(math.comb(n, i) * mid ** i * (1 - mid) ** (n - i) for i in range(k + 1))
+        lp, lq = math.log(mid), math.log1p(-mid)   # log space: math.comb(n, i) overflows float for n in the thousands
+        cdf = sum(math.exp(math.lgamma(n + 1) - math.lgamma(i + 1) - math.lgamma(n - i + 1) + i * lp + (n - i) * lq)
+                  for i in range(k + 1))
         lo, hi = (mid, hi) if cdf > alpha else (lo, mid)
     return hi
 

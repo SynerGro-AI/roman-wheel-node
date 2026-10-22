@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased: Phase 3d (step 2), larger calibration pool and out-of-sample tests
+- `phase3/s2_data.py`, `s2_features.py`, `s2_judges.py` (6-judge panel, hard ledger cap, stops on xAI billing errors),
+  `s2_eval.py` (calibration-only CV selection, LTT at 1/2/5/10%, plus an LTT over the whole candidate family).
+- Calibration pool 2,798 claims (SciFact train 799 + HealthVer train 1,999). Tests: HealthVer test 1,515 of 1,823
+  (internal, aggregates only), Climate-FEVER 1,500 (transfer), SciFact dev 300.
+- Full-coverage node: HealthVer 78.6%, Climate-FEVER 78.8%, SciFact 87.3%. Better than J1 on HealthVer/Climate-FEVER, but
+  it has more false accepts (8.2% / 1.7% / 9.7% of unsupported claims).
+- LTT: **≤ 1% and ≤ 2% certify nothing (0% coverage, 0 accepts)**. Only 10% is certifiable, and only with the family
+  supplement (4.5% calibration coverage).
+- Fix: `evaluate.cp_upper` now works in log space (`math.comb` overflowed float for n in the thousands).
+- API spend $216.60 of $220.
+
 ## Unreleased: Phase 3c step 1, strict proof verifier
 - J11: a strict proof verifier (prompt V: quote first, no extrapolation; the quote must pass the byte-exact gate),
   usable as a node source, a hard ACCEPT veto (`node_run(veto=...)`), or ACCEPT-only-with-proof → NOT_SURE.
