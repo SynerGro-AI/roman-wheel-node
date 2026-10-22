@@ -1,0 +1,170 @@
+{
+ "prereg": {
+  "policy": "254804f8ac9b500ef1951879fb64328b0f54303b8bef20e38b1684545f876eb1",
+  "profile": "panel",
+  "alphas": [
+   0.01,
+   0.02,
+   0.05
+  ],
+  "delta": 0.05,
+  "risk": "false accepts among ACCEPTs (one-sided Clopper-Pearson)",
+  "search": "none (single fixed rule)",
+  "created": "2026-10-22T10:20:19-0600",
+  "note": "Phase 4 fresh sets hv_test_unjudged,covidfact; decisions were logged before this file and before any label"
+ },
+ "skipped": {
+  "other_rule": 0,
+  "unlabelled": 0,
+  "unsure": 0
+ },
+ "groups": {
+  "all": {
+   "labelled": 3829,
+   "supported": 1220,
+   "unsupported": 2609,
+   "accepted": 559,
+   "false_accepts": 148,
+   "blocked": 29,
+   "not_sure": 3241,
+   "coverage": 0.1459911203969705,
+   "precision": 0.7352415026833632,
+   "precision_ci95": [
+    0.6965902054424025,
+    0.771385377494629
+   ],
+   "false_accept_share_upper": 0.29723169800433147,
+   "delta": 0.05,
+   "false_accept_rate_of_unsupported": 0.05672671521655807,
+   "false_accept_rate_of_unsupported_upper": 0.06474477277000122,
+   "recall_of_supported": 0.3368852459016393,
+   "alphas": {
+    "0.01": {
+     "certified": false,
+     "upper": 0.29723169800433147,
+     "accepts_needed_zero_errors": 299,
+     "labelled_needed_at_observed_coverage_zero_errors": 2049,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    },
+    "0.02": {
+     "certified": false,
+     "upper": 0.29723169800433147,
+     "accepts_needed_zero_errors": 149,
+     "labelled_needed_at_observed_coverage_zero_errors": 1021,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    },
+    "0.05": {
+     "certified": false,
+     "upper": 0.29723169800433147,
+     "accepts_needed_zero_errors": 59,
+     "labelled_needed_at_observed_coverage_zero_errors": 405,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    }
+   }
+  },
+  "ds=hv_test_unjudged": {
+   "labelled": 308,
+   "supported": 107,
+   "unsupported": 201,
+   "accepted": 4,
+   "false_accepts": 0,
+   "blocked": 1,
+   "not_sure": 303,
+   "coverage": 0.012987012987012988,
+   "precision": 1.0,
+   "precision_ci95": [
+    0.3976353643835253,
+    1.0
+   ],
+   "false_accept_share_upper": 0.5271291954984122,
+   "delta": 0.05,
+   "false_accept_rate_of_unsupported": 0.0,
+   "false_accept_rate_of_unsupported_upper": 0.01479362369471492,
+   "recall_of_supported": 0.037383177570093455,
+   "alphas": {
+    "0.01": {
+     "certified": false,
+     "upper": 0.5271291954984122,
+     "accepts_needed_zero_errors": 299,
+     "labelled_needed_at_observed_coverage_zero_errors": 23023,
+     "labelled_needed_at_observed_coverage_and_error_rate": 23023
+    },
+    "0.02": {
+     "certified": false,
+     "upper": 0.5271291954984122,
+     "accepts_needed_zero_errors": 149,
+     "labelled_needed_at_observed_coverage_zero_errors": 11473,
+     "labelled_needed_at_observed_coverage_and_error_rate": 11473
+    },
+    "0.05": {
+     "certified": false,
+     "upper": 0.5271291954984122,
+     "accepts_needed_zero_errors": 59,
+     "labelled_needed_at_observed_coverage_zero_errors": 4543,
+     "labelled_needed_at_observed_coverage_and_error_rate": 4543
+    }
+   }
+  },
+  "ds=covidfact": {
+   "labelled": 3521,
+   "supported": 1113,
+   "unsupported": 2408,
+   "accepted": 555,
+   "false_accepts": 148,
+   "blocked": 28,
+   "not_sure": 2938,
+   "coverage": 0.15762567452428286,
+   "precision": 0.7333333333333334,
+   "precision_ci95": [
+    0.6944622019504716,
+    0.769699403744933
+   ],
+   "false_accept_share_upper": 0.29932574404555923,
+   "delta": 0.05,
+   "false_accept_rate_of_unsupported": 0.061461794019933555,
+   "false_accept_rate_of_unsupported_upper": 0.07012417354375945,
+   "recall_of_supported": 0.3656783468104223,
+   "alphas": {
+    "0.01": {
+     "certified": false,
+     "upper": 0.29932574404555923,
+     "accepts_needed_zero_errors": 299,
+     "labelled_needed_at_observed_coverage_zero_errors": 1897,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    },
+    "0.02": {
+     "certified": false,
+     "upper": 0.29932574404555923,
+     "accepts_needed_zero_errors": 149,
+     "labelled_needed_at_observed_coverage_zero_errors": 946,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    },
+    "0.05": {
+     "certified": false,
+     "upper": 0.29932574404555923,
+     "accepts_needed_zero_errors": 59,
+     "labelled_needed_at_observed_coverage_zero_errors": 375,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    }
+   }
+  }
+ },
+ "note": "HealthVer and COVID-Fact: internal, unlicensed datasets; data and per-item outputs are not redistributed",
+ "counts": {
+  "ACCEPT": 559,
+  "NOT_SURE": 3241,
+  "BLOCK": 29
+ },
+ "errors": 0,
+ "available_sources": [
+  "J1",
+  "J2",
+  "J4",
+  "J7",
+  "J9",
+  "J10",
+  "nli",
+  "nli2",
+  "overlap"
+ ]
+}

@@ -14,3 +14,6 @@ Risk = false accepts among ACCEPTs; one-sided Clopper-Pearson, delta = 0.05; one
 | local-lite (free: ONNX nli + overlap) | hv_test_unjudged | 308 | 0 (0.0%) | 0 | n/a | 100.0% | no | no | no | n/a / n/a |
 | local-lite (free: ONNX nli + overlap) | covidfact | 4086 | 392 (9.6%) | 146 | 62.8% [57.8%, 67.6%] | 41.5% | no | no | no | 3117 / 1554 |
 | local-lite (free: ONNX nli + overlap) | hv_dev | 1917 | 1 (0.1%) | 1 | 0.0% [0.0%, 97.5%] | 100.0% | no | no | no | 573183 / 285633 |
+| panel (frozen Phase 3e rule: 6 xAI judges + local) | all | 3829 | 559 (14.6%) | 148 | 73.5% [69.7%, 77.1%] | 29.7% | no | no | no | 2049 / 1021 |
+| panel (frozen Phase 3e rule: 6 xAI judges + local) | hv_test_unjudged | 308 | 4 (1.3%) | 0 | 100.0% [39.8%, 100.0%] | 52.7% | no | no | no | 23023 / 11473 |
+| panel (frozen Phase 3e rule: 6 xAI judges + local) | covidfact | 3521 | 555 (15.8%) | 148 | 73.3% [69.4%, 77.0%] | 29.9% | no | no | no | 1897 / 946 |
