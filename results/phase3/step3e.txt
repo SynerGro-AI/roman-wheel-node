@@ -1,0 +1,101 @@
+Phase 3e: stricter accept rules, per-dataset calibration, fixed-sequence LTT (zero new API calls)
+
+Calibration: {'scifact': 799, 'healthver': 1999, 'pooled': 2798}  (HealthVer: internal, unlicensed dataset, data not redistributed)
+Calibration filter diagnostics (non-BLOCK claims passing each filter, of which gold SUPPORT):
+  scifact: BLOCKs 7 (4 on SUPPORT gold); U6 194/204; U6+NLIe 108/109; J11 61/63; J11+U6 51/52; U0 13/400
+  healthver: BLOCKs 9 (3 on SUPPORT gold); U6 70/80; U6+NLIe 30/35; J11 0/0; J11+U6 0/0; U0 261/1371
+
+######## risk: selective_blocks_decided
+== population scifact (calibration n=799; 168 (config, rho) tests, Bonferroni delta_each=2.98e-04; fixed sequence K=40)
+  best single-step upper bound in the family (diagnostic): 5.7% (pooled|bayes-logit [all]|U6, rho 1.0: 446 decided, 10 errors)
+  alpha 10%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=78]
+  alpha 5%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=159]
+  alpha 2%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=402]
+  alpha 1%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=808]
+  -- test scifact_dev (n=300)
+     alpha 10% (none): coverage 0.7% (2/300), acc 50.0% [0.0%, 100.0%], errors 1 (CP UB 97.5%), false accepts 0/176 unsupported (0.0%, UB 1.7%), 0 accepted
+     alpha 5% (none): coverage 0.7% (2/300), acc 50.0% [0.0%, 100.0%], errors 1 (CP UB 97.5%), false accepts 0/176 unsupported (0.0%, UB 1.7%), 0 accepted
+     alpha 2% (none): coverage 0.7% (2/300), acc 50.0% [0.0%, 100.0%], errors 1 (CP UB 97.5%), false accepts 0/176 unsupported (0.0%, UB 1.7%), 0 accepted
+     alpha 1% (none): coverage 0.7% (2/300), acc 50.0% [0.0%, 100.0%], errors 1 (CP UB 97.5%), false accepts 0/176 unsupported (0.0%, UB 1.7%), 0 accepted
+  -- test climatefever (n=1500)  [transfer: measured, not certified]
+     alpha 10% (none): coverage 0.7% (11/1500), acc 63.6% [36.4%, 90.9%], errors 4 (CP UB 65.0%), false accepts 0/867 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 5% (none): coverage 0.7% (11/1500), acc 63.6% [36.4%, 90.9%], errors 4 (CP UB 65.0%), false accepts 0/867 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 2% (none): coverage 0.7% (11/1500), acc 63.6% [36.4%, 90.9%], errors 4 (CP UB 65.0%), false accepts 0/867 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 1% (none): coverage 0.7% (11/1500), acc 63.6% [36.4%, 90.9%], errors 4 (CP UB 65.0%), false accepts 0/867 unsupported (0.0%, UB 0.3%), 0 accepted
+== population healthver (calibration n=1999; 144 (config, rho) tests, Bonferroni delta_each=3.47e-04; fixed sequence K=40)
+  best single-step upper bound in the family (diagnostic): 11.6% (pooled|bayes-logit [all]|U6+NLIe, rho 2.0: 393 decided, 25 errors)
+  alpha 10%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=76]
+  alpha 5%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=156]
+  alpha 2%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=395]
+  alpha 1%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=793]
+  -- test healthver_test (n=1515)
+     alpha 10% (none): coverage 0.1% (2/1515), acc 100.0% [100.0%, 100.0%], errors 0 (CP UB 77.6%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 5% (none): coverage 0.1% (2/1515), acc 100.0% [100.0%, 100.0%], errors 0 (CP UB 77.6%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 2% (none): coverage 0.1% (2/1515), acc 100.0% [100.0%, 100.0%], errors 0 (CP UB 77.6%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 1% (none): coverage 0.1% (2/1515), acc 100.0% [100.0%, 100.0%], errors 0 (CP UB 77.6%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+
+######## risk: selective_blocks_separate
+== population scifact (calibration n=799; 168 (config, rho) tests, Bonferroni delta_each=2.98e-04; fixed sequence K=40)
+  best single-step upper bound in the family (diagnostic): 4.4% (pooled|bayes-logit [all]|U6, rho 1.0: 439 decided, 6 errors)
+  alpha 10%: CERTIFIED scifact|bayes-logit [all]|base rho 1.0; calib coverage 91.0% (727 decided, 39 errors, UB 8.8%; 280 accepted, 17 false)  [0-error minimum n=78]
+  alpha 5%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=159]
+  alpha 2%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=402]
+  alpha 1%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=808]
+  -- test scifact_dev (n=300)
+     alpha 10%: coverage 94.3% (283/300), acc 92.6% [89.4%, 95.4%], errors 21 (CP UB 10.5%), false accepts 7/176 unsupported (4.0%, UB 7.3%), 108 accepted
+     alpha 5% (none): coverage 0.0% (0/300), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/176 unsupported (0.0%, UB 1.7%), 0 accepted
+     alpha 2% (none): coverage 0.0% (0/300), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/176 unsupported (0.0%, UB 1.7%), 0 accepted
+     alpha 1% (none): coverage 0.0% (0/300), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/176 unsupported (0.0%, UB 1.7%), 0 accepted
+  -- test climatefever (n=1500)  [transfer: measured, not certified]
+     alpha 10%: coverage 91.7% (1376/1500), acc 71.4% [69.0%, 73.7%], errors 394 (CP UB 30.7%), false accepts 2/867 unsupported (0.2%, UB 0.7%), 132 accepted
+     alpha 5% (none): coverage 0.0% (0/1500), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/867 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 2% (none): coverage 0.0% (0/1500), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/867 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 1% (none): coverage 0.0% (0/1500), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/867 unsupported (0.0%, UB 0.3%), 0 accepted
+== population healthver (calibration n=1999; 144 (config, rho) tests, Bonferroni delta_each=3.47e-04; fixed sequence K=40)
+  best single-step upper bound in the family (diagnostic): 10.9% (pooled|bayes-logit [all]|U6+NLIe, rho 2.0: 384 decided, 22 errors)
+  alpha 10%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=76]
+  alpha 5%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=156]
+  alpha 2%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=395]
+  alpha 1%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=793]
+  -- test healthver_test (n=1515)
+     alpha 10% (none): coverage 0.0% (0/1515), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 5% (none): coverage 0.0% (0/1515), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 2% (none): coverage 0.0% (0/1515), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 1% (none): coverage 0.0% (0/1515), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+
+######## risk: accept_precision
+== population scifact (calibration n=799; 42 (config, rho) tests, Bonferroni delta_each=1.19e-03; fixed sequence K=40)
+  best single-step upper bound in the family (diagnostic): 4.3% (pooled|bayes-logit [all]|base, rho 0.0: 152 decided, 0 errors)
+  alpha 10%: CERTIFIED pooled|bayes-logit [all]|base rho 0.0; calib coverage 33.4% (267 decided, 12 errors, UB 9.7%; 267 accepted, 12 false)  [0-error minimum n=64]
+  alpha 5%: CERTIFIED pooled|bayes-logit [all]|base rho 0.0; calib coverage 19.0% (152 decided, 0 errors, UB 4.3%; 152 accepted, 0 false)  [0-error minimum n=132]
+  alpha 2%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=334]
+  alpha 1%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=670]
+  -- test scifact_dev (n=300)
+     alpha 10%: coverage 34.7% (104/300), acc 94.2% [89.4%, 98.1%], errors 6 (CP UB 11.1%), false accepts 6/176 unsupported (3.4%, UB 6.6%), 104 accepted
+     alpha 5%: coverage 21.0% (63/300), acc 98.4% [95.2%, 100.0%], errors 1 (CP UB 7.3%), false accepts 1/176 unsupported (0.6%, UB 2.7%), 63 accepted
+     alpha 2% (none): coverage 0.0% (0/300), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/176 unsupported (0.0%, UB 1.7%), 0 accepted
+     alpha 1% (none): coverage 0.0% (0/300), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/176 unsupported (0.0%, UB 1.7%), 0 accepted
+  -- test climatefever (n=1500)  [transfer: measured, not certified]
+     alpha 10%: coverage 8.1% (121/1500), acc 99.2% [97.5%, 100.0%], errors 1 (CP UB 3.9%), false accepts 1/867 unsupported (0.1%, UB 0.5%), 121 accepted
+     alpha 5%: coverage 2.4% (36/1500), acc 100.0% [100.0%, 100.0%], errors 0 (CP UB 8.0%), false accepts 0/867 unsupported (0.0%, UB 0.3%), 36 accepted
+     alpha 2% (none): coverage 0.0% (0/1500), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/867 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 1% (none): coverage 0.0% (0/1500), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/867 unsupported (0.0%, UB 0.3%), 0 accepted
+== population healthver (calibration n=1999; 36 (config, rho) tests, Bonferroni delta_each=1.39e-03; fixed sequence K=40)
+  best single-step upper bound in the family (diagnostic): 22.4% (healthver|bayes-logit [all]|base, rho 0.0: 186 decided, 25 errors)
+  alpha 10%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=63]
+  alpha 5%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=129]
+  alpha 2%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=326]
+  alpha 1%: none certifiable -> NOT_SURE on every non-BLOCK claim  [0-error minimum n=655]
+  -- test healthver_test (n=1515)
+     alpha 10% (none): coverage 0.0% (0/1515), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 5% (none): coverage 0.0% (0/1515), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 2% (none): coverage 0.0% (0/1515), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+     alpha 1% (none): coverage 0.0% (0/1515), acc n/a [n/a, n/a], errors 0 (CP UB 100.0%), false accepts 0/951 unsupported (0.0%, UB 0.3%), 0 accepted
+
+== full coverage (per-dataset CV-selected node) vs Phase 3d pooled node
+  scifact_dev: bayes-soft [all] calibrated on scifact: coverage 100.0% (300/300), acc 89.7% [86.0%, 93.0%], errors 31 (CP UB 13.7%), false accepts 10/176 unsupported (5.7%, UB 9.4%), 113 accepted
+     Phase 3d pooled: acc 87.3%, false accepts 29/176
+  climatefever: bayes-soft [all] calibrated on scifact: coverage 100.0% (1500/1500), acc 67.9% [65.5%, 70.2%], errors 482 (CP UB 34.2%), false accepts 3/867 unsupported (0.3%, UB 0.9%), 157 accepted
+     Phase 3d pooled: acc 78.8%, false accepts 26/867
+  healthver_test: bayes-hard [all] calibrated on healthver: coverage 100.0% (1515/1515), acc 78.5% [76.4%, 80.5%], errors 326 (CP UB 23.3%), false accepts 137/951 unsupported (14.4%, UB 16.4%), 512 accepted
+     Phase 3d pooled: acc 78.6%, false accepts 124/951

@@ -118,3 +118,71 @@ collection stopped at the $215 script cap (items are processed in a fixed hash o
 pseudo-random sample). The SciFact dev J10 votes (299 calls, $1.38) were collected afterwards under a $218 guard.
 
 Spend: **$216.60** of the $220 hard cap (`phase3/cache/spend.jsonl`).
+
+## Phase 3e: zero-cost fixes (audit, stricter accept rules, per-dataset calibration, fixed-sequence LTT)
+
+No new xAI call: every judge output is read from the Phase 3d cache, and `phase3/s3e_eval.py` refuses to run with
+`XAI_API_KEY` set. Spend stays **$216.60** of $220. Details: `results/phase3/step3e.txt` / `step3e.json`,
+`step3e_audit.json`. HealthVer is internal and unlicensed: aggregates only.
+
+**1. Audit of the confident calibration errors** (Phase 3d node, out-of-fold; the top-confidence tier is 184 decided with
+27 errors, and the "top 139" quoted for Phase 3d holds 22 of them). All 27 are false accepts. Per-claim notes are local only.
+
+| Class | Top 139 (22) | Whole tier (27) |
+|---|---|---|
+| Label noise (the shown evidence supports the claim; gold says NEI/CONTRADICT) | 7 | 10 (HealthVer 8, SciFact 2) |
+| Ambiguous (reasonable annotators could differ) | 6 | 7 (HealthVer 5, SciFact 2) |
+| Real node error (gold right; the panel over-infers) | 9 | 10 (HealthVer 6, SciFact 4) |
+| Retrieval miss | 0 | 0 (calibration uses gold evidence) |
+
+8 of the 27 had all six judges voting SUPPORT. J11 was cached on 4 of them (all SciFact) and rejected all 4.
+
+**2. Calibration-set precision of the stricter accept filters** (non-BLOCK claims passing, gold SUPPORT / n):
+SciFact: 6/6 unanimous 194/204, unanimous + NLI entailment 108/109, J11-verified + unanimous 51/52.
+HealthVer: unanimous 70/80 (12.5% disagree with gold), unanimous + NLI 30/35. The exact-copy gate BLOCKs 7 SciFact
+calibration claims, 4 of them gold SUPPORT (HealthVer 9, 3 SUPPORT).
+
+**3–4. Certification.** The family is pre-specified per population: 2 calibration schemes (per-dataset, pooled) × 3 nodes
+× 6 accept rules (+2 J11 rules on SciFact) × 4 accept/reject asymmetries. It uses fixed-sequence LTT along each margin
+path, Bonferroni over the family and δ = 0.05 per population (SciFact: 168 tests; HealthVer: 144).
+
+| Risk definition | Population | 10% | 5% | 2% | 1% |
+|---|---|---|---|---|---|
+| Selective error, BLOCK counted as a decided REJECT (Phase 3d accounting, primary) | SciFact | none | none | none | none |
+| | HealthVer | none | none | none | none |
+| Selective error, BLOCK reported as its own fail-closed outcome | SciFact | **91.0%** cov. (39/727, UB 8.8%) | none | none | none |
+| | HealthVer | none | none | none | none |
+| Accept precision (accept-only; share of ACCEPTs that are unsupported) | SciFact | 33.4% cov. (12/267, UB 9.7%) | **19.0% cov. (0/152, UB 4.3%)** | none | none |
+| | HealthVer | none | none | none | none |
+
+Held-out tests (frozen rules; Climate-FEVER uses the SciFact certificate, so it is transfer, measured and not certified):
+* SciFact dev, accept precision at 5%: 63 of 300 accepted (21%), 1 false accept (1.6%; CP UB 7.3%). At 10%: 104
+  accepted, 6 false. With BLOCK separate at 10%: 94.3% coverage, 92.6% [89.4, 95.4] accuracy, 7/176 false accepts.
+* Climate-FEVER, accept precision at 5%: 36 accepted, 0 false. At 10%: 121 accepted, 1 false. BLOCK separate at 10%:
+  91.7% coverage but 71.4% accuracy (it transfers poorly on rejects), 2/867 false accepts.
+* HealthVer test: nothing certified, so every non-BLOCK claim is NOT_SURE (0 accepts).
+* Phase 3d for comparison: 1/2% gave 0% coverage everywhere; the 10% family certificate covered HealthVer 7.0%,
+  SciFact 21.7% and Climate-FEVER 9.5%.
+
+**Full coverage with per-dataset calibration** (CV on each population):
+* SciFact dev: **89.7%** [86.0, 93.0], 10/176 false accepts (Phase 3d pooled: 87.3%, 29/176).
+* HealthVer test: 78.5%, 137/951 false accepts (Phase 3d: 78.6%, 124/951).
+* Climate-FEVER with SciFact calibration: 67.9%, 3/867 false accepts (Phase 3d pooled: 78.8%, 26/867). The
+  SciFact-calibrated node rarely accepts on Climate-FEVER.
+
+**Why 1% and 2% are still not certifiable.**
+1. **Sample size (SciFact).** With this family, 2% needs at least 402 decided calibration claims (accept-only: 334)
+   with zero errors, and 1% needs 808 (670). SciFact calibration has 799 claims, only 328 of them SUPPORT. An
+   accept-only 2% certificate is therefore impossible even with perfect accepts. A single rule registered in advance
+   would still need 149 (2%) or 299 (1%) error-free decisions.
+2. **Label noise (HealthVer).** Even a unanimous 6/6 panel disagrees with HealthVer gold on 12.5% of calibration claims,
+   and 17 of the 27 audited errors are label noise or ambiguous. No accept rule can certify below that floor against
+   these labels.
+3. **Gate BLOCKs on supported claims** (4 of 7 on SciFact) put a floor under the selective risk when BLOCK counts as a
+   decided REJECT.
+
+**Caveats.**
+* The rule family was designed after the audit of calibration errors and is certified on the same calibration data. The
+  held-out tests are the independent check.
+* The two extra risk definitions were added after the primary failed. Each uses δ = 0.05, so δ ≤ 0.15 jointly.
+* Certificates use out-of-fold posteriors, while the deployed node is refit on the whole population (as in Phase 3d).

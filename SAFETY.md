@@ -155,3 +155,28 @@ HealthVer train, and every choice was fit on that pool only. HealthVer is intern
 * Net: 99% accuracy on decided claims is **not** demonstrated on any real dataset. The supported safety statement is
   structural: an uncertain claim becomes NOT_SURE and is never accepted (section a). The measured bound is ≤ 10% on
   exchangeable claims, at small coverage.
+
+### b7. Phase 3e: audit, stricter accept rules and per-dataset calibration (no new API calls)
+
+Full details: `results/phase3/RESULTS.md` (Phase 3e) and `results/phase3/step3e.txt`.
+
+* **Audit of the confident errors** (22 in the Phase 3d top 139; 27 in the whole tied tier, all false accepts): 7 (10)
+  label noise, 6 (7) ambiguous, 9 (10) real node errors, 0 retrieval misses. The node errors are over-inference, for
+  example from a recommendation to a risk finding, from one gene to a general rule, or from "most" to "not all".
+* **α = 1% and 2%: still not certifiable**, under any of three risk definitions and either calibration scheme, so the
+  node stays fail-closed (NOT_SURE).
+  * SciFact is limited by sample size. Even zero errors would need at least 402 decided claims at 2% and 808 at 1% for
+    this family, against 799 calibration claims, of which only 328 are SUPPORT.
+  * HealthVer is limited by label noise: a unanimous 6/6 panel disagrees with gold on 12.5% of claims.
+* **What is now certified (δ = 0.05, calibration out-of-fold, SciFact population only):**
+  * Accept precision ≤ 5% (accept-only mode, 19% calibration coverage, 0/152 errors). On SciFact dev: 63 accepted,
+    1 unsupported.
+  * Selective error ≤ 10% with BLOCK reported separately (91% coverage). On SciFact dev: 92.6% accuracy at 94.3%
+    coverage.
+  * Nothing is certified for HealthVer. Climate-FEVER is transfer and not covered.
+* **Per-dataset calibration** brings SciFact full-coverage accuracy back to 89.7% (Phase 3d pooled: 87.3%) and cuts
+  false accepts from 29 to 10 of 176.
+* **Caveats:** the rule family was designed after looking at calibration errors; the two extra risk definitions were
+  added post hoc (δ ≤ 0.15 jointly); the certificates are out-of-fold.
+* **Net:** no claim of 99% or 100% accuracy is supported on real data. The structural guarantee in (a) is unchanged: an
+  uncertain claim is never accepted.

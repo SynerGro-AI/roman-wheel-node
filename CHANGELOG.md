@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased: Phase 3e, zero-cost fixes on the cached judge outputs
+- `phase3/s3e_rules.py`: accept and reject filters (unanimity, NLI entailment, J11 proof), asymmetric accept/reject margins,
+  fixed-sequence LTT with label-free skipping of steps too small to pass, a Bonferroni family certificate, and optional
+  BLOCK-separate and accept-precision risks. `phase3/s3e_eval.py` makes no API calls and refuses to run with
+  XAI_API_KEY set. `tests/test_phase3e_rules.py` adds 12 tests (175 passed, 2 skipped).
+- Audit of the 22 (27) most confident calibration errors: 7 (10) label noise, 6 (7) ambiguous, 9 (10) node errors and
+  0 retrieval misses. Aggregates are in `results/phase3/step3e_audit.json`; per-claim notes are local only.
+- **1% and 2% are still not certifiable.** SciFact is limited by sample size: zero errors would need ≥ 402 decided
+  claims and the pool has 328 SUPPORT. HealthVer is limited by label noise: the unanimous panel disagrees with 12.5% of
+  its gold labels.
+- Newly certified on SciFact: accept precision ≤ 5% (dev: 63 accepted, 1 unsupported) and, with BLOCK reported
+  separately, ≤ 10% selective error at 91% coverage.
+- Per-dataset calibration: SciFact dev 89.7% (pooled was 87.3%); false accepts 29 → 10 of 176.
+- API spend unchanged at $216.60 of $220.
+
 ## Unreleased: Phase 3d (step 2), larger calibration pool and out-of-sample tests
 - `phase3/s2_data.py`, `s2_features.py`, `s2_judges.py` (6-judge panel, hard ledger cap, stops on xAI billing errors),
   `s2_eval.py` (calibration-only CV selection, LTT at 1/2/5/10%, plus an LTT over the whole candidate family).
