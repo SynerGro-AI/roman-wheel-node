@@ -302,16 +302,58 @@ accuracy points, so train CV leaves it off. As a source it leaves rv3 at 87.3%. 
 Details: [results/phase3/RESULTS.md](results/phase3/RESULTS.md), `results/phase3/scifact.txt`, and the charts in `results/phase3/`
 (`scifact_accuracy.png`, `scifact_false_accept.png`, `scifact_correlation.png`, `risk_coverage.png`).
 
+## Phase 4: shadow-mode deployment and fresh-set certification
+**This is shadow mode: the node watches an agent's claims and changes nothing.** A frozen, hash-pinned policy decides
+every claim and logs the decision. The agent's output is returned untouched. The fresh claims it logs can later earn a
+certificate on data the node was never tuned on.
+
+```python
+from roman_wheel_node.shadow import ShadowRunner
+rwn = ShadowRunner("rwn_shadow/", nli2="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli", corpus=trusted_docs)
+respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(out)])   # same return value
+```
+
+* **Policy.** `src/roman_wheel_node/policies/rwn-policy-4.0.0.json`, loaded by `roman_wheel_node.policy.load_policy()`.
+  The loader pins its sha256 and refuses an edited or swapped file.
+  * There are three outcomes: `ACCEPT`, `NOT_SURE` and `BLOCK`. The policy is accept-only, so it never rejects on its
+    posterior.
+  * Anything uncertain or erroring becomes `NOT_SURE`: a missing source, a malformed score, the disagreement rule, or a
+    posterior below the margin.
+  * An exact-copy gate failure is `BLOCK`.
+  * It has three profiles:
+    * `local` (default, free): DeBERTa-v3-base NLI + lexical overlap.
+    * `local-lite` (free): ONNX DeBERTa-v3-small + overlap.
+    * `panel` (paid, opt-in): the Phase 3e certified configuration. It reproduces 3e exactly: 63 accepted and 1 false on SciFact dev, and 36 accepted and 0 false on Climate-FEVER.
+* **Judges are off by default.** The paid panel runs only with `XAIPanel(enable=True, cap_usd=...)` or
+  `--enable-xai-judges --cap-usd N`. Before that, `XAI_API_KEY` is never read, and it is never printed or logged.
+* **Fresh-data pipeline.** `python -m roman_wheel_node.fresh prereg | label | certify`.
+  * Pre-register one fixed rule before any label.
+  * Label each claim SUPPORT / NOT / UNSURE.
+  * Certify with one-sided Clopper-Pearson at 1/2/5% (δ = 0.05). With no search over rules, 299 / 149 / 59 error-free
+    accepts certify 1% / 2% / 5%.
+* **Honesty.** The only certificate behind any profile is Phase 3e's: false accepts ≤ 5% of accepts, on SciFact, panel
+  profile. **Nothing is certified at 1% or 2%.** The local profiles are not certified at any level.
+* **Fresh-set run on the box:**
+  * Sets: COVID-Fact, HealthVer dev, and the HealthVer test pairs left unjudged in 3d. All are internal, and only
+    aggregates are committed.
+  * Results are in [results/phase4/SUMMARY.md](results/phase4/SUMMARY.md). The free local profile accepts 10% of 6,311
+    fresh claims at 67.8% precision. COVID-Fact's one-word counterfactual claims fool it, so it is far from any
+    certificate.
+* **Desktop / GPU runbook:** [PHASE4_DESKTOP.md](PHASE4_DESKTOP.md), with Windows and PowerShell instructions, the
+  Seraphina hook, and where the logs go.
+
 ## Layout
 * `src/roman_wheel_node/core.py`: the node, `LiveWeights` and `ThresholdLearner`. The public API is re-exported from `roman_wheel_node`.
 * `src/roman_wheel_node/dependence.py`: `DependenceLearner`, `FrozenDependence`, and the `ess` / `tan` / `stack` combiners.
 * `src/roman_wheel_node/trace.py`: `ClaimTrace`, `Claim`, `Decision`, `replay`, `TamperError` (Phase 1).
+* `src/roman_wheel_node/policy.py`, `policies/`, `shadow.py`, `sources.py`, `fresh.py`: Phase 4, the frozen policy, shadow runtime, sources, and the label/certify CLI.
+* `phase4/`: the policy export, fresh-set builders, the paid fresh-set judge runner and `run_fresh.py` (not part of the package).
 * `src/roman_wheel_node/bench/`: `generator.py` (the claim-stream generator and its CLI), `runner.py` (policies,
   confidence intervals, calibration, head-to-heads), `plots.py`, and `__main__.py` (`python -m roman_wheel_node.bench`).
 * `results/`: the committed 20-seed standard suite (frozen). `results/dependence/`: the 20-seed dependence suite.
 * `phase3/`: the Phase 3 SciFact pipeline (retrieval, NLI, xAI judges, evaluation, reports; not part of the package).
 * `SAFETY.md`: guarantees by construction (with tests) vs measured guarantees.
-* `tests/`: 165 tests (`PYTHONPATH=src python -m pytest -q`: 163 pass; two full-benchmark byte checks run only with `RWN_FULL_BENCH=1`).
+* `tests/`: 190 tests (`PYTHONPATH=src python -m pytest -q`: 188 pass; two full-benchmark byte checks run only with `RWN_FULL_BENCH=1`).
 * `benchmarks/train_sim.py` and `benchmarks/results_v1.0.0.*`: the original demo and the 1.0.0 five-seed results, kept for history.
 
 ## Next steps

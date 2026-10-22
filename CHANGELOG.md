@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased: Phase 4, shadow mode, frozen policy 4.0.0, fresh-set certification
+- `src/roman_wheel_node/policy.py` + `policies/rwn-policy-4.0.0.json`: a frozen, sha256-pinned policy.
+  - Outcomes are ACCEPT, NOT_SURE and BLOCK only. The policy is accept-only.
+  - Profiles: `local` (default, free: nli2 + overlap), `local-lite` (ONNX nli + overlap), and `panel` (the Phase 3e
+    certified configuration, paid, opt-in). `panel` reproduces 3e exactly on SciFact dev (63 / 1) and Climate-FEVER (36 / 0).
+- `shadow.py`: `ShadowRunner`, which is shadow by default, with an opt-in enforce mode.
+  - Decisions go through a hash-chained `ClaimTrace`.
+  - `fresh_claims.jsonl` holds the logged claims for labelling.
+  - CLI: `python -m roman_wheel_node.shadow`.
+- `sources.py`: the exact-copy gate, BM25 retrieval, and local NLI on CPU or CUDA. `XAIPanel` is off by default and
+  needs `enable=True` and `cap_usd`.
+- `fresh.py`: `prereg` / `label` / `import-labels` / `certify`, using Clopper-Pearson at 1/2/5% on a single fixed rule.
+  299 / 149 / 59 error-free accepts certify 1% / 2% / 5%.
+- `phase4/`: the policy export, fresh-set builders (COVID-Fact, HealthVer dev, the 308 unjudged HealthVer test pairs),
+  the paid fresh-set judge runner (cap $315 of the $320 total, stops on billing errors), and `run_fresh.py`.
+- `tests/test_phase4_shadow.py`: 13 tests, including property tests that shadow mode never alters outputs, that
+  everything fails closed, and that judges are off by default. 188 passed, 2 skipped.
+- Fresh-set results are in `results/phase4/SUMMARY.md`. The free local profile reaches 67.8% precision at 10% coverage
+  and is not certified at any level. Nothing is certified at 1% or 2%.
+- `PHASE4_DESKTOP.md`: a Windows + GPU runbook, including the Seraphina shadow hook.
+- Finding: the int8 ONNX NLI is non-deterministic on the box's CPU, so the default profile leaves it out.
+
 ## Unreleased: Phase 3e, zero-cost fixes on the cached judge outputs
 - `phase3/s3e_rules.py`: accept and reject filters (unanimity, NLI entailment, J11 proof), asymmetric accept/reject margins,
   fixed-sequence LTT with label-free skipping of steps too small to pass, a Bonferroni family certificate, and optional
