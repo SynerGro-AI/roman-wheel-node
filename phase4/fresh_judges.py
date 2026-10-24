@@ -22,7 +22,7 @@ CAP_USD = float(os.environ.get("RWN_P4_CAP", "315.0"))
 
 
 def load_items(dss, limit=0, role=""):
-    items = json.load(open(os.path.join(CACHE, "phase4", "items.json")))
+    items = json.load(open(os.path.join(CACHE, "phase4", "items.json"), encoding="utf-8"))
     out = []
     for ds in dss:
         xs = [i for i in items if i["ds"] == ds]

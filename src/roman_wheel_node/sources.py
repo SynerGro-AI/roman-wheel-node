@@ -174,7 +174,7 @@ class _OnnxNLI:
         from tokenizers import Tokenizer
 
         self.np = np
-        with open(os.path.join(model_dir, "config.json")) as f:
+        with open(os.path.join(model_dir, "config.json"), encoding="utf-8") as f:
             cfg = json.load(f)
         self.labels = [cfg["id2label"][str(i)] for i in range(len(cfg["id2label"]))]
         self.tok = Tokenizer.from_file(os.path.join(model_dir, "tokenizer.json"))

@@ -121,6 +121,10 @@ def test_ltt_false_certification_rate_below_delta():
 def test_s3e_eval_refuses_with_api_key():
     env = dict(os.environ, XAI_API_KEY="not-a-real-key", PYTHONPATH=os.path.join(ROOT, "src"))
     p = subprocess.run(
-        [sys.executable, os.path.join(ROOT, "phase3", "s3e_eval.py")], env=env, capture_output=True, text=True
+        [sys.executable, os.path.join(ROOT, "phase3", "s3e_eval.py")],
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
     )
     assert p.returncode != 0 and "refusing to run" in p.stderr

@@ -128,6 +128,24 @@ def _jsonable(x: Any) -> Any:
     return repr(x)
 
 
+def _read_text_lines(stream: Any) -> List[str]:
+    """Lines of a text stream decoded as UTF-8 regardless of the locale (stdin on Windows is cp1252 by default)."""
+    buf = getattr(stream, "buffer", None)
+    data = buf.read().decode("utf-8") if buf is not None else stream.read()
+    return data.splitlines()
+
+
+def _write_line(line: str) -> None:
+    """Write one UTF-8 line to stdout regardless of the locale encoding."""
+    buf = getattr(sys.stdout, "buffer", None)
+    if buf is None:
+        print(line)
+        return
+    sys.stdout.flush()
+    buf.write((line + "\n").encode("utf-8"))
+    buf.flush()
+
+
 ClaimSpec = Union[str, Tuple[str, Sequence[str]], Mapping[str, Any]]
 
 
@@ -303,7 +321,7 @@ class ShadowRunner:
             msg = f"{type(e).__name__}: {e}"
             if any(t in msg for t in ("API_KEY", "TOKEN", "Bearer", "Authorization")):  # never log a credential
                 msg = type(e).__name__
-            with open(os.path.join(self.log_dir, "errors.jsonl"), "a") as f:
+            with open(os.path.join(self.log_dir, "errors.jsonl"), "a", encoding="utf-8") as f:
                 f.write(json.dumps({"ts": time.time(), "where": where, "error": msg[:300]}) + "\n")
         except Exception:
             pass
@@ -342,15 +360,15 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     corpus = None
     if args.corpus:
         corpus = {}
-        with open(args.corpus) as f:
+        with open(args.corpus, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     d = json.loads(line)
                     corpus[str(d["doc_id"])] = list(d["sentences"])
     if args.claims == "-":
-        items = [json.loads(line) for line in sys.stdin if line.strip()]
+        items = [json.loads(line) for line in _read_text_lines(sys.stdin) if line.strip()]
     else:
-        with open(args.claims) as f:
+        with open(args.claims, encoding="utf-8") as f:
             items = [json.loads(line) for line in f if line.strip()]
     trusted = {sha256(s) for it in items for s in it.get("evidence") or []} if args.trust_given_evidence else None
     pol = load_policy(args.policy_file, args.policy_sha256)
@@ -372,7 +390,7 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     )
     for it, v in r.stream(items):
         if not args.enforce or v.outcome == ACCEPT:
-            print(json.dumps(it, ensure_ascii=False))
+            _write_line(json.dumps(it, ensure_ascii=False))
     r.verify()
     print(
         json.dumps(

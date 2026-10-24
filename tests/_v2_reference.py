@@ -42,7 +42,7 @@ class LiveWeights:
         self.decay = 0.5 ** (1.0 / half_life) if half_life else 1.0
         self.state = {}  # source -> [alpha, beta]
         if os.path.exists(self.path):
-            with open(self.path) as f:
+            with open(self.path, encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         self._apply(json.loads(line))
@@ -70,7 +70,7 @@ class LiveWeights:
             "d_beta": (1 - o) * s,
             "note": note,
         }
-        with open(self.path, "a") as f:
+        with open(self.path, "a", encoding="utf-8") as f:
             f.write(json.dumps(ev) + "\n")
         self._apply(ev)
         return self.reliability(source)
@@ -114,7 +114,7 @@ def roman_wheel_node(a, scores, live=None, mode="geomean", log_path=None, flip=F
                 eff = round(min(1.0, eff), 3)
                 result = (eff, *opcode(eff))
     if log_path:
-        with open(log_path, "a") as f:
+        with open(log_path, "a", encoding="utf-8") as f:
             f.write(
                 json.dumps(
                     {

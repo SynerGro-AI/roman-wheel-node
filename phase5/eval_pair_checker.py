@@ -32,14 +32,14 @@ def now():
 
 
 def load_protocol():
-    p = json.load(open(C.PROTOCOL))
+    p = json.load(open(C.PROTOCOL, encoding="utf-8"))
     if p["sha256"] != C.canon_sha({k: v for k, v in p.items() if k != "sha256"}):
         sys.exit("protocol.json does not match its sha256")
     return p
 
 
 def check_model(model_dir, bundle_path, manifest):
-    meta = json.load(open(os.path.join(model_dir, "train_meta.json")))
+    meta = json.load(open(os.path.join(model_dir, "train_meta.json"), encoding="utf-8"))
     w = C.file_sha(os.path.join(model_dir, "model.safetensors"))
     if w != meta["weights_sha256"]:
         sys.exit("model weights do not match train_meta.json")
@@ -190,7 +190,7 @@ def main() -> None:
             "note": C.NOTE,
         }
         doc["sha256"] = C.canon_sha(doc)
-        json.dump(doc, open(prereg_path, "w"), indent=1, sort_keys=True)
+        json.dump(doc, open(prereg_path, "w", encoding="utf-8"), indent=1, sort_keys=True)
         print("prereg", prereg_path, "taus", {n: round(t, 4) for n, t in taus}, "A_dev AUC", doc["a_dev"]["auc"])
         return
 
@@ -199,7 +199,7 @@ def main() -> None:
         sys.exit(f"{held_path} exists: the held-out half is scored once. Refusing.")
     if not os.path.exists(prereg_path):
         sys.exit("no prereg_pairs.json: run the prereg step first")
-    pre = json.load(open(prereg_path))
+    pre = json.load(open(prereg_path, encoding="utf-8"))
     if pre["sha256"] != C.canon_sha({k: v for k, v in pre.items() if k != "sha256"}):
         sys.exit("prereg_pairs.json was edited")
     for k, v in (
@@ -219,7 +219,7 @@ def main() -> None:
         noreg = [r for r in b["noreg"] if "ACCEPT" in (r["panel"], r["panel_4b"])][:20]
     psN = sc(noreg)
     # per-item scores stay local (gitignored)
-    with open(os.path.join(runs, "scores.jsonl"), "w") as f:
+    with open(os.path.join(runs, "scores.jsonl"), "w", encoding="utf-8") as f:
         for r, p in list(zip(B, psB)) + list(zip(noreg, psN)):
             f.write(json.dumps({"id": r["id"], "p_support": p}) + "\n")
 
@@ -265,7 +265,7 @@ def main() -> None:
         and all(v["pass"] for v in res["no_regression"].values())
     )
     res["note"] = C.NOTE
-    json.dump(res, open(held_path, "w"), indent=1, sort_keys=True)
+    json.dump(res, open(held_path, "w", encoding="utf-8"), indent=1, sort_keys=True)
 
     L = [
         f"Phase 5 pair checker{' (SMOKE: stand-in B from A_dev, tiny model; numbers mean nothing)' if a.smoke else ''}",
@@ -286,7 +286,7 @@ def main() -> None:
         d = v["by_base"]["panel_4b"]
         L.append(f"no-regression {ds}: {'PASS' if v['pass'] else 'FAIL'}  " + line("panel_4b", d["none"], d[ps_name]))
     L += ["", f"SUCCESS (primary certified at 5% and no regression): {res['success']}", "", C.NOTE]
-    open(held_path.replace(".json", ".txt"), "w").write("\n".join(L) + "\n")
+    open(held_path.replace(".json", ".txt"), "w", encoding="utf-8").write("\n".join(L) + "\n")
     print("\n".join(L))
 
 

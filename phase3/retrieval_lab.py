@@ -117,11 +117,11 @@ def main(split="train", methods=None):
     torch.set_num_threads(8)
     corpus = load_corpus(DATA)
     ids = sorted(corpus)
-    feats = json.load(open(os.path.join(CACHE, "local_features.json")))
+    feats = json.load(open(os.path.join(CACHE, "local_features.json"), encoding="utf-8"))
     keys = [k for k in selected(feats) if k.startswith(split)]
     claims = [feats[k]["claim"] for k in keys]
     path = os.path.join(CACHE, f"ranks_{split}.json")
-    R = json.load(open(path)) if os.path.exists(path) else {}
+    R = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
     t0 = time.time()
     if "bm25" not in R:
         bm = BM25Retriever({d: doc_text(corpus[d]) for d in ids})
@@ -137,7 +137,7 @@ def main(split="train", methods=None):
         )
     if "medcpt" not in R:
         R["medcpt"] = dense("ncbi/MedCPT-Query-Encoder", "ncbi/MedCPT-Article-Encoder", claims, ids, corpus)
-    json.dump(R, open(path, "w"))
+    json.dump(R, open(path, "w", encoding="utf-8"))
     R["rrf_bm25_medcpt"] = [rrf(a, b) for a, b in zip(R["bm25"], R["medcpt"])]
     R["rrf_all3"] = [rrf(a, b, c) for a, b, c in zip(R["bm25"], R["medcpt"], R["bge"])]
     for base in ("rrf_all3",):
@@ -148,9 +148,9 @@ def main(split="train", methods=None):
             key = f"{tag}({base})"
             if key not in R:
                 R[key] = rerank(m, list(zip(claims, R[base])), corpus)
-                json.dump(R, open(path, "w"))
+                json.dump(R, open(path, "w", encoding="utf-8"))
             print(key, f"{time.time() - t0:.0f}s", flush=True)
-    json.dump(R, open(path, "w"))
+    json.dump(R, open(path, "w", encoding="utf-8"))
     ev = [i for i, k in enumerate(keys) if feats[k]["label3"] != "NEI"]
     print(f"{split}: {len(ev)} claims with evidence; recall@k of any gold doc, and mean #uncited docs shown at k")
     for name, L in R.items():

@@ -151,7 +151,7 @@ def load_cond_files() -> dict:
     out = {}
     for c, fn in COND_FILES.items():
         p = os.path.join(CACHE, fn)
-        out[c] = json.load(open(p)) if os.path.exists(p) else {}
+        out[c] = json.load(open(p, encoding="utf-8")) if os.path.exists(p) else {}
     return out
 
 
@@ -182,7 +182,7 @@ def main() -> None:
     ap.add_argument("--split", default="", help="train or dev: only claims of that split")
     ap.add_argument("--shard", default="0/1", help="i/n: only claims whose sha256(key) mod n == i (parallel runs)")
     args = ap.parse_args()
-    feats = json.load(open(os.path.join(CACHE, "local_features.json")))
+    feats = json.load(open(os.path.join(CACHE, "local_features.json"), encoding="utf-8"))
     corpus = load_corpus(DATA)
     spend = SpendLedger(os.path.join(CACHE, "spend.jsonl"), CAP_USD)
     judges = make_judges(spend)

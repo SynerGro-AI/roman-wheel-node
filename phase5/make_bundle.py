@@ -88,7 +88,7 @@ def main() -> None:
     with open(out, "w", encoding="utf-8") as f:
         json.dump(doc, f, ensure_ascii=False, sort_keys=True)
     h = C.file_sha(out)
-    open(out + ".sha256", "w").write(f"{h}  {os.path.basename(out)}\n")
+    open(out + ".sha256", "w", encoding="utf-8").write(f"{h}  {os.path.basename(out)}\n")
     c = collections.Counter((x["role"], x["panel"] is not None) for x in cf)
     print("covidfact", len(cf), dict(c))
     print("noreg", dict(collections.Counter(x["ds"] for x in noreg)))

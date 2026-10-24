@@ -61,7 +61,7 @@ def test_manifest_has_no_text_and_is_self_hashed(tmp_path):
     k = next(iter(bad["groups"]))
     bad["groups"][k] = "A_train"
     p = tmp_path / "m.json"
-    p.write_text(json.dumps(bad))
+    p.write_text(json.dumps(bad), encoding="utf-8")
     if m["groups"][k] != "A_train":
         with pytest.raises(SystemExit):
             C.load_manifest(str(p))
@@ -77,7 +77,7 @@ def test_manifest_reproduces_from_data():
 
 
 def test_protocol_frozen():
-    p = json.loads(Path(C.PROTOCOL).read_text())
+    p = json.loads(Path(C.PROTOCOL).read_text(encoding="utf-8"))
     assert p["sha256"] == C.canon_sha({k: v for k, v in p.items() if k != "sha256"})
     assert p["split_manifest_sha256"] == C.load_manifest()["sha256"]
     assert [t["retention"] for t in p["tau_sequence"]] == [0.80, 0.90, 0.95]

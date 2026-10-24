@@ -64,14 +64,14 @@ def test_not_sure_replays_and_tampering_is_caught(tmp_path):
     rep = tr.verify()
     assert rep.n_records == 2 and rep.n_admitted == 0
     p = tmp_path / "audit.jsonl"
-    lines = p.read_text().splitlines()
+    lines = p.read_text(encoding="utf-8").splitlines()
     rec = json.loads(lines[1])
     rec.pop("not_sure_forced")
     rec["status"] = "ACCEPT"
     rec["admitted"] = True
     rec["reason"] = "ok"
     lines[1] = json.dumps(rec)
-    p.write_text("\n".join(lines) + "\n")
+    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
     with pytest.raises(TamperError):
         replay(str(p))
 
@@ -79,7 +79,7 @@ def test_not_sure_replays_and_tampering_is_caught(tmp_path):
 def test_old_logs_unchanged_without_band(tmp_path):
     tr = _tr(tmp_path)
     tr.submit("z", {"a": 0.9}, a=1)
-    rec = json.loads((tmp_path / "audit.jsonl").read_text().splitlines()[0])
+    rec = json.loads((tmp_path / "audit.jsonl").read_text(encoding="utf-8").splitlines()[0])
     assert "not_sure_band" not in rec and "not_sure_forced" not in rec
 
 

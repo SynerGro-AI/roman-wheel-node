@@ -230,12 +230,16 @@ def main() -> None:
         "python": platform.python_version(),
         "history": hist,
     }
-    json.dump(meta, open(os.path.join(a.out, "train_meta.json"), "w"), indent=1)
+    json.dump(meta, open(os.path.join(a.out, "train_meta.json"), "w", encoding="utf-8"), indent=1)
     if not meta["smoke"]:  # aggregates only (no text): a committed record of what was trained
         os.makedirs(C.RESULTS, exist_ok=True)
         json.dump(
             meta,
-            open(os.path.join(C.RESULTS, f"train_meta_{os.path.basename(os.path.normpath(a.out))}.json"), "w"),
+            open(
+                os.path.join(C.RESULTS, f"train_meta_{os.path.basename(os.path.normpath(a.out))}.json"),
+                "w",
+                encoding="utf-8",
+            ),
             indent=1,
         )
     print("saved", a.out, "weights sha256", meta["weights_sha256"][:16], f"{time.time() - t0:.0f}s")

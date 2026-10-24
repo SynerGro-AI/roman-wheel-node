@@ -343,7 +343,7 @@ class ClaimTrace:
         rec.update(eff=eff, opcode=op, status=status, admitted=admitted, reason=reason, prev=self._head)
         h = _chain_hash(self._head, rec, self._key)
         rec["hash"] = h
-        with open(self._log_path, "a") as f:
+        with open(self._log_path, "a", encoding="utf-8") as f:
             f.write(_canon(rec).decode() + "\n")
             f.flush()
             os.fsync(f.fileno())
@@ -412,7 +412,7 @@ def replay(log_path: str, hmac_key: Optional[bytes] = None) -> ReplayReport:
     n = 0
     if not os.path.exists(log_path):  # empty trace; a deleted log is caught by head mismatch
         return ReplayReport(0, 0, GENESIS, ())
-    with open(log_path) as f:
+    with open(log_path, encoding="utf-8") as f:
         lines = [ln for ln in f.read().split("\n") if ln.strip()]
     for n, line in enumerate(lines):
         try:

@@ -63,7 +63,7 @@ def test_oracle_beats_chance_and_is_symmetric():
 def test_generator_cli(tmp_path, capsys):
     out = tmp_path / "s.jsonl"
     assert gen_main(["--scenario", "copycats", "--seed", "3", "--n", "10", "--out", str(out)]) == 0
-    lines = out.read_text().splitlines()
+    lines = out.read_text(encoding="utf-8").splitlines()
     first = json.loads(lines[0])
     c0 = next(stream(SCENARIOS["copycats"], 3, 1))
     assert len(lines) == 10 and first["scores"] == c0.scores and first["truth"] == c0.truth
@@ -96,14 +96,14 @@ def test_cli_byte_identical(tmp_path):
         subprocess.run(args + ["--out", str(tmp_path / d)], check=True, capture_output=True)
     for f in ("benchmark.json", "benchmark.txt"):
         assert (tmp_path / "a" / f).read_bytes() == (tmp_path / "b" / f).read_bytes()
-    chk = subprocess.run(args + ["--check", str(tmp_path / "a")], capture_output=True, text=True)
+    chk = subprocess.run(args + ["--check", str(tmp_path / "a")], capture_output=True, text=True, encoding="utf-8")
     assert chk.returncode == 0 and "IDENTICAL" in chk.stdout
 
 
 @pytest.mark.skipif(not os.path.exists(COMMITTED), reason="committed results not present")
 @pytest.mark.parametrize("key,seeds", [("cold_start", range(20)), ("baseline", [0]), ("copycats", [7])])
 def test_committed_results_reproduce(key, seeds):
-    res = json.loads(Path(COMMITTED).read_text())
+    res = json.loads(Path(COMMITTED).read_text(encoding="utf-8"))
     assert res["config"]["seeds"] >= 20
     pol = res["scenarios"][key]["policies"]
     for s in seeds:
@@ -119,6 +119,7 @@ def test_full_benchmark_byte_identical_to_committed():
         [sys.executable, "-m", "roman_wheel_node.bench", "--seeds", "20", "--check", os.path.join(ROOT, "results")],
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
     assert chk.returncode == 0, chk.stdout + chk.stderr
 
@@ -163,7 +164,7 @@ def test_dependence_oracle_is_a_proper_posterior(key):
 @pytest.mark.skipif(not os.path.exists(COMMITTED_DEP), reason="committed dependence results not present")
 @pytest.mark.parametrize("key,seeds", [("copycats", [3]), ("cold_start", range(20)), ("leader_switch", [0])])
 def test_committed_dependence_results_reproduce(key, seeds):
-    res = json.loads(Path(COMMITTED_DEP).read_text())
+    res = json.loads(Path(COMMITTED_DEP).read_text(encoding="utf-8"))
     assert res["config"]["seeds"] >= 20 and res["config"]["suite"] == "dependence"
     pol = res["scenarios"][key]["policies"]
     for s in seeds:
@@ -189,5 +190,6 @@ def test_full_dependence_benchmark_byte_identical_to_committed():
         ],
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
     assert chk.returncode == 0, chk.stdout + chk.stderr

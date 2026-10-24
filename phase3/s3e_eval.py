@@ -54,8 +54,8 @@ OUT = os.path.join(CACHE, "step3e")
 def features(rows):
     """Per-row static features: gold, BLOCK, raw judge votes, local NLI, J11 verified (argmax SUPPORT + verbatim
     quote)."""
-    items = {i["id"]: i for i in json.load(open(os.path.join(CACHE, "step2", "items.json")))}
-    local = json.load(open(os.path.join(CACHE, "step2", "local.json")))
+    items = {i["id"]: i for i in json.load(open(os.path.join(CACHE, "step2", "items.json"), encoding="utf-8"))}
+    local = json.load(open(os.path.join(CACHE, "step2", "local.json"), encoding="utf-8"))
     J11 = make_judges(SpendLedger(os.path.join(CACHE, "spend.jsonl"), 1e-9))["J11"]  # cache reads only
     F = {}
     for r in rows:
@@ -253,14 +253,14 @@ def main() -> None:
                 cv_accuracy=cv[f"bayes-{v} [{sn}]"],
             )
     res["full_coverage_per_dataset"] = fc
-    ref = json.load(open(os.path.join(E.ROOT, "results", "phase3", "step2.json")))["datasets"]
+    ref = json.load(open(os.path.join(E.ROOT, "results", "phase3", "step2.json"), encoding="utf-8"))["datasets"]
     res["phase3d_reference"] = {
         ds: {k: d[k] for k in ("node_full_coverage", "ltt", "ltt_family")} for ds, d in ref.items()
     }
-    json.dump(per_item, open(os.path.join(OUT, "eval_items.json"), "w"))
+    json.dump(per_item, open(os.path.join(OUT, "eval_items.json"), "w", encoding="utf-8"))
     out = os.path.join(E.ROOT, "results", "phase3")
-    json.dump(res, open(os.path.join(out, "step3e.json"), "w"), indent=1, default=float)
-    open(os.path.join(out, "step3e.txt"), "w").write(report(res))
+    json.dump(res, open(os.path.join(out, "step3e.json"), "w", encoding="utf-8"), indent=1, default=float)
+    open(os.path.join(out, "step3e.txt"), "w", encoding="utf-8").write(report(res))
     print(report(res))
 
 

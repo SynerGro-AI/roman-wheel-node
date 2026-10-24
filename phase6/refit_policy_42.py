@@ -247,7 +247,11 @@ def main() -> None:
 
     new = load_policy(OUT, expected_sha256=doc["sha256"])
     base_txt = subprocess.run(
-        ["git", "-C", ROOT, "show", f"{BASELINE_COMMIT}:{BASELINE_PATH}"], check=True, capture_output=True, text=True
+        ["git", "-C", ROOT, "show", f"{BASELINE_COMMIT}:{BASELINE_PATH}"],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
     ).stdout
     bp = os.path.join(tempfile.mkdtemp(prefix="rwn_p6_base_"), "rwn-policy-4.0.0.json")
     open(bp, "w", encoding="utf-8").write(base_txt)
@@ -283,9 +287,9 @@ def main() -> None:
                 },
             }
     os.makedirs(RES, exist_ok=True)
-    json.dump(res, open(os.path.join(RES, "refit_42.json"), "w"), indent=1, default=float)
+    json.dump(res, open(os.path.join(RES, "refit_42.json"), "w", encoding="utf-8"), indent=1, default=float)
     txt = report(res)
-    open(os.path.join(RES, "refit_42.txt"), "w").write(txt)
+    open(os.path.join(RES, "refit_42.txt"), "w", encoding="utf-8").write(txt)
     print(txt)
 
 

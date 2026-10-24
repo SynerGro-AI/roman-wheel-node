@@ -92,7 +92,7 @@ def render_md(out) -> str:
 def main() -> None:
     _register_fewshot()
     corpus = load_corpus(DATA)
-    feats = json.load(open(os.path.join(CACHE, "local_features.json")))
+    feats = json.load(open(os.path.join(CACHE, "local_features.json"), encoding="utf-8"))
     js = {
         n: XAIJudge(
             c["model"],
@@ -137,8 +137,12 @@ def main() -> None:
                     "rationale": rat[:2],
                 }
             )
-    open(os.path.join(HERE, "label_review.md"), "w").write(render_md(out))
-    json.dump(out, open(os.path.join(os.path.dirname(HERE), "results", "phase3", "label_review.json"), "w"), indent=1)
+    open(os.path.join(HERE, "label_review.md"), "w", encoding="utf-8").write(render_md(out))
+    json.dump(
+        out,
+        open(os.path.join(os.path.dirname(HERE), "results", "phase3", "label_review.json"), "w", encoding="utf-8"),
+        indent=1,
+    )
     print({s: len(v) for s, v in out.items()})
 
 

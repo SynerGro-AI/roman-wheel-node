@@ -44,7 +44,9 @@ def test_judge_uses_cache_without_network_or_key(tmp_path, monkeypatch):
     j = XAIJudge(model="m", cache_path=str(tmp_path / "c.jsonl"))
     ev = [Passage("d", "x")]
     key = hashlib.sha256(f"m\n{j._prompt('c', ev)}".encode()).hexdigest()
-    (tmp_path / "c.jsonl").write_text(json.dumps({"key": key, "model": "m", "p": 0.73, "raw": "{}"}) + "\n")
+    (tmp_path / "c.jsonl").write_text(
+        json.dumps({"key": key, "model": "m", "p": 0.73, "raw": "{}"}) + "\n", encoding="utf-8"
+    )
     j2 = XAIJudge(model="m", cache_path=str(tmp_path / "c.jsonl"))
     assert j2.score("c", ev) == 0.73
     with pytest.raises(RuntimeError):
@@ -98,7 +100,7 @@ def test_scifact_label_rule(tmp_path):
             "cited_doc_ids": [5],
         },
     ]
-    (tmp_path / "claims_dev.jsonl").write_text("\n".join(json.dumps(r) for r in rows))
+    (tmp_path / "claims_dev.jsonl").write_text("\n".join(json.dumps(r) for r in rows), encoding="utf-8")
     cs = load_claims(str(tmp_path), "dev")
     assert [c.label3 for c in cs] == ["NEI", "SUPPORT", "CONTRADICT"] and [c.supported for c in cs] == [
         False,

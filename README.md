@@ -83,8 +83,8 @@ outcomes (half-life 500, 0.001 grid, `default` until `min_obs`).
 ```python
 from roman_wheel_node import roman_wheel_node, LiveWeights, ThresholdLearner, give_feedback
 
-live = LiveWeights("weights_ledger.jsonl")           # half_life=150 by default (None = never forget)
-thr  = ThresholdLearner("threshold_ledger.jsonl")    # half_life=500, min_obs=30, default cut-off 0.5
+live = LiveWeights("weights_ledger.jsonl")  # half_life=150 by default (None = never forget)
+thr = ThresholdLearner("threshold_ledger.jsonl")  # half_life=500, min_obs=30, default cut-off 0.5
 
 scores = {"drone": 0.95, "trial": 0.81, "instr": 0.12}
 eff, op, status = roman_wheel_node(1, scores, live, mode="bayes", threshold=thr)  # variant="hard"
@@ -112,13 +112,13 @@ variant="hard", prior=0.5, assumed_reliability=0.75, cutoff=None) -> (eff, opcod
 ```python
 from roman_wheel_node.trace import ClaimTrace, replay
 
-trace = ClaimTrace("audit.jsonl", live=live, mode="bayes")      # allow_hedge=False by default
+trace = ClaimTrace("audit.jsonl", live=live, mode="bayes")  # allow_hedge=False by default
 root = trace.submit("sha matches release", {"drone": 0.95, "trial": 0.9}, a=1)
 if root.admitted:
     child = trace.submit("so the build is reproducible", {"trial": 0.8}, a=1, parents=[root.claim])
-context = trace.context()        # immutable tuple of admitted Claim objects
-replay("audit.jsonl")            # verifies the hash chain and recomputes every decision
-trace.verify()                   # also checks the in-memory claims against the log
+context = trace.context()  # immutable tuple of admitted Claim objects
+replay("audit.jsonl")  # verifies the hash chain and recomputes every decision
+trace.verify()  # also checks the in-memory claims against the log
 ```
 
 Invariants (all covered by tests, including property-based tests with hypothesis):
@@ -252,9 +252,10 @@ independent scenarios: the paired difference is ≤ 0.01 points, with 19–20 of
 
 ```python
 from roman_wheel_node import DependenceLearner, roman_wheel_node, give_feedback
-dep = DependenceLearner("dependence_ledger.jsonl")          # half_life=150 claims by default
+
+dep = DependenceLearner("dependence_ledger.jsonl")  # half_life=150 claims by default
 eff, op, status = roman_wheel_node(1, scores, mode="bayes", variant="ess", dependence=dep)
-give_feedback(scores, truth, dependence=dep)                # once the truth is known
+give_feedback(scores, truth, dependence=dep)  # once the truth is known
 # ClaimTrace(..., mode="bayes", variant="ess", dependence=dep) logs the exact model snapshot, so replay() is exact
 ```
 
@@ -311,8 +312,9 @@ certificate on data the node was never tuned on.
 
 ```python
 from roman_wheel_node.shadow import ShadowRunner
+
 rwn = ShadowRunner("rwn_shadow/", nli2="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli", corpus=trusted_docs)
-respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(out)])   # same return value
+respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(out)])  # same return value
 ```
 
 * **Policy.** `src/roman_wheel_node/policies/rwn-policy-4.3.0.json`, loaded by `roman_wheel_node.policy.load_policy()`.
@@ -384,7 +386,7 @@ from roman_wheel_node.sources import LocalSources
 
 src = LocalSources(nli2="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli")
 doc = fit_policy("my_labels.jsonl", profiles={"local": ("nli2", "overlap")}, sources=src, alphas=(0.10,))
-sha = write_policy(doc, "my-policy.json")                       # returns the file's sha256; pin it
+sha = write_policy(doc, "my-policy.json")  # returns the file's sha256; pin it
 rwn = ShadowRunner("rwn_shadow/", policy=load_policy("my-policy.json", expected_sha256=sha), sources=src)
 ```
 

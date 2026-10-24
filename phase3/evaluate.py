@@ -74,7 +74,7 @@ def quote_verbatim(q: str, docs, hashes) -> bool:
 
 def load_rows() -> Dict[str, dict]:
     _register_fewshot()
-    feats = json.load(open(os.path.join(CACHE, "local_features.json")))
+    feats = json.load(open(os.path.join(CACHE, "local_features.json"), encoding="utf-8"))
     extra = load_cond_files()
     r5 = extra["retrieved5"]
     corpus = load_corpus(DATA)
@@ -736,7 +736,7 @@ def main() -> None:
         pol["bayes-ess, judges only"], prob["bayes-ess, judges only"] = a, e
         a, e, _ = node_run(train, dev, cond, [s for s in allsrc if s not in judges], "S", cal, "ess")
         pol["bayes-ess, local only (no API)"], prob["bayes-ess, local only (no API)"] = a, e
-        sel3c = json.load(open(SELECTION_3C)) if os.path.exists(SELECTION_3C) else {}
+        sel3c = json.load(open(SELECTION_3C, encoding="utf-8")) if os.path.exists(SELECTION_3C) else {}
         vname = sel3c.get("verifier") if sel3c.get("verifier") in judges else None
         veto = vname if (vname and sel3c.get("veto", {}).get(cond)) else None
         if vname:  # report both, whatever train CV chose for the headline
@@ -899,7 +899,9 @@ def main() -> None:
         }
         # sensitivity: accuracy with the human-review label-noise candidates removed (NOT a headline number)
         lr_path = os.path.join(OUT if not PARTIAL else os.path.join(ROOT, "results", "phase3"), "label_review.json")
-        noisy = {x["key"] for x in json.load(open(lr_path))["dev"]} if os.path.exists(lr_path) else set()
+        noisy = (
+            {x["key"] for x in json.load(open(lr_path, encoding="utf-8"))["dev"]} if os.path.exists(lr_path) else set()
+        )
         keep = [i for i, k in enumerate(dev_keys) if k not in noisy]
         excl = {
             name: sum(pol[name][i] == bool(ysup[i]) for i in keep) / len(keep)
@@ -1037,7 +1039,7 @@ def main() -> None:
     report["retrieval"]["recall_at_5_reranked"] = sum(
         any(d in r["retrieved5_docs"] for d in r["cited"]) for r in ev_rows
     ) / len(ev_rows)
-    json.dump(report, open(os.path.join(OUT, "scifact.json"), "w"), indent=1, sort_keys=True)
+    json.dump(report, open(os.path.join(OUT, "scifact.json"), "w", encoding="utf-8"), indent=1, sort_keys=True)
     print("wrote", os.path.join(OUT, "scifact.json"))
 
 

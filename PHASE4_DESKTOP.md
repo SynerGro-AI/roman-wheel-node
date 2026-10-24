@@ -45,8 +45,9 @@ Then wrap the agent's response function at the one place where it returns text. 
 
 ```python
 from seraphina.rwn_shadow import ShadowHook
-hook = ShadowHook()                          # local profile, shadow
-respond = hook.wrap(respond)                 # returns exactly what respond() returned
+
+hook = ShadowHook()  # local profile, shadow
+respond = hook.wrap(respond)  # returns exactly what respond() returned
 ```
 
 ## 3. Run with the GPU

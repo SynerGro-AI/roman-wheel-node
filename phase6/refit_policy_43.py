@@ -193,7 +193,11 @@ def main() -> None:
     new = load_policy(OUT, expected_sha256=doc["sha256"])
 
     prev_txt = subprocess.run(
-        ["git", "-C", ROOT, "show", f"{PREV_COMMIT}:{PREV_PATH}"], check=True, capture_output=True, text=True
+        ["git", "-C", ROOT, "show", f"{PREV_COMMIT}:{PREV_PATH}"],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
     ).stdout
     prev = json.loads(prev_txt)
     res = {
@@ -225,11 +229,11 @@ def main() -> None:
             "certified": p.certified,
         }
     os.makedirs(RES, exist_ok=True)
-    with open(os.path.join(RES, "refit_43.json"), "w") as f:
+    with open(os.path.join(RES, "refit_43.json"), "w", encoding="utf-8") as f:
         json.dump(res, f, indent=1, default=float)
         f.write("\n")
     txt = report(res)
-    with open(os.path.join(RES, "refit_43.txt"), "w") as f:
+    with open(os.path.join(RES, "refit_43.txt"), "w", encoding="utf-8") as f:
         f.write(txt)
     print(txt)
 

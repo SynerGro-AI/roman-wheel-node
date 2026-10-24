@@ -65,7 +65,7 @@ def main() -> None:
     from judges import selected
 
     corpus = load_corpus(DATA)
-    feats = json.load(open(os.path.join(CACHE, "local_features.json")))
+    feats = json.load(open(os.path.join(CACHE, "local_features.json"), encoding="utf-8"))
     used = set(selected(feats))
     few = {f"train:{c}" for c in fewshot_build()[1]}
     items = []
@@ -91,7 +91,7 @@ def main() -> None:
             )
     lab = {"Supports": "SUPPORT", "Refutes": "CONTRADICT", "Neutral": "NEI"}
     for f, role in (("train", "calib"), ("test", "test")):
-        rows = list(csv.DictReader(open(os.path.join(RAW, f"hv_{f}.csv"))))
+        rows = list(csv.DictReader(open(os.path.join(RAW, f"hv_{f}.csv"), encoding="utf-8")))
         its = []
         for r in rows:
             ev = r["evidence"].strip()
@@ -111,7 +111,7 @@ def main() -> None:
         items += stratified(its, N_HV_TRAIN, "label3") if f == "train" else its
     cl = {"SUPPORTS": "SUPPORT", "REFUTES": "CONTRADICT", "NOT_ENOUGH_INFO": "NEI"}
     its = []
-    for line in open(os.path.join(RAW, "cfever.jsonl")):
+    for line in open(os.path.join(RAW, "cfever.jsonl"), encoding="utf-8"):
         r = json.loads(line)
         for e in r["evidences"]:
             v = [x for x in e["votes"] if x]
@@ -130,7 +130,7 @@ def main() -> None:
                 )
     items += stratified(its, N_CF, "label3")
     os.makedirs(S2, exist_ok=True)
-    json.dump(items, open(os.path.join(S2, "items.json"), "w"))
+    json.dump(items, open(os.path.join(S2, "items.json"), "w", encoding="utf-8"))
     from collections import Counter
 
     print(Counter((i["ds"], i["label3"]) for i in items))

@@ -44,8 +44,8 @@ Doc = collections.namedtuple("Doc", "title sentences")
 
 
 def build_rows():
-    items = json.load(open(os.path.join(CACHE, "step2", "items.json")))
-    local = json.load(open(os.path.join(CACHE, "step2", "local.json")))
+    items = json.load(open(os.path.join(CACHE, "step2", "items.json"), encoding="utf-8"))
+    local = json.load(open(os.path.join(CACHE, "step2", "local.json"), encoding="utf-8"))
     J = make_judges(
         SpendLedger(os.path.join(CACHE, "spend.jsonl"), 1e-9)
     )  # cache reads only: any real call would raise
@@ -274,10 +274,10 @@ def main() -> None:
         al: {k: x[k] for k in ("margin_logodds", "certified", "calibration_oof")} for al, x in ltt.items()
     }
     res["ltt_family_certificates"] = {al: {k: v_ for k, v_ in x.items() if k != "status"} for al, x in fam.items()}
-    json.dump(per_item, open(os.path.join(CACHE, "step2", "eval_items.json"), "w"))
+    json.dump(per_item, open(os.path.join(CACHE, "step2", "eval_items.json"), "w", encoding="utf-8"))
     out = os.path.join(E.ROOT, "results", "phase3")
-    json.dump(res, open(os.path.join(out, "step2.json"), "w"), indent=1, default=float)
-    open(os.path.join(out, "step2.txt"), "w").write(report(res))
+    json.dump(res, open(os.path.join(out, "step2.json"), "w", encoding="utf-8"), indent=1, default=float)
+    open(os.path.join(out, "step2.txt"), "w", encoding="utf-8").write(report(res))
     print(report(res))
 
 

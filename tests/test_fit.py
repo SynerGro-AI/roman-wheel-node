@@ -150,7 +150,7 @@ def test_fit_errors(tmp_path):
     with pytest.raises(FIT.FitError):
         FIT.fit_policy([dict(good[0], scores={"overlap": {"S": 1.5}})] + good, profiles={"lex": ("overlap",)})
     bad = tmp_path / "bad.jsonl"
-    bad.write_text('{"claim": "x", "label": true}\nnot json\n')
+    bad.write_text('{"claim": "x", "label": true}\nnot json\n', encoding="utf-8")
     with pytest.raises(FIT.FitError):
         FIT.load_examples(str(bad))
     doc = FIT.fit_policy(good, profiles={"lex": ("overlap",)}, sources=LocalSources())
@@ -159,7 +159,7 @@ def test_fit_errors(tmp_path):
         FIT.write_policy(doc, str(tmp_path / "t.json"))  # body no longer matches its hash
     doc["profiles"]["lex"]["sources"] = ["overlap", "J1"]
     doc["sha256"] = policy_sha256(doc)
-    (tmp_path / "t.json").write_text(json.dumps(doc))
+    (tmp_path / "t.json").write_text(json.dumps(doc), encoding="utf-8")
     with pytest.raises(PolicyError):
         load_policy(str(tmp_path / "t.json"), doc["sha256"])
 

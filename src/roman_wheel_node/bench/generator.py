@@ -365,7 +365,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0
     if not a.scenario:
         p.error("--scenario is required (or --list)")
-    out = sys.stdout if a.out == "-" else open(a.out, "w")
+    out = sys.stdout if a.out == "-" else open(a.out, "w", encoding="utf-8")
     for c in stream(ALL_SCENARIOS[a.scenario], a.seed, a.n):
         out.write(
             json.dumps(

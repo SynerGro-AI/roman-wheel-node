@@ -141,7 +141,7 @@ def stats(rows: Sequence[Tuple[str, bool]], alphas: Sequence[float] = ALPHAS, de
 def certify(
     log_dir: str, by: Optional[str] = None, alphas: Optional[Sequence[float]] = None, delta: Optional[float] = None
 ) -> dict:
-    with open(os.path.join(log_dir, "prereg.json")) as f:
+    with open(os.path.join(log_dir, "prereg.json"), encoding="utf-8") as f:
         pre = json.load(f)
     alphas = tuple(alphas or pre.get("alphas", ALPHAS))
     delta = float(delta or pre.get("delta", 0.05))
@@ -216,7 +216,7 @@ def prereg(log_dir: str, policy: str, profile: str, alphas=ALPHAS, delta: float 
         "note": note,
     }
     os.makedirs(log_dir, exist_ok=True)
-    with open(path, "x") as f:
+    with open(path, "x", encoding="utf-8") as f:
         json.dump(doc, f, indent=1)
     return doc
 
@@ -296,7 +296,7 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
         return 0
     res = certify(a.log_dir, by=a.by)
     if a.json:
-        with open(a.json, "w") as f:
+        with open(a.json, "w", encoding="utf-8") as f:
             json.dump(res, f, indent=1)
     print(report(res))
     return 0

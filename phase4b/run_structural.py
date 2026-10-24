@@ -87,17 +87,17 @@ def collect() -> None:
         }
 
     os.makedirs(P4B, exist_ok=True)
-    p4 = {i["id"]: i for i in json.load(open(os.path.join(CACHE, "phase4", "items.json")))}
+    p4 = {i["id"]: i for i in json.load(open(os.path.join(CACHE, "phase4", "items.json"), encoding="utf-8"))}
     rows = []
-    for line in open(os.path.join(CACHE, "phase4", "shadow_panel", "fresh_claims.jsonl")):
+    for line in open(os.path.join(CACHE, "phase4", "shadow_panel", "fresh_claims.jsonl"), encoding="utf-8"):
         r = json.loads(line)
         rows.append(row(p4[r["meta"]["id"]], r["outcome"]))
     items = [
         i
-        for i in json.load(open(os.path.join(CACHE, "step2", "items.json")))
+        for i in json.load(open(os.path.join(CACHE, "step2", "items.json"), encoding="utf-8"))
         if i["ds"] in ("scifact_dev", "healthver_test", "climatefever")
     ]
-    local = json.load(open(os.path.join(CACHE, "step2", "local.json")))
+    local = json.load(open(os.path.join(CACHE, "step2", "local.json"), encoding="utf-8"))
     items = [i for i in items if i["id"] in local and all(J[n].cached(i["claim"], i["evidence"]) for n in PANEL)]
     cur = {}
 
@@ -131,12 +131,14 @@ def collect() -> None:
             row(it, runner.observe(it["claim"], _lst(it["sents"]), meta={"id": it["id"], "ds": it["ds"]}).outcome)
         )
     runner.verify()
-    json.dump({"policy": runner.node.policy.sha256, "rows": rows}, open(os.path.join(P4B, "rows.json"), "w"))
+    json.dump(
+        {"policy": runner.node.policy.sha256, "rows": rows}, open(os.path.join(P4B, "rows.json"), "w", encoding="utf-8")
+    )
     print("collected", len(rows), "policy", runner.node.policy.sha256[:12], runner.counts, "errors", runner.errors)
 
 
 def _rows():
-    return json.load(open(os.path.join(P4B, "rows.json")))
+    return json.load(open(os.path.join(P4B, "rows.json"), encoding="utf-8"))
 
 
 def _cvf(d, h):
@@ -210,7 +212,7 @@ def design() -> None:
         "result_A": res,
         "note": NOTE,
     }
-    json.dump(rep, open(os.path.join(OUT, "design_A.json"), "w"), indent=1, default=list)
+    json.dump(rep, open(os.path.join(OUT, "design_A.json"), "w", encoding="utf-8"), indent=1, default=list)
     print(json.dumps(tab, indent=1))
     print("A:", {k: res[k] for k in ("false_accepts_caught", "correct_accepts_lost")})
 
@@ -237,12 +239,12 @@ def prereg() -> None:
         "hv_test_unjudged",
         "note": "rule designed on half A only; half B not scored before this file",
     }
-    json.dump(rec, open(p, "w"), indent=1, default=list)
+    json.dump(rec, open(p, "w", encoding="utf-8"), indent=1, default=list)
     print(json.dumps(rec, indent=1, default=list))
 
 
 def score() -> None:
-    pre = json.load(open(os.path.join(OUT, "prereg.json")))
+    pre = json.load(open(os.path.join(OUT, "prereg.json"), encoding="utf-8"))
     if pre["rule_sha256"] != ST.frozen_rule_sha256():
         sys.exit("structure.py changed since pre-registration: refusing to score")
     if os.path.exists(os.path.join(OUT, "heldout_B.json")):
@@ -263,7 +265,7 @@ def score() -> None:
             for p in missed
         )
     )
-    json.dump(res, open(os.path.join(OUT, "heldout_B.json"), "w"), indent=1, default=list)
+    json.dump(res, open(os.path.join(OUT, "heldout_B.json"), "w", encoding="utf-8"), indent=1, default=list)
     lines = [
         f"Phase 4b structural veto, rule {pre['rule_sha256'][:12]} pre-registered {pre['created']}, scored "
         f"{res['scored']}",
@@ -291,7 +293,7 @@ def score() -> None:
             )
         )
     lines += ["", NOTE]
-    open(os.path.join(OUT, "heldout_B.txt"), "w").write("\n".join(lines) + "\n")
+    open(os.path.join(OUT, "heldout_B.txt"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
     print("\n".join(lines))
 
 

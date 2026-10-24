@@ -304,8 +304,8 @@ def charts(R) -> list:
 
 
 if __name__ == "__main__":
-    R = json.load(open(os.path.join(OUT, "scifact.json")))
+    R = json.load(open(os.path.join(OUT, "scifact.json"), encoding="utf-8"))
     t = text(R)
-    open(os.path.join(OUT, "scifact.txt"), "w").write(t + "\n")
+    open(os.path.join(OUT, "scifact.txt"), "w", encoding="utf-8").write(t + "\n")
     print(t)
     print(charts(R))

@@ -188,7 +188,7 @@ def test_zero_propagation_through_generations(trace):
 
 def test_blocked_is_invisible(trace):
     trace.submit("secret bad claim", {"x": 0.9, "z": 0.0}, a=1)
-    rec = json.loads(Path(trace._log_path).read_text().splitlines()[-1])
+    rec = json.loads(Path(trace._log_path).read_text(encoding="utf-8").splitlines()[-1])
     blocked_id = rec["hash"][:16]
     assert trace.get(blocked_id) is None and trace.get("never-existed") is None
     assert all("secret" not in c.content for c in trace.context())
@@ -242,7 +242,7 @@ def _populate(trace, n=60, seed=0):
 
 def test_every_call_logged_with_full_audit_tuple(trace):
     _populate(trace, 30)
-    lines = Path(trace._log_path).read_text().splitlines()
+    lines = Path(trace._log_path).read_text(encoding="utf-8").splitlines()
     assert len(lines) == 30
     need = {
         "seq",
@@ -305,9 +305,9 @@ def test_resume_from_log(tmp_path):
 
 
 def _rewrite(path, fn):
-    lines = Path(path).read_text().splitlines()
+    lines = Path(path).read_text(encoding="utf-8").splitlines()
     lines = fn(lines)
-    Path(path).write_text("\n".join(lines) + "\n")
+    Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def test_editing_a_logged_decision_is_detected(trace):
@@ -327,11 +327,11 @@ def test_editing_a_logged_decision_is_detected(trace):
 
 def test_deleting_or_reordering_records_is_detected(trace):
     _populate(trace, 20)
-    orig = Path(trace._log_path).read_text()
+    orig = Path(trace._log_path).read_text(encoding="utf-8")
     _rewrite(trace._log_path, lambda L: L[:3] + L[4:])
     with pytest.raises(TamperError):
         replay(trace._log_path)
-    Path(trace._log_path).write_text(orig)
+    Path(trace._log_path).write_text(orig, encoding="utf-8")
     _rewrite(trace._log_path, lambda L: [L[1], L[0]] + L[2:])
     with pytest.raises(TamperError):
         replay(trace._log_path)
@@ -342,12 +342,12 @@ def test_forged_entry_with_recomputed_hash_but_wrong_decision_is_detected(trace)
     from roman_wheel_node.trace import GENESIS, _canon, _chain_hash
 
     trace.submit("weak", {"x": 0.03}, a=1)  # BLOCK
-    lines = Path(trace._log_path).read_text().splitlines()
+    lines = Path(trace._log_path).read_text(encoding="utf-8").splitlines()
     r = json.loads(lines[0])
     r.pop("hash")
     r.update(status="ACCEPT", opcode="111", admitted=True, reason="ok")
     r["hash"] = _chain_hash(GENESIS, r, None)
-    Path(trace._log_path).write_text(_canon(r).decode() + "\n")
+    Path(trace._log_path).write_text(_canon(r).decode() + "\n", encoding="utf-8")
     with pytest.raises(TamperError, match="recompute"):
         replay(trace._log_path)
 
@@ -358,14 +358,14 @@ def test_forged_consistent_entry_detected_with_hmac(tmp_path):
     key = b"secret-key"
     t = ClaimTrace(str(tmp_path / "a.jsonl"), hmac_key=key, clock=Clock())
     t.submit("real", GOOD, a=1)
-    lines = Path(t._log_path).read_text().splitlines()
+    lines = Path(t._log_path).read_text(encoding="utf-8").splitlines()
     r = json.loads(lines[0])
     prev = r["hash"]
     fake = dict(r)
     fake.pop("hash")
     fake.update(seq=1, content="injected", prev=prev)
     fake["hash"] = _chain_hash(prev, fake, None)  # attacker without the key
-    with open(t._log_path, "a") as f:
+    with open(t._log_path, "a", encoding="utf-8") as f:
         f.write(_canon(fake).decode() + "\n")
     with pytest.raises(TamperError):
         replay(t._log_path, hmac_key=key)
@@ -375,7 +375,7 @@ def test_forged_consistent_entry_detected_with_hmac(tmp_path):
 
 def test_truncated_or_garbage_line_detected(trace):
     _populate(trace, 5)
-    with open(trace._log_path, "a") as f:
+    with open(trace._log_path, "a", encoding="utf-8") as f:
         f.write("{not json\n")
     with pytest.raises(TamperError):
         replay(trace._log_path)

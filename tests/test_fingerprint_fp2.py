@@ -76,22 +76,22 @@ def test_policy_430_pinned_fp2_and_only_policy_shipped():
 
 
 def test_policy_430_tamper_refused(tmp_path):
-    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text())
+    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text(encoding="utf-8"))
     doc["gate"]["normalize_table_sha256"] = "0" * 64
     doc["sha256"] = policy_sha256(doc)
     p = tmp_path / "x.json"
-    p.write_text(json.dumps(doc))
+    p.write_text(json.dumps(doc), encoding="utf-8")
     with pytest.raises(PolicyError):
         load_policy(str(p))
-    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text())
+    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text(encoding="utf-8"))
     doc["gate"]["fingerprint"] = "fp7"
     doc["sha256"] = policy_sha256(doc)
-    p.write_text(json.dumps(doc))
+    p.write_text(json.dumps(doc), encoding="utf-8")
     with pytest.raises(PolicyError):
         load_policy(str(p))
-    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text())
+    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text(encoding="utf-8"))
     doc["profiles"]["local"]["cutoff"] = 0.5  # edited body, old hash
-    p.write_text(json.dumps(doc))
+    p.write_text(json.dumps(doc), encoding="utf-8")
     with pytest.raises(PolicyError):
         load_policy(str(p))
 
@@ -101,10 +101,14 @@ def test_shadow_runner_fp2_vs_fp1(tmp_path):
         return {"nli2": {"S": 0.999, "C": 0.0}, "overlap": {"S": 1.0}}
 
     messy = ["Vitamin  D reduced infections by 12%\u00a0in adults."]
-    doc = {k: v for k, v in json.loads(Path(DEFAULT_POLICY_PATH).read_text()).items() if k not in ("sha256", "gate")}
+    doc = {
+        k: v
+        for k, v in json.loads(Path(DEFAULT_POLICY_PATH).read_text(encoding="utf-8")).items()
+        if k not in ("sha256", "gate")
+    }
     doc["sha256"] = policy_sha256(doc)  # the same profiles with the fp1 (raw sha256) gate
     p_fp1 = tmp_path / "fp1.json"
-    p_fp1.write_text(json.dumps(doc))
+    p_fp1.write_text(json.dumps(doc), encoding="utf-8")
     pol1 = load_policy(str(p_fp1), expected_sha256=doc["sha256"])
     assert pol1.fingerprint == "fp1"
     r0 = ShadowRunner(str(tmp_path / "a"), policy=pol1, sources=src, trusted_units=[S])

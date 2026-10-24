@@ -29,7 +29,7 @@ RATIO = {"grok-4.20-0309-non-reasoning": 1.0, "grok-4.3": 1.3, "grok-4.20-0309-r
 
 
 def load_items(dss, limit=0, role=""):
-    items = json.load(open(os.path.join(CACHE, "step2", "items.json")))
+    items = json.load(open(os.path.join(CACHE, "step2", "items.json"), encoding="utf-8"))
     out = []
     for ds in dss:
         xs = [i for i in items if i["ds"] == ds and (not role or i["role"] == role)]

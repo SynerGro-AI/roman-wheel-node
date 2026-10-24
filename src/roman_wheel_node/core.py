@@ -104,14 +104,14 @@ def opcode_learned(eff: float, cutoff: float, hedge_width: float = 0.15) -> Tupl
 
 
 def _append(path: str, ev: dict) -> None:
-    with open(path, "a") as f:
+    with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(ev) + "\n")
         f.flush()
 
 
 def _replay(path: str) -> Iterable[dict]:
     if os.path.exists(path):
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     yield json.loads(line)
