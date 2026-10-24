@@ -1,0 +1,17 @@
+Phase 4b structural veto, rule dc2299c9a92c pre-registered 2026-10-22T10:50:34-0600, scored 2026-10-22T10:50:52-0600
+panel policy 254804f8ac9b; split seed rwn-phase4b-structural-2026-10-22; veto fields identifier_mutation, fragment, near_copy_swap
+
+covidfact_B: labelled 1856; ACCEPT 301 -> 289; false accepts 85 -> 77; precision 71.8% -> 73.4%; FA-share UB 32.8% -> 31.3%; coverage 16.2% -> 15.6%; correct accepts lost 4
+   certified after veto: 0.01: False (needs 299 error-free), 0.02: False (needs 149 error-free), 0.05: False (needs 59 error-free)
+covidfact_A_design: labelled 1665; ACCEPT 254 -> 229; false accepts 63 -> 40; precision 75.2% -> 82.5%; FA-share UB 29.7% -> 22.1%; coverage 15.3% -> 13.8%; correct accepts lost 2
+   certified after veto: 0.01: False (needs 299 error-free), 0.02: False (needs 149 error-free), 0.05: False (needs 59 error-free)
+scifact_dev: labelled 300; ACCEPT 63 -> 63; false accepts 1 -> 1; precision 98.4% -> 98.4%; FA-share UB 7.3% -> 7.3%; coverage 21.0% -> 21.0%; correct accepts lost 0
+   certified after veto: 0.01: False (needs 299 error-free), 0.02: False (needs 149 error-free), 0.05: False (needs 59 error-free)
+healthver_test: labelled 1823; ACCEPT 22 -> 22; false accepts 0 -> 0; precision 100.0% -> 100.0%; FA-share UB 12.7% -> 12.7%; coverage 1.2% -> 1.2%; correct accepts lost 0
+   certified after veto: 0.01: False (needs 299 error-free), 0.02: False (needs 149 error-free), 0.05: False (needs 59 error-free)
+climatefever: labelled 1500; ACCEPT 36 -> 32; false accepts 0 -> 0; precision 100.0% -> 100.0%; FA-share UB 8.0% -> 8.9%; coverage 2.4% -> 2.1%; correct accepts lost 4
+   certified after veto: 0.01: False (needs 299 error-free), 0.02: False (needs 149 error-free), 0.05: False (needs 59 error-free)
+hv_test_unjudged: labelled 308; ACCEPT 4 -> 4; false accepts 0 -> 0; precision 100.0% -> 100.0%; FA-share UB 52.7% -> 52.7%; coverage 1.3% -> 1.3%; correct accepts lost 0
+   certified after veto: 0.01: False (needs 299 error-free), 0.02: False (needs 149 error-free), 0.05: False (needs 59 error-free)
+
+HealthVer and COVID-Fact: internal, unlicensed datasets; data and per-item outputs are not redistributed
