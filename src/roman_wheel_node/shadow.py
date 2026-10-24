@@ -150,7 +150,9 @@ def _read_text_lines(stream: Any) -> List[str]:
     """Lines of a text stream decoded as UTF-8 regardless of the locale (stdin on Windows is cp1252 by default)."""
     buf = getattr(stream, "buffer", None)
     data = buf.read().decode("utf-8") if buf is not None else stream.read()
-    return data.splitlines()
+    # split on "\n" only: str.splitlines() also splits on U+2028, U+2029 and U+0085, which JSON written with
+    # ensure_ascii=False carries raw inside strings (json.loads ignores a trailing "\r")
+    return data.split("\n")
 
 
 def _write_line(line: str) -> None:
