@@ -213,10 +213,14 @@ def _jsonl_objects(ap: Any, name: str, lines: List[str]) -> List[Tuple[int, dict
 
 def _read_claims(ap: Any, claims: str) -> List[dict]:
     if claims == "-":
+        if sys.stdin is None:  # fd 0 closed when Python started: there is no stdin object at all
+            ap.error("stdin is closed: pipe the claims JSONL in, or give a claims file instead of '-'")
         try:
             lines = _read_text_lines(sys.stdin)
         except UnicodeDecodeError as e:
             ap.error(f"stdin: not UTF-8 ({e})")
+        except (OSError, ValueError) as e:  # fd closed or invalid after start (ValueError: I/O on closed file)
+            ap.error(f"cannot read stdin: {getattr(e, 'strerror', None) or e}")
         name = "stdin"
     else:
         lines, name = _file_lines(ap, claims), claims

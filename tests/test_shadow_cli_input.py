@@ -78,3 +78,22 @@ def test_bad_corpus_file_is_a_clear_error(tmp_path):
 def test_unreadable_claims_file_is_a_clear_error(tmp_path):
     rc, _, err = _shadow(tmp_path, b"", str(tmp_path / "no-such-file.jsonl"))
     _assert_usage_error(rc, err, "cannot read")
+
+
+def test_closed_stdin_is_a_clear_error(tmp_path):
+    """1.2.1: reading claims from '-' with file descriptor 0 closed (Python then sets sys.stdin to None) is a usage
+    error, exit 2, not an AttributeError traceback. fd 0 is closed in the child before Python starts."""
+    env = dict(os.environ, PYTHONPATH=os.path.join(ROOT, "src"))
+    cmd = [sys.executable, "-m", "roman_wheel_node.shadow", "--log-dir", str(tmp_path / "d"), "-"]
+    p = subprocess.run(
+        ["/bin/sh", "-c", 'exec "$@" 0<&-', "sh", *cmd] if os.name != "nt" else cmd,
+        stdin=None if os.name != "nt" else subprocess.DEVNULL,
+        capture_output=True,
+        env=env,
+        timeout=120,
+    )
+    err = p.stderr.decode("utf-8", "replace")
+    if os.name == "nt":  # no portable way to start a child with fd 0 closed there; /dev/null is the empty stream
+        assert p.returncode == 0 and "Traceback" not in err, err[-400:]
+        return
+    _assert_usage_error(p.returncode, err, "stdin is closed")
