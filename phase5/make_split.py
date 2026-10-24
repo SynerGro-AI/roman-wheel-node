@@ -1,7 +1,8 @@
 """Phase 5: write the committed split manifest (hashed group IDs + roles only, no text). Box or desktop.
 
-    python3 phase5/make_split.py [--items phase3/cache/phase4/items.json]
+python3 phase5/make_split.py [--items phase3/cache/phase4/items.json]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,10 +30,12 @@ def main() -> None:
         old = C.load_manifest(a.out)
         if old["sha256"] != doc["sha256"]:
             sys.exit(f"{a.out} exists with a different split ({old['sha256'][:12]} vs {doc['sha256'][:12]}): refusing")
-        print("manifest unchanged", doc["sha256"][:12]); return
+        print("manifest unchanged", doc["sha256"][:12])
+        return
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     json.dump(doc, open(a.out, "w", encoding="utf-8"), indent=1, sort_keys=True)
-    print(json.dumps(doc["counts"], indent=1)); print("sha256", doc["sha256"])
+    print(json.dumps(doc["counts"], indent=1))
+    print("sha256", doc["sha256"])
 
 
 if __name__ == "__main__":

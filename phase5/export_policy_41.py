@@ -7,6 +7,7 @@ whitespace collapsed, version-tagged). 4.0.0 is not touched and stays the defaul
 
     python3 phase5/export_policy_41.py
 """
+
 from __future__ import annotations
 
 import json
@@ -17,24 +18,33 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, "src"))
-from roman_wheel_node import policy as P                         # noqa: E402
+from roman_wheel_node import policy as P  # noqa: E402
 from roman_wheel_node.fingerprint import NORMALIZE_V2_TABLE_SHA256  # noqa: E402
-HISTORICAL = ("superseded: rwn-policy-4.0.0/4.1.0 were fitted partly on HealthVer and no longer ship (policy 4.2.0, phase6/refit_policy_42.py). Reproduce this historical run from git commit 3857154.")
+
+HISTORICAL = (
+    "superseded: rwn-policy-4.0.0/4.1.0 were fitted partly on HealthVer and no longer ship (policy 4.2.0, "
+    "phase6/refit_policy_42.py). Reproduce this historical run from git commit 3857154."
+)
 
 
 def main() -> None:
     sys.exit(HISTORICAL)
-    base = P.load_policy()                                       # verifies the 4.0.0 pin
+    base = P.load_policy()  # verifies the 4.0.0 pin
     assert base.sha256 == P.DEFAULT_POLICY_SHA256 and base.version == "4.0.0"
     doc = {k: v for k, v in json.load(open(P.DEFAULT_POLICY_PATH, encoding="utf-8")).items() if k != "sha256"}
     doc["version"] = "4.1.0"
     doc["parent_policy"] = {"version": "4.0.0", "sha256": base.sha256}
-    doc["gate"] = {"fingerprint": "fp2", "normalize": "NFC; drop U+200B-200D,2060,FEFF,00AD; curly/typographic quotes "
-                   "-> ' and \"; hyphen/dash/minus variants -> -; whitespace runs -> one space; strip. Not NFKC.",
-                   "normalize_table_sha256": NORMALIZE_V2_TABLE_SHA256,
-                   "superset_of": "fp1 (a unit passes if its raw sha256 or its fp2 fingerprint is trusted)"}
-    doc["honesty"] = doc["honesty"] + " 4.1.0 changes only the exact-copy gate fingerprint (fp2); the certificate is " \
+    doc["gate"] = {
+        "fingerprint": "fp2",
+        "normalize": "NFC; drop U+200B-200D,2060,FEFF,00AD; curly/typographic quotes "
+        "-> ' and \"; hyphen/dash/minus variants -> -; whitespace runs -> one space; strip. Not NFKC.",
+        "normalize_table_sha256": NORMALIZE_V2_TABLE_SHA256,
+        "superset_of": "fp1 (a unit passes if its raw sha256 or its fp2 fingerprint is trusted)",
+    }
+    doc["honesty"] = (
+        doc["honesty"] + " 4.1.0 changes only the exact-copy gate fingerprint (fp2); the certificate is "
         "unchanged and was earned under the raw-byte gate."
+    )
     doc["sha256"] = P.policy_sha256(doc)
     with open(P.POLICY_4_1_PATH, "w", encoding="utf-8") as f:
         json.dump(doc, f, indent=1, sort_keys=True, ensure_ascii=False)

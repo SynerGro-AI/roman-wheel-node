@@ -16,6 +16,7 @@ Split (frozen, deterministic, no randomness beyond sha256):
 * The committed manifest (results/phase5/split_manifest.json) lists only salted group hashes
   (sha256("rwn-phase5-pairs-2026-10-22:" + group)[:20]) and roles. It holds no claim or evidence text.
 """
+
 from __future__ import annotations
 
 import ast
@@ -108,8 +109,9 @@ def build_split(items: Sequence[Mapping]) -> Dict[str, str]:
                 quarantine.add(g)
     roles = {}
     for g in groups:
-        roles[g] = ("B_test" if half[g] == "B" else "A_quarantine" if g in quarantine
-                    else "A_dev" if is_dev(g) else "A_train")
+        roles[g] = (
+            "B_test" if half[g] == "B" else "A_quarantine" if g in quarantine else "A_dev" if is_dev(g) else "A_train"
+        )
     return roles
 
 
@@ -117,18 +119,27 @@ def manifest_doc(items: Sequence[Mapping], roles: Mapping[str, str]) -> dict:
     per: Dict[str, Dict[str, int]] = {r: {"groups": 0, "items": 0, "supported": 0, "refuted": 0} for r in ROLES}
     gcount: Dict[str, Tuple[int, int]] = {}
     for it in items:
-        g = group_of(it["evidence"]); r = roles[g]
+        g = group_of(it["evidence"])
+        r = roles[g]
         per[r]["items"] += 1
         per[r]["supported" if it["label3"] == "SUPPORT" else "refuted"] += 1
-        n, s = gcount.get(g, (0, 0)); gcount[g] = (n + 1, s + (it["label3"] == "SUPPORT"))
+        n, s = gcount.get(g, (0, 0))
+        gcount[g] = (n + 1, s + (it["label3"] == "SUPPORT"))
     for g, r in roles.items():
         per[r]["groups"] += 1
-    body = {"format": "rwn-phase5-split", "dataset": "COVID-Fact (internal, unlicensed; not redistributed)",
-            "group_key": "sha256(evidence text)[:16] (the Phase 4b group); listed only as sha256(SALT:group)[:20]",
-            "salt": SALT, "phase4b_seed": P4B_SEED, "dev_rule": f"sha256('{DEV_SEED}:'+group) % 5 == 0",
-            "quarantine_rule": "A group sharing any evidence sentence with a B group, or a true claim with token Jaccard "
-                               ">= 0.8 to a B true claim",
-            "counts": per, "groups": {gid(g): roles[g] for g in sorted(roles, key=gid)}, "note": NOTE}
+    body = {
+        "format": "rwn-phase5-split",
+        "dataset": "COVID-Fact (internal, unlicensed; not redistributed)",
+        "group_key": "sha256(evidence text)[:16] (the Phase 4b group); listed only as sha256(SALT:group)[:20]",
+        "salt": SALT,
+        "phase4b_seed": P4B_SEED,
+        "dev_rule": f"sha256('{DEV_SEED}:'+group) % 5 == 0",
+        "quarantine_rule": "A group sharing any evidence sentence with a B group, or a true claim with token Jaccard "
+        ">= 0.8 to a B true claim",
+        "counts": per,
+        "groups": {gid(g): roles[g] for g in sorted(roles, key=gid)},
+        "note": NOTE,
+    }
     body["sha256"] = canon_sha({k: v for k, v in body.items() if k != "sha256"})
     return body
 
@@ -156,7 +167,9 @@ def check_roles(items: Iterable[Mapping], manifest: Mapping) -> Dict[str, str]:
 
 def load_bundle(path: str = BUNDLE) -> dict:
     if not os.path.exists(path):
-        raise SystemExit(f"bundle not found: {path} (build it with phase5/make_bundle.py on the box, or set RWN_P5_BUNDLE)")
+        raise SystemExit(
+            f"bundle not found: {path} (build it with phase5/make_bundle.py on the box, or set RWN_P5_BUNDLE)"
+        )
     b = json.load(open(path, encoding="utf-8"))
     if b.get("format") != "rwn-phase5-bundle":
         raise SystemExit("not an rwn-phase5 bundle")
@@ -170,18 +183,20 @@ def premise(units: Sequence[str]) -> str:
 # ---------------------------------------------------------------------------------------------------------------
 # threshold rule and certification (pre-declared in protocol.json before B is scored)
 
+
 def tau_for_retention(p_true: Sequence[float], retention: float) -> float:
     """Lower (1 - retention) empirical quantile of P(support) over TRUE A_dev claims: index floor((1-r) * n) of the
     ascending sort. A claim is vetoed iff P(support) < tau, so about ``retention`` of true claims keep their ACCEPT."""
     xs = sorted(float(x) for x in p_true)
     if not xs:
         raise ValueError("no true claims to set tau")
-    i = min(len(xs) - 1, int(math.floor((1.0 - retention) * len(xs) + 1e-9)))   # epsilon: float-safe floor
+    i = min(len(xs) - 1, int(math.floor((1.0 - retention) * len(xs) + 1e-9)))  # epsilon: float-safe floor
     return xs[i]
 
 
 def apply_veto(outcome: Optional[str], p_support: Optional[float], tau: float) -> Optional[str]:
-    """Accept-only: an ACCEPT whose checker P(support) is below tau (or missing) becomes NOT_SURE. Nothing else moves."""
+    """Accept-only: an ACCEPT whose checker P(support) is below tau (or missing) becomes NOT_SURE. Nothing else
+    moves."""
     if outcome != "ACCEPT":
         return outcome
     if p_support is None or not math.isfinite(p_support) or p_support < tau:

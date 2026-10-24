@@ -2,8 +2,10 @@
 
 Conditions:
 * ``retrieved``: BM25 top-3 abstracts (the realistic open setting).
-* ``gold``: the claim's cited abstracts (SciFact's "oracle abstract" setting). NEI claims' cited docs are non-evidential.
+* ``gold``: the claim's cited abstracts (SciFact's "oracle abstract" setting). NEI claims' cited docs are
+  non-evidential.
 """
+
 from __future__ import annotations
 
 import json
@@ -13,8 +15,8 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from factcheck.interfaces import BM25Retriever, NLIScorer, OverlapScorer, Passage   # noqa: E402
-from factcheck.scifact import load_claims, load_corpus                               # noqa: E402
+from factcheck.interfaces import BM25Retriever, NLIScorer, OverlapScorer, Passage  # noqa: E402
+from factcheck.scifact import load_claims, load_corpus  # noqa: E402
 
 DATA = os.path.join(HERE, "data", "data")
 CACHE = os.path.join(HERE, "cache")
@@ -41,8 +43,13 @@ def main() -> None:
     t0 = time.time()
     for split in ("train", "dev"):
         for n, c in enumerate(load_claims(DATA, split)):
-            row = {"split": split, "claim": c.claim, "label3": c.label3, "cited": list(c.cited_doc_ids),
-                   "rationale": [list(x) for x in c.rationale]}
+            row = {
+                "split": split,
+                "claim": c.claim,
+                "label3": c.label3,
+                "cited": list(c.cited_doc_ids),
+                "rationale": [list(x) for x in c.rationale],
+            }
             row["retrieved"] = bm25.retrieve(c.claim, K)
             for cond, docs in (("retrieved", row["retrieved"]), ("gold", list(c.cited_doc_ids))):
                 sents = [(d, i, s) for d in docs for i, s in enumerate(corpus[d].sentences)]

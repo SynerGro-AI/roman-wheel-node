@@ -1,4 +1,5 @@
 """Phase 5 Task A: split, manifest, veto, threshold rule and fixed-sequence LTT (no torch needed)."""
+
 import json
 import os
 import re
@@ -54,8 +55,12 @@ def test_manifest_has_no_text_and_is_self_hashed(tmp_path):
     assert m["counts"]["B_test"] == {"groups": 680, "items": 2143, "supported": 682, "refuted": 1461}
     blob = json.dumps(m)
     assert len(blob) < 80000
-    bad = dict(m); bad["groups"] = dict(m["groups"]); k = next(iter(bad["groups"])); bad["groups"][k] = "A_train"
-    p = tmp_path / "m.json"; p.write_text(json.dumps(bad))
+    bad = dict(m)
+    bad["groups"] = dict(m["groups"])
+    k = next(iter(bad["groups"]))
+    bad["groups"][k] = "A_train"
+    p = tmp_path / "m.json"
+    p.write_text(json.dumps(bad))
     if m["groups"][k] != "A_train":
         with pytest.raises(SystemExit):
             C.load_manifest(str(p))
@@ -67,7 +72,7 @@ def test_manifest_reproduces_from_data():
     assert C.manifest_doc(items, C.build_split(items))["sha256"] == C.load_manifest()["sha256"]
     blob = open(C.MANIFEST, encoding="utf-8").read()
     assert not any(it["claim"] in blob for it in items if len(it["claim"]) > 15)
-    assert not any(C.group_of(it["evidence"]) in blob for it in items)          # raw group keys are salted away
+    assert not any(C.group_of(it["evidence"]) in blob for it in items)  # raw group keys are salted away
 
 
 def test_protocol_frozen():

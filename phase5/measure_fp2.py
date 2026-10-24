@@ -10,6 +10,7 @@ that has data/ and cache/ if needed.
 
     env -u XAI_API_KEY python3 phase5/measure_fp2.py
 """
+
 from __future__ import annotations
 
 import ast
@@ -25,24 +26,31 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, "src"))
 sys.path.insert(0, os.environ.get("RWN_P3", os.path.join(ROOT, "phase3")))
-from features import CACHE                                                       # noqa: E402
-from roman_wheel_node import structure as ST                                     # noqa: E402
+from features import CACHE  # noqa: E402
+
+from roman_wheel_node import structure as ST  # noqa: E402
 from roman_wheel_node.fingerprint import exact_gate_v2, quote_verbatim_v2, trusted_set  # noqa: E402
-from roman_wheel_node.policy import load_policy                                 # noqa: E402
-from roman_wheel_node.shadow import FrozenNode, quote_verbatim    # noqa: E402
-from roman_wheel_node.sources import exact_gate, sha256                          # noqa: E402
+from roman_wheel_node.policy import load_policy  # noqa: E402
+from roman_wheel_node.shadow import FrozenNode, quote_verbatim  # noqa: E402
+from roman_wheel_node.sources import exact_gate, sha256  # noqa: E402
 
 PANEL = ("J1", "J2", "J4", "J7", "J9", "J10")
 OUT = os.path.join(ROOT, "results", "phase5")
-HISTORICAL = ("superseded: rwn-policy-4.0.0/4.1.0 were fitted partly on HealthVer and no longer ship (policy 4.2.0, phase6/refit_policy_42.py). Reproduce this historical run from git commit 3857154.")
+HISTORICAL = (
+    "superseded: rwn-policy-4.0.0/4.1.0 were fitted partly on HealthVer and no longer ship (policy 4.2.0, "
+    "phase6/refit_policy_42.py). Reproduce this historical run from git commit 3857154."
+)
 NOTE = "HealthVer and COVID-Fact: internal, unlicensed datasets; aggregates only, no text or per-item output"
-LOGS = {"phase4_fresh": os.path.join(CACHE, "phase4", "shadow_panel"),
-        "phase4b_replay": os.path.join(CACHE, "phase4b", "replay_1792687785")}
+LOGS = {
+    "phase4_fresh": os.path.join(CACHE, "phase4", "shadow_panel"),
+    "phase4b_replay": os.path.join(CACHE, "phase4b", "replay_1792687785"),
+}
 
 
 def main() -> None:
     from factcheck.interfaces import SpendLedger
     from judges import make_judges
+
     J = {n: j for n, j in make_judges(SpendLedger(os.path.join(CACHE, "spend.jsonl"), 1e-9)).items() if n in PANEL}
     sys.exit(HISTORICAL)
     pol41 = load_policy()
@@ -50,8 +58,12 @@ def main() -> None:
     node = FrozenNode(os.path.join(tempfile.mkdtemp(prefix="rwn_fp2_"), "audit.jsonl"), pol41, "panel")
     gold = {}
     for line in open(os.path.join(LOGS["phase4_fresh"], "labels.jsonl")):
-        r = json.loads(line); gold[("phase4_fresh", r["id"])] = r["label"] == "SUPPORT"
-    lst = lambda x: x if isinstance(x, list) else ast.literal_eval(x)
+        r = json.loads(line)
+        gold[("phase4_fresh", r["id"])] = r["label"] == "SUPPORT"
+
+    def lst(x):
+        return x if isinstance(x, list) else ast.literal_eval(x)
+
     items = {i["id"]: i for i in json.load(open(os.path.join(CACHE, "step2", "items.json")))}
     items.update({i["id"]: i for i in json.load(open(os.path.join(CACHE, "phase4", "items.json")))})
     s2 = {k: i["label3"] == "SUPPORT" for k, i in items.items()}
@@ -97,17 +109,25 @@ def main() -> None:
                 c[f"still_blocked_{'true' if y else 'false'}"] += 1
     for c in per.values():
         tot.update(c)
-    res = {"policy_4_1_0": pol41.sha256, "profile": "panel", "logs": {k: os.path.relpath(v, CACHE) for k, v in LOGS.items()},
-           "by_dataset": {k: dict(v) for k, v in sorted(per.items())}, "total": dict(tot), "note": NOTE}
+    res = {
+        "policy_4_1_0": pol41.sha256,
+        "profile": "panel",
+        "logs": {k: os.path.relpath(v, CACHE) for k, v in LOGS.items()},
+        "by_dataset": {k: dict(v) for k, v in sorted(per.items())},
+        "total": dict(tot),
+        "note": NOTE,
+    }
     os.makedirs(OUT, exist_ok=True)
     json.dump(res, open(os.path.join(OUT, "fp2_gate.json"), "w"), indent=1, sort_keys=True)
     lines = [f"fp2 exact-copy gate on cached panel decisions (policy 4.1.0 {pol41.sha256[:12]}, profile panel)", ""]
     for k, v in list(sorted(per.items())) + [("TOTAL", tot)]:
-        lines.append(f"{k}: records {v['records']}, fp1 blocked {v['fp1_blocked']} (log reproduced {v['fp1_reproduces_log']}/"
-                     f"{v['records']}), fp2 blocked {v['fp2_blocked']}, newly blocked {v['fp2_newly_blocks']}; un-blocked "
-                     f"true {v['unblocked_true']} (now ACCEPT {v['unblocked_true_now_ACCEPT']}), un-blocked false "
-                     f"{v['unblocked_false']} (now ACCEPT {v['unblocked_false_now_ACCEPT']}, after 4b veto still ACCEPT "
-                     f"{v['unblocked_false_ACCEPT_after_4b_veto_ACCEPT']})")
+        lines.append(
+            f"{k}: records {v['records']}, fp1 blocked {v['fp1_blocked']} (log reproduced {v['fp1_reproduces_log']}/"
+            f"{v['records']}), fp2 blocked {v['fp2_blocked']}, newly blocked {v['fp2_newly_blocks']}; un-blocked "
+            f"true {v['unblocked_true']} (now ACCEPT {v['unblocked_true_now_ACCEPT']}), un-blocked false "
+            f"{v['unblocked_false']} (now ACCEPT {v['unblocked_false_now_ACCEPT']}, after 4b veto still ACCEPT "
+            f"{v['unblocked_false_ACCEPT_after_4b_veto_ACCEPT']})"
+        )
     lines += ["", NOTE]
     open(os.path.join(OUT, "fp2_gate.txt"), "w").write("\n".join(lines) + "\n")
     print("\n".join(lines))

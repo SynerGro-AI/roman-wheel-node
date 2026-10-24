@@ -2,11 +2,13 @@
 
 Claim-level labels follow the SciFact convention:
 * ``SUPPORT`` / ``CONTRADICT`` if the claim's rationales carry that label (a claim never mixes both in SciFact),
-* ``NEI`` (not enough info) if the claim has no evidence at all; its ``cited_doc_ids`` are then topical but non-evidential.
+* ``NEI`` (not enough info) if the claim has no evidence at all; its ``cited_doc_ids`` are then topical but
+  non-evidential.
 
-The primary task is binary: **supported** (SUPPORT) vs **not supported** (CONTRADICT or NEI). It is the safety-relevant one,
-because only supported claims should reach a final answer. The 3-way task is reported as well.
+The primary task is binary: **supported** (SUPPORT) vs **not supported** (CONTRADICT or NEI). It is the safety-relevant
+one, because only supported claims should reach a final answer. The 3-way task is reported as well.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -29,9 +31,9 @@ class Doc:
 class SciFactClaim:
     claim_id: str
     claim: str
-    label3: str                         # SUPPORT | CONTRADICT | NEI
+    label3: str  # SUPPORT | CONTRADICT | NEI
     cited_doc_ids: Tuple[str, ...]
-    rationale: Tuple[Tuple[str, int], ...]   # (doc_id, sentence index) of gold rationale sentences
+    rationale: Tuple[Tuple[str, int], ...]  # (doc_id, sentence index) of gold rationale sentences
 
     @property
     def supported(self) -> bool:
@@ -71,7 +73,8 @@ def load_claims(data_dir: str, split: str) -> List[SciFactClaim]:
             if len(labels) > 1:
                 raise ValueError(f"claim {c['id']} mixes labels {labels}")
             label3 = labels.pop() if labels else "NEI"
-            rat = tuple(sorted((str(d), int(s)) for d, evs in c["evidence"].items() for e in evs for s in e["sentences"]))
-            out.append(SciFactClaim(str(c["id"]), c["claim"], label3,
-                                    tuple(str(x) for x in c["cited_doc_ids"]), rat))
+            rat = tuple(
+                sorted((str(d), int(s)) for d, evs in c["evidence"].items() for e in evs for s in e["sentences"])
+            )
+            out.append(SciFactClaim(str(c["id"]), c["claim"], label3, tuple(str(x) for x in c["cited_doc_ids"]), rat))
     return out

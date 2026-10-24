@@ -32,6 +32,7 @@ ledger itself is never edited. :meth:`DependenceLearner.model` returns a JSON-se
 parameters used for one claim, and :class:`FrozenDependence` recomputes the same LLR from that snapshot
 (that is how :class:`~roman_wheel_node.trace.ClaimTrace` replays decisions).
 """
+
 from __future__ import annotations
 
 import json
@@ -44,7 +45,7 @@ __all__ = ["DependenceLearner", "FrozenDependence", "DEP_VARIANTS", "votes_of", 
 
 DEP_VARIANTS = ("tan", "ess", "stack", "ess_cal")
 _P_MIN, _P_MAX = 0.01, 0.99
-G_THRESHOLD = 6.635          # chi-square(1) 0.99 quantile
+G_THRESHOLD = 6.635  # chi-square(1) 0.99 quantile
 
 
 def _clip(p: float) -> float:
@@ -65,18 +66,22 @@ def votes_of(scores: Mapping[str, float]) -> Dict[str, int]:
 
 
 def llr_from_model(model: dict, votes: Mapping[str, int], scores: Optional[Mapping[str, float]] = None) -> float:
-    """Log-likelihood ratio of 'true' vs 'false' for these votes (or, for ``ess_cal``, scores) under a model snapshot."""
+    """Log-likelihood ratio of 'true' vs 'false' for these votes (or, for ``ess_cal``, scores) under a model
+    snapshot."""
     v = model["variant"]
     if v == "ess_cal":
         if scores is None:
             raise ValueError("variant 'ess_cal' needs the scores")
         lp = _logit(model["prior"])
-        return lp + math.fsum(model["w"][k] * (_logit(_clip(float(scores[k]))) - lp)
-                              for k in sorted(model["w"]) if votes.get(k, 0))
+        return lp + math.fsum(
+            model["w"][k] * (_logit(_clip(float(scores[k]))) - lp) for k in sorted(model["w"]) if votes.get(k, 0)
+        )
     if v == "stack":
         return model["bias"] + math.fsum(model["w"][k] * votes[k] for k in sorted(model["w"]) if votes.get(k, 0))
     if v == "ess":
-        return math.fsum(model["w"][k] * votes[k] * _logit(model["r"][k]) for k in sorted(model["w"]) if votes.get(k, 0))
+        return math.fsum(
+            model["w"][k] * votes[k] * _logit(model["r"][k]) for k in sorted(model["w"]) if votes.get(k, 0)
+        )
     if v == "tan":
         terms = []
         for f in model["factors"]:
@@ -84,7 +89,7 @@ def llr_from_model(model: dict, votes: Mapping[str, int], scores: Optional[Mappi
             vk = votes.get(k, 0)
             if not vk:
                 continue
-            c_t = 1 if vk > 0 else 0          # correctness of k if the claim is true
+            c_t = 1 if vk > 0 else 0  # correctness of k if the claim is true
             if par is None or not votes.get(par, 0):
                 p1_t = p1_f = f["r"]
             else:
@@ -124,21 +129,27 @@ class DependenceLearner:
         stack_lr, stack_l2: learning rate and L2 pull toward naive-Bayes weights for ``variant="stack"``.
     """
 
-    def __init__(self, ledger_path: str = "dependence_ledger.jsonl", half_life: Optional[float] = 150,
-                 shrink: float = 5.0, g_threshold: float = G_THRESHOLD, stack_lr: float = 0.05,
-                 stack_l2: float = 0.02) -> None:
+    def __init__(
+        self,
+        ledger_path: str = "dependence_ledger.jsonl",
+        half_life: Optional[float] = 150,
+        shrink: float = 5.0,
+        g_threshold: float = G_THRESHOLD,
+        stack_lr: float = 0.05,
+        stack_l2: float = 0.02,
+    ) -> None:
         self.path = ledger_path
         self.half_life = half_life
         self.growth = 2.0 ** (1.0 / half_life) if half_life else 1.0
         self.shrink, self.g_threshold = shrink, g_threshold
         self.stack_lr, self.stack_l2 = stack_lr, stack_l2
-        self._w = 1.0                                   # weight of the next event (growth trick)
-        self._single: Dict[str, List[float]] = {}       # source -> [wrong, right] (scaled)
-        self._pair: Dict[Tuple[str, str], List[List[float]]] = {}   # (a, b), a < b -> [[c_a][c_b]]
-        self._sw: Dict[str, float] = {}                 # stacking weights
+        self._w = 1.0  # weight of the next event (growth trick)
+        self._single: Dict[str, List[float]] = {}  # source -> [wrong, right] (scaled)
+        self._pair: Dict[Tuple[str, str], List[List[float]]] = {}  # (a, b), a < b -> [[c_a][c_b]]
+        self._sw: Dict[str, float] = {}  # stacking weights
         self._sb = 0.0
         self.n = 0
-        self._truth = [0.0, 0.0]                        # decayed [false, true] counts (base rate for ess_cal)
+        self._truth = [0.0, 0.0]  # decayed [false, true] counts (base rate for ess_cal)
         self._cache: Dict[Tuple[Tuple[str, ...], str], dict] = {}
         if os.path.exists(self.path):
             with open(self.path) as f:
@@ -176,7 +187,7 @@ class DependenceLearner:
         for k in live:
             self._single.setdefault(k, [0.0, 0.0])[corr[k]] += w
         for i, a in enumerate(live):
-            for b in live[i + 1:]:
+            for b in live[i + 1 :]:
                 t = self._pair.setdefault((a, b), [[0.0, 0.0], [0.0, 0.0]])
                 t[corr[a]][corr[b]] += w
         self._w *= self.growth
@@ -185,16 +196,18 @@ class DependenceLearner:
             s = 1.0 / self._w
             self._truth = [self._truth[0] * s, self._truth[1] * s]
             for v in self._single.values():
-                v[0] *= s; v[1] *= s
+                v[0] *= s
+                v[1] *= s
             for t in self._pair.values():
                 for row in t:
-                    row[0] *= s; row[1] *= s
+                    row[0] *= s
+                    row[1] *= s
             self._w = 1.0
         self._cache.clear()
 
     # ---- read-out ----------------------------------------------------------------------------------
     def _scale(self) -> float:
-        return self.growth / self._w                     # stored -> decayed counts (latest event = 1)
+        return self.growth / self._w  # stored -> decayed counts (latest event = 1)
 
     def reliability(self, source: str) -> float:
         """Decayed Beta(1,1)-smoothed P(source is right)."""
@@ -224,7 +237,7 @@ class DependenceLearner:
         t = self.pair_table(a, b)
         # math.fsum (exactly rounded) instead of sum(): builtin float sum() changed in Python 3.12, and
         # these values gate edges near the threshold, so they must be identical on every Python version.
-        t = [[x + 0.5 for x in row] for row in t]        # Jeffreys smoothing
+        t = [[x + 0.5 for x in row] for row in t]  # Jeffreys smoothing
         n = math.fsum((t[0][0], t[0][1], t[1][0], t[1][1]))
         ra, rb = math.fsum(t[0]), math.fsum(t[1])
         ca, cb = t[0][0] + t[1][0], t[0][1] + t[1][1]
@@ -242,24 +255,27 @@ class DependenceLearner:
             return self._cache[key]
         r = {k: _clip(self.reliability(k)) for k in ks}
         if variant == "stack":
-            m = {"variant": "stack", "bias": self._sb,
-                 "w": {k: self._sw.get(k, _logit(r[k])) for k in ks}}
+            m = {"variant": "stack", "bias": self._sb, "w": {k: self._sw.get(k, _logit(r[k])) for k in ks}}
         else:
             edges = []
             for i, a in enumerate(ks):
-                for b in ks[i + 1:]:
+                for b in ks[i + 1 :]:
                     mi, g, phi = self.dependence(a, b)
                     if g > self.g_threshold:
                         edges.append((mi, a, b, phi))
             if variant in ("ess", "ess_cal"):
                 excess = {k: 0.0 for k in ks}
                 for _, a, b, phi in edges:
-                    excess[a] += max(0.0, phi); excess[b] += max(0.0, phi)
+                    excess[a] += max(0.0, phi)
+                    excess[b] += max(0.0, phi)
                 if variant == "ess":
                     m = {"variant": "ess", "r": r, "w": {k: 1.0 / (1.0 + excess[k]) for k in ks}}
                 else:
-                    m = {"variant": "ess_cal", "prior": _clip(self.base_rate()),
-                         "w": {k: 1.0 / (1.0 + excess[k]) for k in ks}}
+                    m = {
+                        "variant": "ess_cal",
+                        "prior": _clip(self.base_rate()),
+                        "w": {k: 1.0 / (1.0 + excess[k]) for k in ks},
+                    }
             elif variant == "tan":
                 m = {"variant": "tan", "factors": self._forest(ks, r, edges)}
             else:
@@ -276,14 +292,16 @@ class DependenceLearner:
                 parent_uf[x] = parent_uf[parent_uf[x]]
                 x = parent_uf[x]
             return x
+
         adj: Dict[str, List[str]] = {k: [] for k in ks}
         for mi, a, b, _ in sorted(edges, key=lambda e: (-e[0], e[1], e[2])):
             ra, rb = find(a), find(b)
             if ra != rb:
                 parent_uf[ra] = rb
-                adj[a].append(b); adj[b].append(a)
+                adj[a].append(b)
+                adj[b].append(a)
         factors, seen = [], set()
-        for root in ks:                                   # orient each tree from its smallest-named node
+        for root in ks:  # orient each tree from its smallest-named node
             if root in seen:
                 continue
             seen.add(root)
@@ -294,8 +312,9 @@ class DependenceLearner:
                 for v in sorted(adj[u]):
                     if v in seen:
                         continue
-                    seen.add(v); queue.append(v)
-                    t = self.pair_table(u, v)            # [c_u][c_v]
+                    seen.add(v)
+                    queue.append(v)
+                    t = self.pair_table(u, v)  # [c_u][c_v]
                     p1 = [_clip((t[b][1] + self.shrink * r[v]) / (t[b][0] + t[b][1] + self.shrink)) for b in (0, 1)]
                     factors.append({"source": v, "parent": u, "r": r[v], "p1_given_parent": p1})
         return factors

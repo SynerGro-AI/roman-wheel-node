@@ -9,6 +9,7 @@ A calibration item for the selective rule is a dict with
 A claim is decided iff it is a BLOCK, or an accept passing the accept filter with z >= m_a, or a reject passing the
 reject filter with z >= m_r. Everything else is NOT_SURE (fails closed, never admitted).
 """
+
 from __future__ import annotations
 
 import math
@@ -25,8 +26,10 @@ def cp_upper(k: int, n: int, delta: float = 0.05) -> float:
     for _ in range(100):
         mid = (lo + hi) / 2
         lp, lq = math.log(mid), math.log1p(-mid)
-        cdf = sum(math.exp(math.lgamma(n + 1) - math.lgamma(i + 1) - math.lgamma(n - i + 1) + i * lp + (n - i) * lq)
-                  for i in range(k + 1))
+        cdf = sum(
+            math.exp(math.lgamma(n + 1) - math.lgamma(i + 1) - math.lgamma(n - i + 1) + i * lp + (n - i) * lq)
+            for i in range(k + 1)
+        )
         lo, hi = (mid, hi) if cdf > delta else (lo, mid)
     return hi
 
@@ -74,14 +77,17 @@ def risk(items: Sequence[dict], m_a: float, m_r: float, precision: bool = False)
         d = decide(it, m_a, m_r)
         if d is None:
             continue
-        n += 1; k += int(d != it["y"])
+        n += 1
+        k += int(d != it["y"])
         if d:
-            na += 1; fa += int(not it["y"])
+            na += 1
+            fa += int(not it["y"])
     return (na, fa, na, fa) if precision else (n, k, na, fa)
 
 
-def ltt_fixed_sequence(items: Sequence[dict], alpha: float, delta: float, rho: float, K: int = 40,
-                       precision: bool = False) -> dict:
+def ltt_fixed_sequence(
+    items: Sequence[dict], alpha: float, delta: float, rho: float, K: int = 40, precision: bool = False
+) -> dict:
     """Learn-Then-Test with fixed-sequence testing along the pre-ordered path (most conservative first): test step q at
     level delta and stop at the first step whose Clopper-Pearson upper bound exceeds alpha. FWER <= delta for any
     ordering fixed before the data, so every passed step is certified. Steps that decide fewer claims than
@@ -99,15 +105,31 @@ def ltt_fixed_sequence(items: Sequence[dict], alpha: float, delta: float, rho: f
         ub = cp_upper(k, n, delta)
         if ub > alpha:
             break
-        best = {"certified": True, "m_a": m_a, "m_r": m_r, "step": q, "decided": n, "errors": k, "accepted": na,
-                "false_accepts": fa, "upper": ub}
+        best = {
+            "certified": True,
+            "m_a": m_a,
+            "m_r": m_r,
+            "step": q,
+            "decided": n,
+            "errors": k,
+            "accepted": na,
+            "false_accepts": fa,
+            "upper": ub,
+        }
     return best
 
 
-def certify_family(family: Dict[str, Sequence[dict]], alphas: Sequence[float], delta: float = 0.05,
-                   rhos: Sequence[float] = (0.0, 0.5, 1.0, 2.0), K: int = 40, precision: bool = False) -> dict:
+def certify_family(
+    family: Dict[str, Sequence[dict]],
+    alphas: Sequence[float],
+    delta: float = 0.05,
+    rhos: Sequence[float] = (0.0, 0.5, 1.0, 2.0),
+    K: int = 40,
+    precision: bool = False,
+) -> dict:
     """Bonferroni over every (config, rho) in the family (delta / (|family| * |rhos|)), fixed sequence along each path.
-    Per alpha, the certified (config, rho) with the most decided calibration claims is chosen (valid: all were tested)."""
+    Per alpha, the certified (config, rho) with the most decided calibration claims is chosen (valid: all were
+    tested)."""
     m = len(family) * len(rhos)
     d_each = delta / m
     out = {"n_tests": m, "delta_each": d_each, "min_decided_zero_errors": {}, "alphas": {}, "all": {}}
@@ -115,7 +137,7 @@ def certify_family(family: Dict[str, Sequence[dict]], alphas: Sequence[float], d
     tight = None
     for name, items in family.items():
         for rho in rhos:
-            for m_a, m_r in path(items, rho, K):        # best single step (diagnostic only, not a certificate)
+            for m_a, m_r in path(items, rho, K):  # best single step (diagnostic only, not a certificate)
                 n, k, _, _ = risk(items, m_a, m_r, precision)
                 ub = cp_upper(k, n, d_each)
                 if tight is None or ub < tight["upper"]:
@@ -137,13 +159,15 @@ def certify_family(family: Dict[str, Sequence[dict]], alphas: Sequence[float], d
 # accept / reject filters (pre-specified family; dis = the Phase 3 pre-registered disagreement rule)
 def make_rules(j11: bool) -> Dict[str, Tuple[Callable[[dict], bool], Callable[[dict], bool]]]:
     R = {
-        "base":     (lambda f: not f["dis"], lambda f: not f["dis"]),
-        "U5":       (lambda f: not f["dis"] and f["votes"] >= 5, lambda f: not f["dis"]),
-        "U6":       (lambda f: not f["dis"] and f["votes"] == 6, lambda f: not f["dis"]),
-        "U6+NLIe":  (lambda f: not f["dis"] and f["votes"] == 6 and f["nli2_entail"] >= 0.5, lambda f: not f["dis"]),
-        "U6+noNLIc": (lambda f: not f["dis"] and f["votes"] == 6 and max(f["nli_contra"], f["nli2_contra"]) < 0.5,
-                      lambda f: not f["dis"]),
-        "U6/U0":    (lambda f: not f["dis"] and f["votes"] == 6, lambda f: not f["dis"] and f["votes"] == 0),
+        "base": (lambda f: not f["dis"], lambda f: not f["dis"]),
+        "U5": (lambda f: not f["dis"] and f["votes"] >= 5, lambda f: not f["dis"]),
+        "U6": (lambda f: not f["dis"] and f["votes"] == 6, lambda f: not f["dis"]),
+        "U6+NLIe": (lambda f: not f["dis"] and f["votes"] == 6 and f["nli2_entail"] >= 0.5, lambda f: not f["dis"]),
+        "U6+noNLIc": (
+            lambda f: not f["dis"] and f["votes"] == 6 and max(f["nli_contra"], f["nli2_contra"]) < 0.5,
+            lambda f: not f["dis"],
+        ),
+        "U6/U0": (lambda f: not f["dis"] and f["votes"] == 6, lambda f: not f["dis"] and f["votes"] == 0),
     }
     if j11:
         R["J11"] = (lambda f: not f["dis"] and bool(f["j11"]), lambda f: not f["dis"])
@@ -151,8 +175,9 @@ def make_rules(j11: bool) -> Dict[str, Tuple[Callable[[dict], bool], Callable[[d
     return R
 
 
-def to_items(feats: Sequence[dict], effs: Sequence[float], cuts: Sequence[float], rule,
-             blocks_decided: bool = True) -> List[dict]:
+def to_items(
+    feats: Sequence[dict], effs: Sequence[float], cuts: Sequence[float], rule, blocks_decided: bool = True
+) -> List[dict]:
     """feats[i] carries y, blocked, dis, votes, nli*, j11; effs/cuts are the node posterior and its cutoff.
     blocks_decided=False reports an exact-copy BLOCK as its own fail-closed outcome (side "X") instead of a REJECT."""
     acc_f, rej_f = rule
@@ -161,7 +186,8 @@ def to_items(feats: Sequence[dict], effs: Sequence[float], cuts: Sequence[float]
         if f["blocked"]:
             side, z = ("B" if blocks_decided else "X"), INF
         else:
-            e2 = min(1 - 1e-9, max(1e-9, e)); c2 = min(1 - 1e-9, max(1e-9, c))
+            e2 = min(1 - 1e-9, max(1e-9, e))
+            c2 = min(1 - 1e-9, max(1e-9, c))
             side = "A" if e >= c else "R"
             z = abs(math.log(e2 / (1 - e2)) - math.log(c2 / (1 - c2)))
         out.append({"side": side, "z": z, "acc_ok": acc_f(f), "rej_ok": rej_f(f), "y": f["y"]})

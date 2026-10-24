@@ -1,4 +1,5 @@
 """ThresholdLearner.band: the selective-mode abstain band (new in Phase 3b; existing behaviour unchanged)."""
+
 import random
 
 from roman_wheel_node import ThresholdLearner
@@ -14,7 +15,7 @@ def test_band_reaches_target_and_maximises_coverage(tmp_path):
     lo, hi, cov, acc = th.band("m", target=0.99)
     assert lo < 0.5 < hi and acc >= 0.99 and 0.2 < cov < 0.95
     lo2, hi2, cov2, acc2 = th.band("m", target=0.95)
-    assert cov2 > cov and lo2 >= lo and hi2 <= hi          # looser target -> narrower band, more coverage
+    assert cov2 > cov and lo2 >= lo and hi2 <= hi  # looser target -> narrower band, more coverage
     # reproducible from the ledger alone
     assert ThresholdLearner(str(tmp_path / "t.jsonl"), half_life=None).band("m", 0.99) == (lo, hi, cov, acc)
 
@@ -39,7 +40,7 @@ def _tr(tmp_path, **kw):
 
 def test_not_sure_band_is_never_admitted_even_with_hedge(tmp_path):
     tr = _tr(tmp_path, not_sure_band=(0.2, 0.95), allow_hedge=True)
-    d = tr.submit("mid", {"a": 0.9, "b": 0.9}, a=1)          # eff 0.9 (0.75 * 0.75 odds) is inside the band
+    d = tr.submit("mid", {"a": 0.9, "b": 0.9}, a=1)  # eff 0.9 (0.75 * 0.75 odds) is inside the band
     assert d.status == "NOT_SURE" and not d.admitted and d.reason == "not_sure" and d.claim is None
     d2 = tr.submit("sure", {"a": 0.9, "b": 0.9, "c": 0.9, "d": 0.9}, a=1)
     assert d2.eff >= 0.95 and d2.admitted and d2.status == "ACCEPT"
@@ -53,7 +54,7 @@ def test_forced_not_sure_and_zero_propagation(tmp_path):
     child = tr.submit("built on it", {"a": 0.99, "b": 0.99, "c": 0.99}, a=1, parents=["not-an-admitted-id"])
     assert not child.admitted and child.reason == "parent_not_admitted"
     blocked = tr.submit("gate closed", {"a": 0.99}, a=0, not_sure=True)
-    assert blocked.status == "BLOCK"                         # BLOCK stays BLOCK
+    assert blocked.status == "BLOCK"  # BLOCK stays BLOCK
 
 
 def test_not_sure_replays_and_tampering_is_caught(tmp_path):
@@ -64,7 +65,11 @@ def test_not_sure_replays_and_tampering_is_caught(tmp_path):
     assert rep.n_records == 2 and rep.n_admitted == 0
     p = tmp_path / "audit.jsonl"
     lines = p.read_text().splitlines()
-    rec = json.loads(lines[1]); rec.pop("not_sure_forced"); rec["status"] = "ACCEPT"; rec["admitted"] = True; rec["reason"] = "ok"
+    rec = json.loads(lines[1])
+    rec.pop("not_sure_forced")
+    rec["status"] = "ACCEPT"
+    rec["admitted"] = True
+    rec["reason"] = "ok"
     lines[1] = json.dumps(rec)
     p.write_text("\n".join(lines) + "\n")
     with pytest.raises(TamperError):
@@ -85,10 +90,11 @@ def test_bad_band_rejected(tmp_path):
 
 def test_low_posterior_inside_band_is_not_sure_but_gate_block_stays_block(tmp_path):
     from roman_wheel_node.trace import ClaimTrace
+
     t = ClaimTrace(str(tmp_path / "b.jsonl"), mode="geomean", not_sure_band=(0.2, 0.8))
-    lowish = t.submit("x", {"a": 0.3}, a=1)            # geomean 0.3 -> BLOCK below 0.5, but inside the band
+    lowish = t.submit("x", {"a": 0.3}, a=1)  # geomean 0.3 -> BLOCK below 0.5, but inside the band
     assert lowish.status == "NOT_SURE" and not lowish.admitted
-    gate = t.submit("y", {"a": 0.3}, a=0)              # gate failure is a decided rejection
+    gate = t.submit("y", {"a": 0.3}, a=0)  # gate failure is a decided rejection
     assert gate.status == "BLOCK" and not gate.admitted
     orphan = t.submit("z", {"a": 0.9}, a=1, parents=["missing"])
     assert orphan.status == "BLOCK" and not orphan.admitted

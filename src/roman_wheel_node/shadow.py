@@ -15,6 +15,7 @@
   installed) and BM25 retrieval over a trusted corpus when the agent gives no evidence. The paid xAI panel is used only
   if you pass ``judges=XAIPanel(enable=True, cap_usd=...)`` and select ``profile="panel"``.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,13 +24,12 @@ import os
 import sys
 import threading
 import time
-import traceback
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 from .core import roman_wheel_node
-from .policy import ACCEPT, BLOCK, NOT_SURE, Policy, Profile, load_policy
 from .fingerprint import exact_gate_v2, quote_verbatim_v2, trusted_set
+from .policy import ACCEPT, BLOCK, NOT_SURE, Policy, Profile, load_policy
 from .sources import BM25, exact_gate, sha256
 from .trace import ClaimTrace
 
@@ -38,7 +38,7 @@ __all__ = ["FrozenNode", "ShadowRunner", "Verdict", "evidence_text", "quote_verb
 
 @dataclass(frozen=True)
 class Verdict:
-    outcome: str                  # ACCEPT | NOT_SURE | BLOCK
+    outcome: str  # ACCEPT | NOT_SURE | BLOCK
     eff: Optional[float]
     reason: str
     claim_id: str = ""
@@ -57,8 +57,10 @@ def evidence_text(sents: Sequence[str], title: str = "Evidence") -> str:
 
 
 def quote_verbatim(q: str, units: Sequence[str], hashes: set) -> bool:
-    """Phase 3 judge-quote gate: every sentence piece of the quote occurs byte-for-byte in a trusted unit (>= 20 chars)."""
+    """Phase 3 judge-quote gate: every sentence piece of the quote occurs byte-for-byte in a trusted unit (>= 20
+    chars)."""
     import re
+
     if len(q or "") < 20:
         return False
     for piece in [x for x in re.split(r"(?<=[.!?])\s+", q.strip()) if x]:
@@ -71,14 +73,27 @@ def quote_verbatim(q: str, units: Sequence[str], hashes: set) -> bool:
 class FrozenNode:
     """The frozen policy on top of a hash-chained ClaimTrace. ``decide`` never raises for bad source data."""
 
-    def __init__(self, log_path: str, policy: Optional[Policy] = None, profile: Optional[str] = None,
-                 hmac_key: Optional[bytes] = None) -> None:
+    def __init__(
+        self,
+        log_path: str,
+        policy: Optional[Policy] = None,
+        profile: Optional[str] = None,
+        hmac_key: Optional[bytes] = None,
+    ) -> None:
         self.policy = policy or load_policy()
         self.prof: Profile = self.policy.profile(profile)
         fr = self.prof.frozen()
         self._thr = self.prof.accept_threshold()
-        self.trace = ClaimTrace(log_path, live=fr, mode="bayes", variant=self.prof.variant, threshold=fr,
-                                prior=self.prof.prior, not_sure_band=(0.0, self._thr), hmac_key=hmac_key)
+        self.trace = ClaimTrace(
+            log_path,
+            live=fr,
+            mode="bayes",
+            variant=self.prof.variant,
+            threshold=fr,
+            prior=self.prof.prior,
+            not_sure_band=(0.0, self._thr),
+            hmac_key=hmac_key,
+        )
         self._lock = threading.Lock()
 
     def decide(self, claim: str, raw: Mapping[str, Mapping[str, float]], a: int) -> Verdict:
@@ -87,19 +102,32 @@ class FrozenNode:
         with self._lock:
             try:
                 sc = self.prof.calibrate(raw)
-                eff, _, _ = roman_wheel_node(a, sc, self.prof.frozen(), mode="bayes", variant=self.prof.variant,
-                                             threshold=self.prof.frozen(), prior=self.prof.prior)
+                eff, _, _ = roman_wheel_node(
+                    a,
+                    sc,
+                    self.prof.frozen(),
+                    mode="bayes",
+                    variant=self.prof.variant,
+                    threshold=self.prof.frozen(),
+                    prior=self.prof.prior,
+                )
                 dis = a == 1 and eff > 0.0 and self.prof.disagrees(raw, eff)
-                expect = BLOCK if a != 1 else (ACCEPT if (not dis and eff >= self._thr and eff >= self.prof.cutoff) else NOT_SURE)
+                expect = (
+                    BLOCK
+                    if a != 1
+                    else (ACCEPT if (not dis and eff >= self._thr and eff >= self.prof.cutoff) else NOT_SURE)
+                )
                 d = self.trace.submit(claim, sc, a=a, not_sure=dis)
                 got = {"ACCEPT": ACCEPT, "BLOCK": BLOCK}.get(d.status, NOT_SURE)
-                if got != expect:                          # never trust a disagreement between the two paths
+                if got != expect:  # never trust a disagreement between the two paths
                     got, reason = (BLOCK if a != 1 else NOT_SURE), "internal_mismatch"
                 else:
-                    reason = {"ACCEPT": "accept_margin", "BLOCK": "exact_gate"}.get(got, "disagreement" if dis else "below_margin")
+                    reason = {"ACCEPT": "accept_margin", "BLOCK": "exact_gate"}.get(
+                        got, "disagreement" if dis else "below_margin"
+                    )
                 cid = d.claim.id if d.claim is not None else ""
                 return Verdict(got, d.eff, reason, cid, self.trace.head(), d.seq)
-            except Exception as e:                         # missing source, bad score, anything: fail closed
+            except Exception as e:  # missing source, bad score, anything: fail closed
                 d = self.trace.submit(claim if isinstance(claim, str) else repr(claim), {}, a=a, not_sure=True)
                 out = BLOCK if a != 1 else NOT_SURE
                 return Verdict(out, None, f"error:{type(e).__name__}", "", self.trace.head(), d.seq)
@@ -139,20 +167,34 @@ class ShadowRunner:
         on_withhold: enforce-mode replacement, ``(output, verdicts) -> object`` (default returns None).
     """
 
-    def __init__(self, log_dir: str, policy: Optional[Policy] = None, profile: Optional[str] = None,
-                 sources: Optional[Callable] = None, corpus: Optional[Mapping[str, Sequence[str]]] = None,
-                 trusted_hashes: Optional[Iterable[str]] = None, judges: Optional[Callable] = None,
-                 enforce: bool = False, on_withhold: Optional[Callable] = None, nli_dir: Optional[str] = None,
-                 nli2: Optional[str] = None, hf_cache: Optional[str] = None, device: str = "cpu", retrieve_k: int = 1,
-                 hmac_key: Optional[bytes] = None, clock: Callable[[], float] = time.time,
-                 trusted_units: Optional[Iterable[str]] = None) -> None:
+    def __init__(
+        self,
+        log_dir: str,
+        policy: Optional[Policy] = None,
+        profile: Optional[str] = None,
+        sources: Optional[Callable] = None,
+        corpus: Optional[Mapping[str, Sequence[str]]] = None,
+        trusted_hashes: Optional[Iterable[str]] = None,
+        judges: Optional[Callable] = None,
+        enforce: bool = False,
+        on_withhold: Optional[Callable] = None,
+        nli_dir: Optional[str] = None,
+        nli2: Optional[str] = None,
+        hf_cache: Optional[str] = None,
+        device: str = "cpu",
+        retrieve_k: int = 1,
+        hmac_key: Optional[bytes] = None,
+        clock: Callable[[], float] = time.time,
+        trusted_units: Optional[Iterable[str]] = None,
+    ) -> None:
         os.makedirs(log_dir, exist_ok=True)
         self.log_dir, self.enforce, self.clock = log_dir, bool(enforce), clock
         self.node = FrozenNode(os.path.join(log_dir, "audit.jsonl"), policy, profile, hmac_key)
         if self.node.prof.needs_judges and judges is None:
-            pass                                           # allowed: every claim fails closed to NOT_SURE (no judge scores)
+            pass  # allowed: every claim fails closed to NOT_SURE (no judge scores)
         if sources is None:
             from .sources import LocalSources
+
             sources = LocalSources(nli_dir=nli_dir, nli2=nli2, hf_cache=hf_cache, device=device)
         self.sources, self.judges = sources, judges
         self.bm25 = BM25(corpus) if corpus else None
@@ -178,7 +220,7 @@ class ShadowRunner:
         """Decide and log one claim. Never raises (errors -> NOT_SURE, or BLOCK if the gate already failed)."""
         try:
             return self._observe(claim, evidence, meta)
-        except Exception as e:                             # last-resort guard: the agent must never see a node error
+        except Exception as e:  # last-resort guard: the agent must never see a node error
             self._error("observe", e)
             with self._lock:
                 self.counts[NOT_SURE] += 1
@@ -203,19 +245,32 @@ class ShadowRunner:
             try:
                 jr, quotes = self.judges(claim, evidence_text(sents))
                 raw.update(jr)
-            except Exception as e:                         # budget / billing / network: this claim fails closed
+            except Exception as e:  # budget / billing / network: this claim fails closed
                 self._error("judges", e)
         gq = self.node.prof.gate_judge_quote
-        if gq and a == 1 and gq in raw:                    # Phase 3d gate: a committing judge must quote verbatim
+        if gq and a == 1 and gq in raw:  # Phase 3d gate: a committing judge must quote verbatim
             commits = max(("S", "C", "N"), key=lambda x: raw[gq].get(x, 0.0)) != "N"
             qv = quote_verbatim_v2 if fp2 else quote_verbatim
             if commits and not qv(quotes.get(gq, ""), sents, self.hashes or set()):
                 a = 0
         v = self.node.decide(claim, raw, a)
-        rec = {"id": f"{v.seq}:{v.record_hash[:16]}", "ts": float(self.clock()), "seq": v.seq, "record_hash": v.record_hash,
-               "policy": self.node.policy.sha256, "profile": self.node.prof.name, "claim": claim, "evidence": sents,
-               "retrieved": retrieved, "a": a, "raw": _jsonable(raw), "eff": v.eff, "outcome": v.outcome, "reason": v.reason,
-               "meta": _jsonable(dict(meta or {}))}
+        rec = {
+            "id": f"{v.seq}:{v.record_hash[:16]}",
+            "ts": float(self.clock()),
+            "seq": v.seq,
+            "record_hash": v.record_hash,
+            "policy": self.node.policy.sha256,
+            "profile": self.node.prof.name,
+            "claim": claim,
+            "evidence": sents,
+            "retrieved": retrieved,
+            "a": a,
+            "raw": _jsonable(raw),
+            "eff": v.eff,
+            "outcome": v.outcome,
+            "reason": v.reason,
+            "meta": _jsonable(dict(meta or {})),
+        }
         with self._lock:
             with open(self.fresh_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False, allow_nan=False, default=str) + "\n")
@@ -249,7 +304,7 @@ class ShadowRunner:
         runner = self
 
         def wrapped(*args, **kwargs):
-            output = agent_fn(*args, **kwargs)             # agent exceptions propagate untouched
+            output = agent_fn(*args, **kwargs)  # agent exceptions propagate untouched
             verdicts = runner.check_output(output, extract)
             if not runner.enforce:
                 return output
@@ -257,8 +312,8 @@ class ShadowRunner:
                 return output
             return runner.on_withhold(output, verdicts)
 
-        wrapped.__wrapped__ = agent_fn                      # type: ignore[attr-defined]
-        wrapped.rwn = runner                                # type: ignore[attr-defined]
+        wrapped.__wrapped__ = agent_fn  # type: ignore[attr-defined]
+        wrapped.rwn = runner  # type: ignore[attr-defined]
         return wrapped
 
     def stream(self, claims: Iterable[ClaimSpec]) -> Iterable[Tuple[ClaimSpec, Verdict]]:
@@ -284,16 +339,26 @@ class ShadowRunner:
 
 def _main(argv: Optional[Sequence[str]] = None) -> int:
     import argparse
-    ap = argparse.ArgumentParser(prog="python -m roman_wheel_node.shadow",
-                                 description="Shadow a JSONL claim stream ({claim, evidence?: [..]} per line) with the frozen policy.")
+
+    ap = argparse.ArgumentParser(
+        prog="python -m roman_wheel_node.shadow",
+        description="Shadow a JSONL claim stream ({claim, evidence?: [..]} per line) with the frozen policy.",
+    )
     ap.add_argument("claims", help="input JSONL; '-' for stdin")
     ap.add_argument("--log-dir", default="rwn_shadow")
     ap.add_argument("--profile", default=None, help="local (default), local-lite, or panel (needs --enable-xai-judges)")
-    ap.add_argument("--policy", default="4.2.0", choices=["4.2.0"],
-                    help="frozen policy (only 4.2.0 ships: fp2 NFC-normalized gate, fitted on SciFact train only)")
+    ap.add_argument(
+        "--policy",
+        default="4.2.0",
+        choices=["4.2.0"],
+        help="frozen policy (only 4.2.0 ships: fp2 NFC-normalized gate, fitted on SciFact train only)",
+    )
     ap.add_argument("--corpus", default=None, help="trusted corpus JSONL {doc_id, sentences:[..]} (gate + retrieval)")
-    ap.add_argument("--trust-given-evidence", action="store_true",
-                    help="treat evidence given in the stream as trusted exact copies (only if your pipeline verified it)")
+    ap.add_argument(
+        "--trust-given-evidence",
+        action="store_true",
+        help="treat evidence given in the stream as trusted exact copies (only if your pipeline verified it)",
+    )
     ap.add_argument("--nli-dir", default=os.environ.get("RWN_NLI_DIR"))
     ap.add_argument("--nli2", default=os.environ.get("RWN_NLI2"))
     ap.add_argument("--hf-cache", default=os.environ.get("RWN_HF_CACHE"))
@@ -305,29 +370,52 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     judges = None
     if args.enable_xai_judges:
         from .sources import XAIPanel
+
         judges = XAIPanel(enable=True, cap_usd=args.cap_usd)
     corpus = None
     if args.corpus:
         corpus = {}
         for line in open(args.corpus):
             if line.strip():
-                d = json.loads(line); corpus[str(d["doc_id"])] = list(d["sentences"])
+                d = json.loads(line)
+                corpus[str(d["doc_id"])] = list(d["sentences"])
     src = sys.stdin if args.claims == "-" else open(args.claims)
-    items = [json.loads(l) for l in src if l.strip()]
+    items = [json.loads(line) for line in src if line.strip()]
     trusted = {sha256(s) for it in items for s in it.get("evidence") or []} if args.trust_given_evidence else None
     pol = load_policy()
     if trusted is not None and pol.fingerprint == "fp2":
         from .fingerprint import trusted_set
+
         trusted |= trusted_set((s for it in items for s in it.get("evidence") or []), "fp2")
-    r = ShadowRunner(args.log_dir, policy=pol, profile=args.profile, corpus=corpus, trusted_hashes=trusted, judges=judges,
-                     enforce=args.enforce, nli_dir=args.nli_dir, nli2=args.nli2, hf_cache=args.hf_cache,
-                     device=args.device)
+    r = ShadowRunner(
+        args.log_dir,
+        policy=pol,
+        profile=args.profile,
+        corpus=corpus,
+        trusted_hashes=trusted,
+        judges=judges,
+        enforce=args.enforce,
+        nli_dir=args.nli_dir,
+        nli2=args.nli2,
+        hf_cache=args.hf_cache,
+        device=args.device,
+    )
     for it, v in r.stream(items):
         if not args.enforce or v.outcome == ACCEPT:
             print(json.dumps(it, ensure_ascii=False))
     r.verify()
-    print(json.dumps({"counts": r.counts, "errors": r.errors, "profile": r.node.prof.name,
-                      "available_sources": list(getattr(r.sources, "available", ())), "log_dir": args.log_dir}), file=sys.stderr)
+    print(
+        json.dumps(
+            {
+                "counts": r.counts,
+                "errors": r.errors,
+                "profile": r.node.prof.name,
+                "available_sources": list(getattr(r.sources, "available", ())),
+                "log_dir": args.log_dir,
+            }
+        ),
+        file=sys.stderr,
+    )
     return 0
 
 

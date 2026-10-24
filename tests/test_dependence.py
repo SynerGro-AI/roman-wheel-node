@@ -1,11 +1,14 @@
 """Correlation-aware combining: learning, invariants, determinism and replay of the dependence state."""
-import json, math, os, random
+
+import json
+import math
+import random
 
 import pytest
 
-from roman_wheel_node import LiveWeights, roman_wheel_node, give_feedback
-from roman_wheel_node.dependence import DependenceLearner, FrozenDependence, llr_from_model, votes_of
+from roman_wheel_node import LiveWeights, give_feedback, roman_wheel_node
 from roman_wheel_node.bench.generator import ALL_SCENARIOS, stream
+from roman_wheel_node.dependence import DependenceLearner, FrozenDependence, votes_of
 from roman_wheel_node.trace import ClaimTrace, TamperError, replay
 
 DEP = ("ess", "tan", "stack")
@@ -19,31 +22,33 @@ def feed(dl, key, n, seed=0, lw=None):
 
 
 def test_votes():
-    assert votes_of({"a": .9, "b": .1, "c": .5, "d": 7, "e": -1}) == {"a": 1, "b": -1, "c": 0, "d": 1, "e": -1}
+    assert votes_of({"a": 0.9, "b": 0.1, "c": 0.5, "d": 7, "e": -1}) == {"a": 1, "b": -1, "c": 0, "d": 1, "e": -1}
 
 
 @pytest.mark.parametrize("variant", DEP)
 @pytest.mark.parametrize("mode_case", ["gate", "empty", "veto"])
 def test_gate_empty_and_veto_still_block(tmp_path, variant, mode_case):
     dl = DependenceLearner(str(tmp_path / "d.jsonl"))
-    a, sc = {"gate": (0, {"x": .9}), "empty": (1, {}), "veto": (1, {"x": .9, "y": 0.0})}[mode_case]
+    a, sc = {"gate": (0, {"x": 0.9}), "empty": (1, {}), "veto": (1, {"x": 0.9, "y": 0.0})}[mode_case]
     assert roman_wheel_node(a, sc, mode="bayes", variant=variant, dependence=dl) == (0.0, "000", "BLOCK")
 
 
 def test_dependence_variant_requires_learner():
     with pytest.raises(ValueError):
-        roman_wheel_node(1, {"x": .9}, mode="bayes", variant="ess")
+        roman_wheel_node(1, {"x": 0.9}, mode="bayes", variant="ess")
 
 
 def test_independent_sources_reduce_to_naive_bayes(tmp_path):
-    dl = DependenceLearner(str(tmp_path / "d.jsonl")); lw = LiveWeights(str(tmp_path / "w.jsonl"))
+    dl = DependenceLearner(str(tmp_path / "d.jsonl"))
+    lw = LiveWeights(str(tmp_path / "w.jsonl"))
     feed(dl, "baseline", 1500, lw=lw)
     ks = ["drone", "trial", "draw", "harmony", "instr"]
-    n_sig = sum(dl.dependence(a, b)[1] > dl.g_threshold for i, a in enumerate(ks) for b in ks[i + 1:])
-    assert n_sig <= 1                                  # at p < 0.01 over 10 pairs, ~0.1 false edges expected
+    n_sig = sum(dl.dependence(a, b)[1] > dl.g_threshold for i, a in enumerate(ks) for b in ks[i + 1 :])
+    assert n_sig <= 1  # at p < 0.01 over 10 pairs, ~0.1 false edges expected
     for k in ks:
         assert dl.reliability(k) == pytest.approx(lw.reliability(k), abs=1e-9)
-    rng = random.Random(0); hits = 0
+    rng = random.Random(0)
+    hits = 0
     for _ in range(50):
         sc = {k: rng.random() for k in ks}
         hard = roman_wheel_node(1, sc, lw, mode="bayes", variant="hard")
@@ -70,21 +75,30 @@ def test_copies_are_detected_and_discounted(tmp_path):
 
 def test_cluster_counts_about_once(tmp_path):
     """Four perfect copies of a source must not outvote one equally reliable independent source."""
-    dl = DependenceLearner(str(tmp_path / "d.jsonl"), half_life=None); rng = random.Random(1)
+    dl = DependenceLearner(str(tmp_path / "d.jsonl"), half_life=None)
+    rng = random.Random(1)
     for _ in range(800):
-        t = rng.random() < .5
-        a = t if rng.random() < .8 else not t
-        b = t if rng.random() < .8 else not t
-        sc = {"a": .9 if a else .1, "a2": .9 if a else .1, "a3": .9 if a else .1, "a4": .9 if a else .1, "b": .9 if b else .1}
+        t = rng.random() < 0.5
+        a = t if rng.random() < 0.8 else not t
+        b = t if rng.random() < 0.8 else not t
+        sc = {
+            "a": 0.9 if a else 0.1,
+            "a2": 0.9 if a else 0.1,
+            "a3": 0.9 if a else 0.1,
+            "a4": 0.9 if a else 0.1,
+            "b": 0.9 if b else 0.1,
+        }
         dl.record(sc, t)
-    sc = {"a": .9, "a2": .9, "a3": .9, "a4": .9, "b": .1}      # cluster says true, independent says false
+    sc = {"a": 0.9, "a2": 0.9, "a3": 0.9, "a4": 0.9, "b": 0.1}  # cluster says true, independent says false
     for v in ("ess", "tan"):
         eff = roman_wheel_node(1, sc, mode="bayes", variant=v, dependence=dl)[0]
-        assert 0.3 < eff < 0.7, v                                 # roughly a tie, not 4:1
+        assert 0.3 < eff < 0.7, v  # roughly a tie, not 4:1
     naive = LiveWeights(str(tmp_path / "w.jsonl"), half_life=None)
     for k in sc:
-        for _ in range(8): naive.observe(k, 1)
-        for _ in range(2): naive.observe(k, 0)
+        for _ in range(8):
+            naive.observe(k, 1)
+        for _ in range(2):
+            naive.observe(k, 0)
     assert roman_wheel_node(1, sc, naive, mode="bayes")[0] > 0.95
 
 
@@ -96,7 +110,8 @@ def test_leader_switch_is_tracked_with_decay(tmp_path):
 
 
 def test_ledger_append_only_and_replay_identical(tmp_path):
-    p = str(tmp_path / "d.jsonl"); dl = DependenceLearner(p)
+    p = str(tmp_path / "d.jsonl")
+    dl = DependenceLearner(p)
     feed(dl, "two_clusters", 400)
     first = open(p).read()
     feed(dl, "two_clusters", 200, seed=9)
@@ -111,39 +126,45 @@ def test_ledger_append_only_and_replay_identical(tmp_path):
 
 
 def test_replay_with_other_half_life_differs_but_ledger_is_same(tmp_path):
-    p = str(tmp_path / "d.jsonl"); dl = DependenceLearner(p, half_life=150)
+    p = str(tmp_path / "d.jsonl")
+    dl = DependenceLearner(p, half_life=150)
     feed(dl, "leader_switch", 3000)
     dl_inf = DependenceLearner(p, half_life=None)
     assert dl_inf.dependence("f1", "L1")[2] > dl.dependence("f1", "L1")[2]
 
 
 def test_frozen_snapshot_reproduces_llr_exactly(tmp_path):
-    dl = DependenceLearner(str(tmp_path / "d.jsonl")); feed(dl, "copycats", 600)
+    dl = DependenceLearner(str(tmp_path / "d.jsonl"))
+    feed(dl, "copycats", 600)
     for c in stream(ALL_SCENARIOS["copycats"], 4, 40):
         voting = [k for k, v in votes_of(c.scores).items() if v]
         for v in DEP:
-            m = json.loads(json.dumps(dl.model(voting, v)))           # through JSON, as in the audit log
+            m = json.loads(json.dumps(dl.model(voting, v)))  # through JSON, as in the audit log
             assert FrozenDependence(m).llr(c.scores, v) == dl.llr(c.scores, v)
 
 
 def test_abstaining_and_unknown_sources(tmp_path):
-    dl = DependenceLearner(str(tmp_path / "d.jsonl")); feed(dl, "copycats", 300)
+    dl = DependenceLearner(str(tmp_path / "d.jsonl"))
+    feed(dl, "copycats", 300)
     for v in DEP:
-        assert math.isfinite(dl.llr({"lead": .5, "c1": .9, "new_source": .9}, v))
-        assert dl.llr({"lead": .5}, v) == pytest.approx(0.0 if v != "stack" else dl.model(["lead"], v)["bias"])
+        assert math.isfinite(dl.llr({"lead": 0.5, "c1": 0.9, "new_source": 0.9}, v))
+        assert dl.llr({"lead": 0.5}, v) == pytest.approx(0.0 if v != "stack" else dl.model(["lead"], v)["bias"])
 
 
 def test_eff_is_monotone_in_a_single_independent_vote(tmp_path):
-    dl = DependenceLearner(str(tmp_path / "d.jsonl")); feed(dl, "copycats", 1000)
-    base = {"lead": .9, "c1": .9, "c2": .1, "c3": .9}
+    dl = DependenceLearner(str(tmp_path / "d.jsonl"))
+    feed(dl, "copycats", 1000)
+    base = {"lead": 0.9, "c1": 0.9, "c2": 0.1, "c3": 0.9}
     for v in ("ess", "tan"):
-        lo = roman_wheel_node(1, {**base, "solo": .1}, mode="bayes", variant=v, dependence=dl)[0]
-        hi = roman_wheel_node(1, {**base, "solo": .9}, mode="bayes", variant=v, dependence=dl)[0]
+        lo = roman_wheel_node(1, {**base, "solo": 0.1}, mode="bayes", variant=v, dependence=dl)[0]
+        hi = roman_wheel_node(1, {**base, "solo": 0.9}, mode="bayes", variant=v, dependence=dl)[0]
         assert hi > lo
 
 
 class Clock:
-    def __init__(self): self.t = 0.0
+    def __init__(self):
+        self.t = 0.0
+
     def __call__(self):
         self.t += 1
         return self.t
@@ -163,17 +184,22 @@ def test_trace_logs_and_replays_dependence_model(tmp_path, variant):
 
 
 def test_trace_tampered_dependence_model_detected(tmp_path):
-    from roman_wheel_node.trace import _chain_hash, _canon
-    dl = DependenceLearner(str(tmp_path / "d.jsonl")); feed(dl, "copycats", 500)
+    from roman_wheel_node.trace import _canon, _chain_hash
+
+    dl = DependenceLearner(str(tmp_path / "d.jsonl"))
+    feed(dl, "copycats", 500)
     t = ClaimTrace(str(tmp_path / "audit.jsonl"), mode="bayes", variant="ess", dependence=dl, clock=Clock())
-    t.submit("x", {"lead": .9, "c1": .9, "c2": .9, "c3": .9, "solo": .1}, a=1)
-    r = json.loads(open(t._log_path).read()); r.pop("hash")
-    r["dependence_model"]["w"] = {k: 1.0 for k in r["dependence_model"]["w"]}   # undo the discount
+    t.submit("x", {"lead": 0.9, "c1": 0.9, "c2": 0.9, "c3": 0.9, "solo": 0.1}, a=1)
+    r = json.loads(open(t._log_path).read())
+    r.pop("hash")
+    r["dependence_model"]["w"] = {k: 1.0 for k in r["dependence_model"]["w"]}  # undo the discount
     r["hash"] = _chain_hash(r["prev"], r, None)
     open(t._log_path, "w").write(_canon(r).decode() + "\n")
     with pytest.raises(TamperError):
         replay(t._log_path)
-    r.pop("hash"); r.pop("dependence_model"); r["hash"] = _chain_hash(r["prev"], r, None)
+    r.pop("hash")
+    r.pop("dependence_model")
+    r["hash"] = _chain_hash(r["prev"], r, None)
     open(t._log_path, "w").write(_canon(r).decode() + "\n")
     with pytest.raises(TamperError):
         replay(t._log_path)
@@ -187,10 +213,12 @@ def test_trace_requires_learner_for_dependence_variant(tmp_path):
 # ---- ess_cal: ESS discount on calibrated confidences ------------------------------------------------------------
 def test_ess_cal_reduces_to_calibrated_naive_bayes_without_dependence(tmp_path):
     import math
+
     from roman_wheel_node import DependenceLearner, roman_wheel_node
+
     rng = random.Random(7)
     dep = DependenceLearner(str(tmp_path / "d.jsonl"), half_life=None)
-    for _ in range(400):                               # two independent sources, base rate 0.5
+    for _ in range(400):  # two independent sources, base rate 0.5
         t = rng.random() < 0.5
         dep.record({"a": 0.8 if (rng.random() < 0.8) == t else 0.2, "b": 0.7 if (rng.random() < 0.7) == t else 0.3}, t)
     m = dep.model(["a", "b"], "ess_cal")
@@ -205,17 +233,25 @@ def test_ess_cal_reduces_to_calibrated_naive_bayes_without_dependence(tmp_path):
 def test_ess_cal_discounts_copies_and_replays_in_trace(tmp_path):
     from roman_wheel_node import DependenceLearner
     from roman_wheel_node.trace import ClaimTrace, replay
+
     rng = random.Random(3)
     dep = DependenceLearner(str(tmp_path / "d.jsonl"), half_life=None)
     for _ in range(500):
         t = rng.random() < 0.5
         lead = (rng.random() < 0.7) == t
-        dep.record({"l": 0.8 if lead else 0.2, "c1": 0.8 if lead else 0.2, "c2": 0.8 if lead else 0.2,
-                    "x": 0.8 if (rng.random() < 0.7) == t else 0.2}, t)
+        dep.record(
+            {
+                "l": 0.8 if lead else 0.2,
+                "c1": 0.8 if lead else 0.2,
+                "c2": 0.8 if lead else 0.2,
+                "x": 0.8 if (rng.random() < 0.7) == t else 0.2,
+            },
+            t,
+        )
     m = dep.model(["l", "c1", "c2", "x"], "ess_cal")
     assert m["w"]["l"] < 0.5 and m["w"]["x"] > 0.9
     tr = ClaimTrace(str(tmp_path / "a.jsonl"), mode="bayes", variant="ess_cal", dependence=dep)
     d1 = tr.submit("c", {"l": 0.8, "c1": 0.8, "c2": 0.8, "x": 0.2}, a=1)
-    assert 0.5 < d1.eff < 0.8                          # the copies count about once against x
+    assert 0.5 < d1.eff < 0.8  # the copies count about once against x
     rep = replay(str(tmp_path / "a.jsonl"))
     assert rep.n_records == 1 and tr.verify().head == rep.head

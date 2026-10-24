@@ -1,5 +1,6 @@
 """Few-shot examples for judge J9, drawn ONLY from SciFact train claims that are NOT in the 350-claim learning subset
 (and never from dev). Deterministic: sha256 order, stratified 4 SUPPORT / 3 CONTRADICT / 3 NEI."""
+
 from __future__ import annotations
 
 import hashlib
@@ -9,14 +10,15 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from factcheck.scifact import load_claims, load_corpus   # noqa: E402
-from features import CACHE, DATA                          # noqa: E402
+from factcheck.scifact import load_claims, load_corpus  # noqa: E402
+from features import CACHE, DATA  # noqa: E402
 
 QUOTA = {"SUPPORT": 4, "CONTRADICT": 3, "NEI": 3}
 
 
 def build() -> str:
     from judges import selected
+
     feats = json.load(open(os.path.join(CACHE, "local_features.json")))
     used = set(selected(feats))
     corpus = load_corpus(DATA)
@@ -25,7 +27,8 @@ def build() -> str:
     picked, got = [], {k: 0 for k in QUOTA}
     for c in pool:
         if got[c.label3] < QUOTA[c.label3] and c.cited_doc_ids:
-            picked.append(c); got[c.label3] += 1
+            picked.append(c)
+            got[c.label3] += 1
     order = sorted(picked, key=lambda c: hashlib.sha256(("o" + c.claim_id).encode()).hexdigest())
     out = []
     for c in order:
@@ -39,4 +42,5 @@ def build() -> str:
 
 if __name__ == "__main__":
     t, ids = build()
-    print(t); print(ids)
+    print(t)
+    print(ids)

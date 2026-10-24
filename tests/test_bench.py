@@ -1,11 +1,15 @@
 """Phase 2: the generator is exact and the benchmark is byte-reproducible."""
-import json, os, subprocess, sys
+
+import json
+import os
+import subprocess
+import sys
 
 import pytest
 
-from roman_wheel_node.bench import SCENARIOS, stream, run, run_one, to_json, to_text
-from roman_wheel_node.bench.generator import ALL_SCENARIOS, DEPENDENCE_SCENARIOS
-from roman_wheel_node.bench.generator import main as gen_main, oracle_llr
+from roman_wheel_node.bench import SCENARIOS, run, run_one, stream, to_json, to_text
+from roman_wheel_node.bench.generator import ALL_SCENARIOS, DEPENDENCE_SCENARIOS, oracle_llr
+from roman_wheel_node.bench.generator import main as gen_main
 from roman_wheel_node.bench.runner import R
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,7 +23,8 @@ def test_six_standard_scenarios():
 
 
 def test_stream_is_deterministic_and_seed_dependent():
-    a = list(stream(SCENARIOS["baseline"], 7, 200)); b = list(stream(SCENARIOS["baseline"], 7, 200))
+    a = list(stream(SCENARIOS["baseline"], 7, 200))
+    b = list(stream(SCENARIOS["baseline"], 7, 200))
     c = list(stream(SCENARIOS["baseline"], 8, 200))
     assert a == b and a != c
 
@@ -29,7 +34,7 @@ def test_noise_model_and_floor():
     vals = [v for c in cs for v in c.scores.values()]
     assert min(vals) >= 0.01 and max(vals) < 1.0
     # sources say the right thing ~58% of the time (vote = score > 0.5)
-    right = sum((v > .5) == c.truth for c in cs for v in c.scores.values()) / len(vals)
+    right = sum((v > 0.5) == c.truth for c in cs for v in c.scores.values()) / len(vals)
     assert 0.55 < right < 0.61
 
 
@@ -42,8 +47,8 @@ def test_copycat_marginal_accuracy_and_correlation():
     sc = SCENARIOS["copycats"]
     assert sc.true_accuracy(0)["c1"] == pytest.approx(0.9 * 0.65 + 0.1 * 0.55)
     cs = list(stream(sc, 0, 3000))
-    agree = sum((c.scores["lead"] > .5) == (c.scores["c1"] > .5) for c in cs) / len(cs)
-    assert agree > 0.88                       # copies, not independent (independent would be ~0.47)
+    agree = sum((c.scores["lead"] > 0.5) == (c.scores["c1"] > 0.5) for c in cs) / len(cs)
+    assert agree > 0.88  # copies, not independent (independent would be ~0.47)
 
 
 def test_oracle_beats_chance_and_is_symmetric():
@@ -72,8 +77,20 @@ def test_output_identical_across_runs_and_worker_counts(tmp_path):
 
 
 def test_cli_byte_identical(tmp_path):
-    args = [sys.executable, "-m", "roman_wheel_node.bench", "--seeds", "2", "--scenarios", "cold_start",
-            "--ceiling-claims", "500", "--no-plots", "--jobs", "1"]
+    args = [
+        sys.executable,
+        "-m",
+        "roman_wheel_node.bench",
+        "--seeds",
+        "2",
+        "--scenarios",
+        "cold_start",
+        "--ceiling-claims",
+        "500",
+        "--no-plots",
+        "--jobs",
+        "1",
+    ]
     for d in ("a", "b"):
         subprocess.run(args + ["--out", str(tmp_path / d)], check=True, capture_output=True)
     for f in ("benchmark.json", "benchmark.txt"):
@@ -97,8 +114,11 @@ def test_committed_results_reproduce(key, seeds):
 
 @pytest.mark.skipif(os.environ.get("RWN_FULL_BENCH") != "1", reason="set RWN_FULL_BENCH=1 (~1 min on 8 cores)")
 def test_full_benchmark_byte_identical_to_committed():
-    chk = subprocess.run([sys.executable, "-m", "roman_wheel_node.bench", "--seeds", "20",
-                          "--check", os.path.join(ROOT, "results")], capture_output=True, text=True)
+    chk = subprocess.run(
+        [sys.executable, "-m", "roman_wheel_node.bench", "--seeds", "20", "--check", os.path.join(ROOT, "results")],
+        capture_output=True,
+        text=True,
+    )
     assert chk.returncode == 0, chk.stdout + chk.stderr
 
 
@@ -113,15 +133,18 @@ def test_leader_switch_schedule_and_marginals():
     assert sc.true_accuracy(1499)["f1"] == pytest.approx(0.9 * 0.75 + 0.1 * 0.55)
     assert sc.true_accuracy(1500)["f1"] == pytest.approx(0.9 * 0.60 + 0.1 * 0.55)
     cs = list(stream(sc, 0))
-    agree = lambda a, b, part: sum((c.scores[a] > .5) == (c.scores[b] > .5) for c in part) / len(part)
-    assert agree("f1", "L1", cs[:1500]) > .85 and agree("f1", "L2", cs[1500:]) > .85
-    assert agree("f1", "L2", cs[:1500]) < .7
+
+    def agree(a, b, part):
+        return sum((c.scores[a] > 0.5) == (c.scores[b] > 0.5) for c in part) / len(part)
+
+    assert agree("f1", "L1", cs[:1500]) > 0.85 and agree("f1", "L2", cs[1500:]) > 0.85
+    assert agree("f1", "L2", cs[:1500]) < 0.7
 
 
 def test_partial_corr_is_partially_correlated():
     cs = list(stream(DEPENDENCE_SCENARIOS["partial_corr"], 0))
-    both_wrong = sum((c.scores["p1"] > .5) != c.truth and (c.scores["p2"] > .5) != c.truth for c in cs) / len(cs)
-    assert 0.12 < both_wrong < 0.20          # independence would give 0.09; full copying 0.3
+    both_wrong = sum((c.scores["p1"] > 0.5) != c.truth and (c.scores["p2"] > 0.5) != c.truth for c in cs) / len(cs)
+    assert 0.12 < both_wrong < 0.20  # independence would give 0.09; full copying 0.3
 
 
 @pytest.mark.parametrize("key", list(DEPENDENCE_SCENARIOS))
@@ -130,6 +153,7 @@ def test_dependence_oracle_is_a_proper_posterior(key):
     acc = sum((c.oracle_llr > 0) == c.truth for c in cs) / len(cs)
     assert acc > 0.74
     import math
+
     # calibration of the oracle posterior: mean posterior ~ frequency of truth
     p = [1 / (1 + math.exp(-c.oracle_llr)) for c in cs]
     assert abs(sum(p) / len(p) - sum(c.truth for c in cs) / len(cs)) < 0.03
@@ -150,6 +174,19 @@ def test_committed_dependence_results_reproduce(key, seeds):
 
 @pytest.mark.skipif(os.environ.get("RWN_FULL_BENCH") != "1", reason="set RWN_FULL_BENCH=1 (~70 s on 8 cores)")
 def test_full_dependence_benchmark_byte_identical_to_committed():
-    chk = subprocess.run([sys.executable, "-m", "roman_wheel_node.bench", "--seeds", "20", "--suite", "dependence",
-                          "--check", os.path.join(ROOT, "results", "dependence")], capture_output=True, text=True)
+    chk = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "roman_wheel_node.bench",
+            "--seeds",
+            "20",
+            "--suite",
+            "dependence",
+            "--check",
+            os.path.join(ROOT, "results", "dependence"),
+        ],
+        capture_output=True,
+        text=True,
+    )
     assert chk.returncode == 0, chk.stdout + chk.stderr

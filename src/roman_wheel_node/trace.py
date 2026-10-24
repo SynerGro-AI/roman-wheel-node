@@ -27,6 +27,7 @@ parents (a forged ``Claim`` is never "of this trace") and by :meth:`ClaimTrace.v
 the log and compares it with the in-memory claims. Anchor :meth:`ClaimTrace.head` externally if you
 need to detect a full rewrite of an unkeyed log.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -45,7 +46,7 @@ from .dependence import DEP_VARIANTS, FrozenDependence, votes_of
 __all__ = ["Claim", "Decision", "ClaimTrace", "replay", "ReplayReport", "TamperError"]
 
 GENESIS = "0" * 64
-_TOKEN = object()           # private construction token (see threat model above)
+_TOKEN = object()  # private construction token (see threat model above)
 _LOG_VERSION = 1
 
 
@@ -58,13 +59,35 @@ class Claim:
 
     __slots__ = ("id", "seq", "content", "scores", "a", "parents", "eff", "opcode", "status", "record_hash")
 
-    def __init__(self, *, _token: object, id: str, seq: int, content: str, scores: Mapping[str, float],
-                 a: int, parents: Tuple[str, ...], eff: float, opcode: str, status: str, record_hash: str) -> None:
+    def __init__(
+        self,
+        *,
+        _token: object,
+        id: str,
+        seq: int,
+        content: str,
+        scores: Mapping[str, float],
+        a: int,
+        parents: Tuple[str, ...],
+        eff: float,
+        opcode: str,
+        status: str,
+        record_hash: str,
+    ) -> None:
         if _token is not _TOKEN:
             raise TypeError("Claim objects can only be created by ClaimTrace.submit()")
-        for k, v in (("id", id), ("seq", seq), ("content", content), ("scores", MappingProxyType(dict(scores))),
-                     ("a", a), ("parents", tuple(parents)), ("eff", eff), ("opcode", opcode),
-                     ("status", status), ("record_hash", record_hash)):
+        for k, v in (
+            ("id", id),
+            ("seq", seq),
+            ("content", content),
+            ("scores", MappingProxyType(dict(scores))),
+            ("a", a),
+            ("parents", tuple(parents)),
+            ("eff", eff),
+            ("opcode", opcode),
+            ("status", status),
+            ("record_hash", record_hash),
+        ):
             object.__setattr__(self, k, v)
 
     def __setattr__(self, name: str, value: object) -> None:
@@ -73,7 +96,7 @@ class Claim:
     def __delattr__(self, name: str) -> None:
         raise AttributeError("Claim is immutable")
 
-    def __reduce__(self):                       # no pickling back into existence
+    def __reduce__(self):  # no pickling back into existence
         raise TypeError("Claim cannot be pickled; replay the audit log instead")
 
     def __copy__(self):
@@ -89,20 +112,22 @@ class Claim:
 @dataclass(frozen=True)
 class Decision:
     """Result of one :meth:`ClaimTrace.submit` call."""
+
     admitted: bool
     eff: float
     opcode: str
     status: str
-    reason: str                 # "ok" | "hedge_not_allowed" | "blocked" | "not_sure" | "parent_not_admitted"
-    claim: Optional[Claim]      # None unless admitted
+    reason: str  # "ok" | "hedge_not_allowed" | "blocked" | "not_sure" | "parent_not_admitted"
+    claim: Optional[Claim]  # None unless admitted
     seq: int
 
 
 class _Frozen:
     """Replays logged reliabilities / cut-offs into roman_wheel_node (duck-typed live/threshold)."""
 
-    def __init__(self, rel: Optional[Mapping[str, float]] = None, cutoff: Optional[float] = None,
-                 hedge_width: float = 0.15) -> None:
+    def __init__(
+        self, rel: Optional[Mapping[str, float]] = None, cutoff: Optional[float] = None, hedge_width: float = 0.15
+    ) -> None:
         self._rel, self._cutoff, self.hedge_width = rel or {}, cutoff, hedge_width
 
     def reliability(self, k: str) -> float:
@@ -128,17 +153,27 @@ def _decide(rec: dict) -> Tuple[float, str, str]:
     live = _Frozen(rec["reliability"]) if rec["reliability"] is not None else None
     thr = _Frozen(cutoff=rec["cutoff"], hedge_width=rec["hedge_width"]) if rec["learned_cutoff"] else None
     dep = FrozenDependence(rec["dependence_model"]) if rec.get("dependence_model") is not None else None
-    return roman_wheel_node(rec["a_eff"], rec["scores"], live, mode=rec["mode"], flip=rec["flip"],
-                            threshold=thr, variant=rec["variant"], prior=rec["prior"],
-                            assumed_reliability=rec["assumed_reliability"],
-                            cutoff=None if rec["learned_cutoff"] else rec["cutoff"], dependence=dep)
+    return roman_wheel_node(
+        rec["a_eff"],
+        rec["scores"],
+        live,
+        mode=rec["mode"],
+        flip=rec["flip"],
+        threshold=thr,
+        variant=rec["variant"],
+        prior=rec["prior"],
+        assumed_reliability=rec["assumed_reliability"],
+        cutoff=None if rec["learned_cutoff"] else rec["cutoff"],
+        dependence=dep,
+    )
 
 
 def _apply_not_sure(rec: dict, status: str) -> str:
     """Selective mode: fail closed to NOT_SURE inside the logged band or when the logged flag is set.
 
-    A gate failure (a != 1, incl. a parent that is not admitted) stays BLOCK: that is a decided rejection by construction. A claim the
-    node would reject on its posterior but that falls inside the band (or is flagged) becomes NOT_SURE too, so
+    A gate failure (a != 1, incl. a parent that is not admitted) stays BLOCK: that is a decided rejection by
+    construction. A claim the node would reject on its posterior but that falls inside the band (or is flagged) becomes
+    NOT_SURE too, so
     "decided" means confident in either direction. Neither BLOCK nor NOT_SURE is ever admitted."""
     if status == "BLOCK" and rec.get("a_eff", rec.get("a")) != 1:
         return status
@@ -176,13 +211,23 @@ class ClaimTrace:
         clock: timestamp source (injectable for tests).
     """
 
-    def __init__(self, log_path: str, live: Optional[LiveWeights] = None, mode: str = "geomean",
-                 flip: bool = False, threshold: Optional[ThresholdLearner] = None, variant: str = "hard",
-                 prior: float = 0.5, assumed_reliability: float = 0.75,
-                 cutoff: Union[None, float, str] = None, allow_hedge: bool = False,
-                 hmac_key: Optional[bytes] = None, clock: Callable[[], float] = time.time,
-                 dependence: Optional[object] = None,
-                 not_sure_band: Optional[Tuple[float, float]] = None) -> None:
+    def __init__(
+        self,
+        log_path: str,
+        live: Optional[LiveWeights] = None,
+        mode: str = "geomean",
+        flip: bool = False,
+        threshold: Optional[ThresholdLearner] = None,
+        variant: str = "hard",
+        prior: float = 0.5,
+        assumed_reliability: float = 0.75,
+        cutoff: Union[None, float, str] = None,
+        allow_hedge: bool = False,
+        hmac_key: Optional[bytes] = None,
+        clock: Callable[[], float] = time.time,
+        dependence: Optional[object] = None,
+        not_sure_band: Optional[Tuple[float, float]] = None,
+    ) -> None:
         if not_sure_band is not None and not (0.0 <= float(not_sure_band[0]) <= float(not_sure_band[1])):
             raise ValueError("not_sure_band must be (lo, hi) with 0 <= lo <= hi")
         self._band = None if not_sure_band is None else [float(not_sure_band[0]), float(not_sure_band[1])]
@@ -191,8 +236,14 @@ class ClaimTrace:
         self._log_path = log_path
         self._dep = dependence if (mode == "bayes" and variant in DEP_VARIANTS) else None
         self._live, self._threshold = live, threshold
-        self._cfg = dict(mode=mode, flip=bool(flip), variant=variant, prior=float(prior),
-                         assumed_reliability=float(assumed_reliability), allow_hedge=bool(allow_hedge))
+        self._cfg = dict(
+            mode=mode,
+            flip=bool(flip),
+            variant=variant,
+            prior=float(prior),
+            assumed_reliability=float(assumed_reliability),
+            allow_hedge=bool(allow_hedge),
+        )
         self._fixed_cutoff = cutoff
         self._key = hmac_key
         self._clock = clock
@@ -225,8 +276,14 @@ class ClaimTrace:
         return self._head
 
     # ---- the one entry point ----------------------------------------------------------------
-    def submit(self, content: str, scores: Mapping[str, float], a: int,
-               parents: Sequence[Union[Claim, str]] = (), not_sure: bool = False) -> Decision:
+    def submit(
+        self,
+        content: str,
+        scores: Mapping[str, float],
+        a: int,
+        parents: Sequence[Union[Claim, str]] = (),
+        not_sure: bool = False,
+    ) -> Decision:
         """Evaluate a claim with roman_wheel_node and admit it only if it passes.
 
         ``parents`` may be :class:`Claim` objects or ids. Each must be an admitted claim of *this*
@@ -239,8 +296,8 @@ class ClaimTrace:
         sc = {str(k): float(v) for k, v in dict(scores).items()}
         if any(math.isnan(v) for v in sc.values()):
             raise ValueError("NaN score")
-        sc = {k: (v if math.isfinite(v) else clamp01(v)) for k, v in sc.items()}   # +/-inf -> 1/0
-        a_in = 1 if (a is True or (type(a) in (int, float) and a == 1)) else 0   # strict: exact match only
+        sc = {k: (v if math.isfinite(v) else clamp01(v)) for k, v in sc.items()}  # +/-inf -> 1/0
+        a_in = 1 if (a is True or (type(a) in (int, float) and a == 1)) else 0  # strict: exact match only
         pids, parents_ok = [], True
         for p in parents:
             pid = p.id if isinstance(p, Claim) else (p if isinstance(p, str) else None)
@@ -254,11 +311,22 @@ class ClaimTrace:
             rel = {k: self._live.reliability(k) for k in sc}
         learned = self._threshold is not None
         key = f"bayes:{self._cfg['variant']}" if self._cfg["mode"] == "bayes" else self._cfg["mode"]
-        rec = {"v": _LOG_VERSION, "seq": self._seq, "ts": float(self._clock()), "content": content,
-               "scores": sc, "a": a_in, "a_eff": a_eff, "parents": pids, "parents_ok": parents_ok,
-               "reliability": rel, "learned_cutoff": learned,
-               "cutoff": self._threshold.cutoff(key) if learned else self._fixed_cutoff,
-               "hedge_width": self._threshold.hedge_width if learned else 0.15, **self._cfg}
+        rec = {
+            "v": _LOG_VERSION,
+            "seq": self._seq,
+            "ts": float(self._clock()),
+            "content": content,
+            "scores": sc,
+            "a": a_in,
+            "a_eff": a_eff,
+            "parents": pids,
+            "parents_ok": parents_ok,
+            "reliability": rel,
+            "learned_cutoff": learned,
+            "cutoff": self._threshold.cutoff(key) if learned else self._fixed_cutoff,
+            "hedge_width": self._threshold.hedge_width if learned else 0.15,
+            **self._cfg,
+        }
         if self._dep is not None:
             voting = [k for k, v in votes_of(sc).items() if v]
             rec["dependence_model"] = self._dep.model(voting, self._cfg["variant"])  # type: ignore[attr-defined]
@@ -309,9 +377,19 @@ class ClaimTrace:
 
 
 def _make_claim(rec: dict) -> Claim:
-    return Claim(_token=_TOKEN, id=rec["hash"][:16], seq=rec["seq"], content=rec["content"],
-                 scores=rec["scores"], a=rec["a_eff"], parents=tuple(rec["parents"]), eff=rec["eff"],
-                 opcode=rec["opcode"], status=rec["status"], record_hash=rec["hash"])
+    return Claim(
+        _token=_TOKEN,
+        id=rec["hash"][:16],
+        seq=rec["seq"],
+        content=rec["content"],
+        scores=rec["scores"],
+        a=rec["a_eff"],
+        parents=tuple(rec["parents"]),
+        eff=rec["eff"],
+        opcode=rec["opcode"],
+        status=rec["status"],
+        record_hash=rec["hash"],
+    )
 
 
 @dataclass(frozen=True)
@@ -332,7 +410,7 @@ def replay(log_path: str, hmac_key: Optional[bytes] = None) -> ReplayReport:
     """
     prev, claims, by_id = GENESIS, [], {}
     n = 0
-    if not os.path.exists(log_path):          # empty trace; a deleted log is caught by head mismatch
+    if not os.path.exists(log_path):  # empty trace; a deleted log is caught by head mismatch
         return ReplayReport(0, 0, GENESIS, ())
     with open(log_path) as f:
         lines = [ln for ln in f.read().split("\n") if ln.strip()]
@@ -359,11 +437,18 @@ def replay(log_path: str, hmac_key: Optional[bytes] = None) -> ReplayReport:
         admitted, reason = _admit(status, rec["allow_hedge"])
         if not parents_ok:
             reason = "parent_not_admitted"
-        if (eff, op, status, admitted, reason) != (rec["eff"], rec["opcode"], rec["status"], rec["admitted"], rec["reason"]):
+        if (eff, op, status, admitted, reason) != (
+            rec["eff"],
+            rec["opcode"],
+            rec["status"],
+            rec["admitted"],
+            rec["reason"],
+        ):
             raise TamperError(f"record {n}: decision does not recompute from its inputs")
         rec["hash"] = h
         if admitted:
             c = _make_claim(rec)
-            claims.append(c); by_id[c.id] = c
+            claims.append(c)
+            by_id[c.id] = c
         prev = h
     return ReplayReport(len(lines), len(claims), prev, tuple(claims))

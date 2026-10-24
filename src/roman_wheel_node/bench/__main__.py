@@ -1,4 +1,6 @@
-"""CLI: python -m roman_wheel_node.bench --seeds 20 [--suite standard|dependence] [--out DIR] [--check DIR] [--no-plots]"""
+"""CLI: python -m roman_wheel_node.bench --seeds 20 [--suite standard|dependence] [--out DIR] [--check DIR]
+[--no-plots]"""
+
 from __future__ import annotations
 
 import argparse
@@ -10,11 +12,16 @@ from .runner import SUITES, run, to_json, to_text
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(prog="python -m roman_wheel_node.bench",
-                                description="Run the reproducible Roman Wheel Node benchmark.")
+    p = argparse.ArgumentParser(
+        prog="python -m roman_wheel_node.bench", description="Run the reproducible Roman Wheel Node benchmark."
+    )
     p.add_argument("--seeds", type=int, default=20, help="seeds 0..N-1 per scenario (default 20)")
-    p.add_argument("--suite", choices=sorted(SUITES), default="standard",
-                   help="standard (13 policies x 6 scenarios, frozen) or dependence (correlation-aware x 9 scenarios)")
+    p.add_argument(
+        "--suite",
+        choices=sorted(SUITES),
+        default="standard",
+        help="standard (13 policies x 6 scenarios, frozen) or dependence (correlation-aware x 9 scenarios)",
+    )
     p.add_argument("--scenarios", nargs="*", choices=sorted(ALL_SCENARIOS), help="subset (default: all of the suite)")
     p.add_argument("--ceiling-claims", type=int, default=200_000, help="claims for the oracle ceiling estimate")
     p.add_argument("--jobs", type=int, default=None, help="worker processes (default: all cores; output is identical)")
@@ -26,8 +33,11 @@ def main(argv=None) -> int:
     a.out = a.out or ("results" if a.suite == "standard" else os.path.join("results", "dependence"))
     js, txt = to_json(res), to_text(res)
     if a.check:
-        bad = [n for n, body in (("benchmark.json", js), ("benchmark.txt", txt))
-               if not os.path.exists(os.path.join(a.check, n)) or open(os.path.join(a.check, n)).read() != body]
+        bad = [
+            n
+            for n, body in (("benchmark.json", js), ("benchmark.txt", txt))
+            if not os.path.exists(os.path.join(a.check, n)) or open(os.path.join(a.check, n)).read() != body
+        ]
         print("IDENTICAL" if not bad else f"DIFFERENT: {', '.join(bad)}")
         return 1 if bad else 0
     os.makedirs(a.out, exist_ok=True)

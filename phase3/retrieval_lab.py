@@ -4,6 +4,7 @@ Ranks: BM25; dense bge-small-en-v1.5; dense MedCPT (PubMed-trained query/article
 cross-encoder reranking (ms-marco-MiniLM-L-6-v2, MedCPT-Cross-Encoder) of a fused top-N. Writes cache/ranks_<split>.json
 so the chosen pipeline can then be applied to dev once, unchanged.
 """
+
 from __future__ import annotations
 
 import json
@@ -13,10 +14,10 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from factcheck.interfaces import BM25Retriever          # noqa: E402
-from factcheck.scifact import load_corpus                # noqa: E402
-from features import CACHE, DATA                         # noqa: E402
-from judges import selected                              # noqa: E402
+from factcheck.interfaces import BM25Retriever  # noqa: E402
+from factcheck.scifact import load_corpus  # noqa: E402
+from features import CACHE, DATA  # noqa: E402
+from judges import selected  # noqa: E402
 
 HF = os.path.join(HERE, "models", "hf")
 
@@ -29,24 +30,46 @@ def dense(model_q, model_d, claims, corpus_ids, corpus, pool="cls", qprefix="", 
     import numpy as np
     import torch
     from transformers import AutoModel, AutoTokenizer
+
     path = os.path.join(CACHE, f"emb_{model_d.replace('/', '_')}.npy")
-    tq, mq = AutoTokenizer.from_pretrained(model_q, cache_dir=HF), AutoModel.from_pretrained(model_q, cache_dir=HF).eval()
+    tq, mq = (
+        AutoTokenizer.from_pretrained(model_q, cache_dir=HF),
+        AutoModel.from_pretrained(model_q, cache_dir=HF).eval(),
+    )
 
     def enc(tok, mod, texts, ml, pairs=False):
         out = []
         for i in range(0, len(texts), 32):
-            b = texts[i:i + 32]
-            x = tok([t[0] for t in b], [t[1] for t in b], truncation=True, max_length=ml, padding=True, return_tensors="pt") if pairs \
+            b = texts[i : i + 32]
+            x = (
+                tok(
+                    [t[0] for t in b],
+                    [t[1] for t in b],
+                    truncation=True,
+                    max_length=ml,
+                    padding=True,
+                    return_tensors="pt",
+                )
+                if pairs
                 else tok(b, truncation=True, max_length=ml, padding=True, return_tensors="pt")
+            )
             with torch.inference_mode():
                 h = mod(**x).last_hidden_state
-            v = h[:, 0] if pool == "cls" else (h * x["attention_mask"][..., None]).sum(1) / x["attention_mask"].sum(1, keepdim=True)
+            v = (
+                h[:, 0]
+                if pool == "cls"
+                else (h * x["attention_mask"][..., None]).sum(1) / x["attention_mask"].sum(1, keepdim=True)
+            )
             out.append(torch.nn.functional.normalize(v, dim=-1).numpy())
         return np.concatenate(out)
+
     if os.path.exists(path):
         D = np.load(path)
     else:
-        td, md = AutoTokenizer.from_pretrained(model_d, cache_dir=HF), AutoModel.from_pretrained(model_d, cache_dir=HF).eval()
+        td, md = (
+            AutoTokenizer.from_pretrained(model_d, cache_dir=HF),
+            AutoModel.from_pretrained(model_d, cache_dir=HF).eval(),
+        )
         if "MedCPT" in model_d:
             D = enc(td, md, [(corpus[i].title, " ".join(corpus[i].sentences)) for i in corpus_ids], max_len, pairs=True)
         else:
@@ -68,12 +91,20 @@ def rrf(*lists, k=60, n=100):
 def rerank(model, claim_docs, corpus, topn=20):
     import torch
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
     tok = AutoTokenizer.from_pretrained(model, cache_dir=HF)
     mod = AutoModelForSequenceClassification.from_pretrained(model, cache_dir=HF).eval()
     out = []
     for claim, docs in claim_docs:
         cand = docs[:topn]
-        x = tok([claim] * len(cand), [doc_text(corpus[d]) for d in cand], truncation=True, max_length=512, padding=True, return_tensors="pt")
+        x = tok(
+            [claim] * len(cand),
+            [doc_text(corpus[d]) for d in cand],
+            truncation=True,
+            max_length=512,
+            padding=True,
+            return_tensors="pt",
+        )
         with torch.inference_mode():
             s = mod(**x).logits[:, 0].tolist()
         out.append([d for _, d in sorted(zip(s, cand), key=lambda z: (-z[0], z[1]))] + docs[topn:])
@@ -82,6 +113,7 @@ def rerank(model, claim_docs, corpus, topn=20):
 
 def main(split="train", methods=None):
     import torch
+
     torch.set_num_threads(8)
     corpus = load_corpus(DATA)
     ids = sorted(corpus)
@@ -95,8 +127,14 @@ def main(split="train", methods=None):
         bm = BM25Retriever({d: doc_text(corpus[d]) for d in ids})
         R["bm25"] = [bm.retrieve(c, 100) for c in claims]
     if "bge" not in R:
-        R["bge"] = dense("BAAI/bge-small-en-v1.5", "BAAI/bge-small-en-v1.5", claims, ids, corpus,
-                         qprefix="Represent this sentence for searching relevant passages: ")
+        R["bge"] = dense(
+            "BAAI/bge-small-en-v1.5",
+            "BAAI/bge-small-en-v1.5",
+            claims,
+            ids,
+            corpus,
+            qprefix="Represent this sentence for searching relevant passages: ",
+        )
     if "medcpt" not in R:
         R["medcpt"] = dense("ncbi/MedCPT-Query-Encoder", "ncbi/MedCPT-Article-Encoder", claims, ids, corpus)
     json.dump(R, open(path, "w"))
@@ -104,7 +142,7 @@ def main(split="train", methods=None):
     R["rrf_all3"] = [rrf(a, b, c) for a, b, c in zip(R["bm25"], R["medcpt"], R["bge"])]
     for base in ("rrf_all3",):
         rerankers = (("ncbi/MedCPT-Cross-Encoder", "ce_medcpt"), ("cross-encoder/ms-marco-MiniLM-L-6-v2", "ce_minilm"))
-        if split != "train":   # the reranker was selected on train recall/MRR; dev runs only the chosen pipeline
+        if split != "train":  # the reranker was selected on train recall/MRR; dev runs only the chosen pipeline
             rerankers = rerankers[:1]
         for m, tag in rerankers:
             key = f"{tag}({base})"
@@ -116,8 +154,13 @@ def main(split="train", methods=None):
     ev = [i for i, k in enumerate(keys) if feats[k]["label3"] != "NEI"]
     print(f"{split}: {len(ev)} claims with evidence; recall@k of any gold doc, and mean #uncited docs shown at k")
     for name, L in R.items():
-        rec = {k: round(sum(any(d in L[i][:k] for d in feats[keys[i]]["cited"]) for i in ev) / len(ev), 3) for k in (1, 2, 3, 5, 10, 20)}
-        mrr = sum(next((1 / (r + 1) for r, d in enumerate(L[i][:20]) if d in feats[keys[i]]["cited"]), 0) for i in ev) / len(ev)
+        rec = {
+            k: round(sum(any(d in L[i][:k] for d in feats[keys[i]]["cited"]) for i in ev) / len(ev), 3)
+            for k in (1, 2, 3, 5, 10, 20)
+        }
+        mrr = sum(
+            next((1 / (r + 1) for r, d in enumerate(L[i][:20]) if d in feats[keys[i]]["cited"]), 0) for i in ev
+        ) / len(ev)
         print(f"  {name:32s} {rec}  MRR@20 {mrr:.3f}")
 
 

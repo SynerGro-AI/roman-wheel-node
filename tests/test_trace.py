@@ -1,20 +1,30 @@
 """Phase 1 invariants: the gated trace is the only way in, blocks propagate, the log is tamper-evident."""
-import copy, json, math, os, pickle, random, uuid
+
+import copy
+import json
+import os
+import pickle
+import random
+import uuid
 
 import pytest
 
 from roman_wheel_node import LiveWeights, ThresholdLearner, roman_wheel_node
-from roman_wheel_node.trace import Claim, ClaimTrace, Decision, TamperError, replay, _TOKEN
+from roman_wheel_node.trace import _TOKEN, Claim, ClaimTrace, TamperError, replay
 
 try:
-    from hypothesis import given, settings, strategies as st, HealthCheck
+    from hypothesis import HealthCheck, given, settings
+    from hypothesis import strategies as st
+
     HAVE_HYP = True
 except ImportError:  # pragma: no cover
     HAVE_HYP = False
 
 
 class Clock:
-    def __init__(self): self.t = 1_700_000_000.0
+    def __init__(self):
+        self.t = 1_700_000_000.0
+
     def __call__(self):
         self.t += 1.0
         return self.t
@@ -31,8 +41,19 @@ GOOD = {"x": 0.9, "y": 0.92}
 # --- one entry point / bypass attempts -----------------------------------------------------------
 def test_claim_cannot_be_constructed_directly():
     with pytest.raises(TypeError):
-        Claim(_token=object(), id="x", seq=0, content="c", scores={}, a=1, parents=(), eff=1.0,
-              opcode="111", status="ACCEPT", record_hash="0" * 64)
+        Claim(
+            _token=object(),
+            id="x",
+            seq=0,
+            content="c",
+            scores={},
+            a=1,
+            parents=(),
+            eff=1.0,
+            opcode="111",
+            status="ACCEPT",
+            record_hash="0" * 64,
+        )
     with pytest.raises(TypeError):
         Claim()  # type: ignore[call-arg]
 
@@ -45,7 +66,7 @@ def test_claim_is_immutable(trace):
     with pytest.raises(AttributeError):
         del c.status
     with pytest.raises(TypeError):
-        c.scores["x"] = 0.0           # MappingProxyType is read-only
+        c.scores["x"] = 0.0  # MappingProxyType is read-only
 
 
 def test_claim_cannot_be_pickled_or_copied_into_a_new_object(trace):
@@ -61,8 +82,8 @@ def test_trace_has_no_public_mutators(trace):
     ctx = trace.context()
     assert isinstance(ctx, tuple)
     with pytest.raises(AttributeError):
-        ctx.append("raw string")      # type: ignore[attr-defined]
-    _ = ctx + ("raw string",)          # builds a new tuple only
+        ctx.append("raw string")  # type: ignore[attr-defined]
+    _ = ctx + ("raw string",)  # builds a new tuple only
     assert len(trace) == 0 and "raw string" not in trace.context()
 
 
@@ -78,17 +99,29 @@ def test_forged_claim_object_cannot_become_parent(trace):
     real = trace.submit("real", GOOD, a=1).claim
     forged = object.__new__(Claim)
     for f in Claim.__slots__:
-        object.__setattr__(forged, f, getattr(real, f))          # perfect copy of an admitted claim
+        object.__setattr__(forged, f, getattr(real, f))  # perfect copy of an admitted claim
     d = trace.submit("child of forgery", GOOD, a=1, parents=[forged])
     assert not d.admitted and d.reason == "parent_not_admitted"
     # even with the private token, a new object is not "of this trace"
-    tok = Claim(_token=_TOKEN, id=real.id, seq=real.seq, content=real.content, scores=real.scores, a=1,
-                parents=(), eff=real.eff, opcode=real.opcode, status=real.status, record_hash=real.record_hash)
+    tok = Claim(
+        _token=_TOKEN,
+        id=real.id,
+        seq=real.seq,
+        content=real.content,
+        scores=real.scores,
+        a=1,
+        parents=(),
+        eff=real.eff,
+        opcode=real.opcode,
+        status=real.status,
+        record_hash=real.record_hash,
+    )
     assert not trace.submit("child", GOOD, a=1, parents=[tok]).admitted
 
 
 def test_claim_from_another_trace_is_not_a_parent(tmp_path):
-    t1 = ClaimTrace(str(tmp_path / "a.jsonl"), clock=Clock()); t2 = ClaimTrace(str(tmp_path / "b.jsonl"), clock=Clock())
+    t1 = ClaimTrace(str(tmp_path / "a.jsonl"), clock=Clock())
+    t2 = ClaimTrace(str(tmp_path / "b.jsonl"), clock=Clock())
     c = t1.submit("fact", GOOD, a=1).claim
     assert not t2.submit("child", GOOD, a=1, parents=[c]).admitted
 
@@ -111,7 +144,7 @@ def test_deleted_log_is_caught_by_verify(trace):
 
 def test_private_list_injection_is_caught_by_verify(trace):
     c = trace.submit("fact", GOOD, a=1).claim
-    trace._claims.append(c)                    # reaching into private state
+    trace._claims.append(c)  # reaching into private state
     with pytest.raises(TamperError):
         trace.verify()
 
@@ -153,7 +186,7 @@ def test_zero_propagation_through_generations(trace):
 
 
 def test_blocked_is_invisible(trace):
-    d = trace.submit("secret bad claim", {"x": 0.9, "z": 0.0}, a=1)
+    trace.submit("secret bad claim", {"x": 0.9, "z": 0.0}, a=1)
     rec = json.loads(open(trace._log_path).read().splitlines()[-1])
     blocked_id = rec["hash"][:16]
     assert trace.get(blocked_id) is None and trace.get("never-existed") is None
@@ -164,7 +197,7 @@ def test_blocked_is_invisible(trace):
 
 
 def test_hedge_off_by_default_and_configurable(tmp_path):
-    sc = {"x": 0.2}                                     # geomean 0.2 -> 100 HEDGE
+    sc = {"x": 0.2}  # geomean 0.2 -> 100 HEDGE
     assert roman_wheel_node(1, sc)[2] == "HEDGE"
     off = ClaimTrace(str(tmp_path / "off.jsonl"), clock=Clock())
     d = off.submit("h", sc, a=1)
@@ -180,7 +213,7 @@ def test_clamping_in_trace(trace):
     d1 = trace.submit("c1", {"x": 1.7, "y": 0.9}, a=1)
     d2 = trace.submit("c2", {"x": 1.0, "y": 0.9}, a=1)
     assert d1.eff == d2.eff == 0.949
-    assert not trace.submit("neg", {"x": -0.3, "y": 0.9}, a=1).admitted      # clamps to 0 -> veto
+    assert not trace.submit("neg", {"x": -0.3, "y": 0.9}, a=1).admitted  # clamps to 0 -> veto
     assert trace.submit("inf", {"x": float("inf"), "y": 0.9}, a=1).eff == 0.949
 
 
@@ -190,7 +223,7 @@ def test_geomean_vs_product(tmp_path):
     sc = {f"s{i}": 0.7 for i in range(4)}
     dg, dp = g.submit("c", sc, a=1), p.submit("c", sc, a=1)
     assert dg.eff == 0.7 and dg.opcode == "110" and dg.admitted
-    assert dp.eff == round(0.7 ** 4, 3) and dp.status == "HEDGE" and not dp.admitted   # product punishes more sources
+    assert dp.eff == round(0.7**4, 3) and dp.status == "HEDGE" and not dp.admitted  # product punishes more sources
 
 
 # --- audit log + replay ------------------------------------------------------------------------------
@@ -198,8 +231,8 @@ def _populate(trace, n=60, seed=0):
     rng = random.Random(seed)
     ids = []
     for i in range(n):
-        sc = {k: rng.choice([0.0, rng.random(), rng.uniform(.6, 1)]) for k in rng.sample("abcdef", rng.randint(0, 4))}
-        parents = rng.sample(ids, min(len(ids), rng.randint(0, 2))) + (["bogus"] if rng.random() < .1 else [])
+        sc = {k: rng.choice([0.0, rng.random(), rng.uniform(0.6, 1)]) for k in rng.sample("abcdef", rng.randint(0, 4))}
+        parents = rng.sample(ids, min(len(ids), rng.randint(0, 2))) + (["bogus"] if rng.random() < 0.1 else [])
         d = trace.submit(f"claim {i}", sc, a=rng.choice([1, 1, 1, 0]), parents=parents)
         if d.admitted:
             ids.append(d.claim.id)
@@ -210,9 +243,26 @@ def test_every_call_logged_with_full_audit_tuple(trace):
     _populate(trace, 30)
     lines = open(trace._log_path).read().splitlines()
     assert len(lines) == 30
-    need = {"seq", "ts", "content", "scores", "a", "a_eff", "parents", "reliability", "cutoff", "mode",
-            "eff", "opcode", "status", "admitted", "reason", "prev", "hash"}
-    assert all(need <= set(json.loads(l)) for l in lines)
+    need = {
+        "seq",
+        "ts",
+        "content",
+        "scores",
+        "a",
+        "a_eff",
+        "parents",
+        "reliability",
+        "cutoff",
+        "mode",
+        "eff",
+        "opcode",
+        "status",
+        "admitted",
+        "reason",
+        "prev",
+        "hash",
+    }
+    assert all(need <= set(json.loads(line)) for line in lines)
 
 
 def test_replay_reconstructs_exactly(trace):
@@ -224,15 +274,19 @@ def test_replay_reconstructs_exactly(trace):
 
 
 def test_replay_with_learning_state(tmp_path):
-    live = LiveWeights(str(tmp_path / "w.jsonl")); thr = ThresholdLearner(str(tmp_path / "t.jsonl"), min_obs=5)
+    live = LiveWeights(str(tmp_path / "w.jsonl"))
+    thr = ThresholdLearner(str(tmp_path / "t.jsonl"), min_obs=5)
     t = ClaimTrace(str(tmp_path / "audit.jsonl"), live=live, threshold=thr, mode="bayes", clock=Clock())
     rng = random.Random(1)
     for i in range(120):
-        truth = rng.random() < .5
-        sc = {"good": .9 if (truth if rng.random() < .9 else not truth) else .1,
-              "liar": .9 if (not truth if rng.random() < .8 else truth) else .1}
+        truth = rng.random() < 0.5
+        sc = {
+            "good": 0.9 if (truth if rng.random() < 0.9 else not truth) else 0.1,
+            "liar": 0.9 if (not truth if rng.random() < 0.8 else truth) else 0.1,
+        }
         d = t.submit(f"c{i}", sc, a=1)
-        for k, v in sc.items(): live.observe(k, 1.0 if (v > .5) == truth else 0.0)
+        for k, v in sc.items():
+            live.observe(k, 1.0 if (v > 0.5) == truth else 0.0)
         thr.record(d.eff, truth, "bayes:hard")
     rep = t.verify()
     assert rep.n_records == 120 and rep.n_admitted == len(t)
@@ -240,7 +294,8 @@ def test_replay_with_learning_state(tmp_path):
 
 def test_resume_from_log(tmp_path):
     p = str(tmp_path / "audit.jsonl")
-    t = ClaimTrace(p, clock=Clock()); ids = _populate(t, 40)
+    t = ClaimTrace(p, clock=Clock())
+    ids = _populate(t, 40)
     t2 = ClaimTrace(p, clock=Clock())
     assert [c.id for c in t2.context()] == ids and t2.head() == t.head()
     d = t2.submit("after resume", GOOD, a=1, parents=ids[:1])
@@ -256,9 +311,14 @@ def _rewrite(path, fn):
 
 def test_editing_a_logged_decision_is_detected(trace):
     _populate(trace, 20)
+
     def edit(lines):
-        r = json.loads(lines[5]); r["status"] = "ACCEPT"; r["admitted"] = True
-        lines[5] = json.dumps(r, sort_keys=True, separators=(",", ":")); return lines
+        r = json.loads(lines[5])
+        r["status"] = "ACCEPT"
+        r["admitted"] = True
+        lines[5] = json.dumps(r, sort_keys=True, separators=(",", ":"))
+        return lines
+
     _rewrite(trace._log_path, edit)
     with pytest.raises(TamperError):
         replay(trace._log_path)
@@ -268,18 +328,22 @@ def test_deleting_or_reordering_records_is_detected(trace):
     _populate(trace, 20)
     orig = open(trace._log_path).read()
     _rewrite(trace._log_path, lambda L: L[:3] + L[4:])
-    with pytest.raises(TamperError): replay(trace._log_path)
+    with pytest.raises(TamperError):
+        replay(trace._log_path)
     open(trace._log_path, "w").write(orig)
     _rewrite(trace._log_path, lambda L: [L[1], L[0]] + L[2:])
-    with pytest.raises(TamperError): replay(trace._log_path)
+    with pytest.raises(TamperError):
+        replay(trace._log_path)
 
 
 def test_forged_entry_with_recomputed_hash_but_wrong_decision_is_detected(trace):
     """An attacker who recomputes the (unkeyed) chain still can't make an inconsistent decision verify."""
-    from roman_wheel_node.trace import _chain_hash, _canon, GENESIS
-    trace.submit("weak", {"x": 0.03}, a=1)                      # BLOCK
+    from roman_wheel_node.trace import GENESIS, _canon, _chain_hash
+
+    trace.submit("weak", {"x": 0.03}, a=1)  # BLOCK
     lines = open(trace._log_path).read().splitlines()
-    r = json.loads(lines[0]); r.pop("hash")
+    r = json.loads(lines[0])
+    r.pop("hash")
     r.update(status="ACCEPT", opcode="111", admitted=True, reason="ok")
     r["hash"] = _chain_hash(GENESIS, r, None)
     open(trace._log_path, "w").write(_canon(r).decode() + "\n")
@@ -288,19 +352,23 @@ def test_forged_entry_with_recomputed_hash_but_wrong_decision_is_detected(trace)
 
 
 def test_forged_consistent_entry_detected_with_hmac(tmp_path):
-    from roman_wheel_node.trace import _chain_hash, _canon
+    from roman_wheel_node.trace import _canon, _chain_hash
+
     key = b"secret-key"
     t = ClaimTrace(str(tmp_path / "a.jsonl"), hmac_key=key, clock=Clock())
     t.submit("real", GOOD, a=1)
     lines = open(t._log_path).read().splitlines()
-    r = json.loads(lines[0]); prev = r["hash"]
-    fake = dict(r); fake.pop("hash"); fake.update(seq=1, content="injected", prev=prev)
-    fake["hash"] = _chain_hash(prev, fake, None)                  # attacker without the key
+    r = json.loads(lines[0])
+    prev = r["hash"]
+    fake = dict(r)
+    fake.pop("hash")
+    fake.update(seq=1, content="injected", prev=prev)
+    fake["hash"] = _chain_hash(prev, fake, None)  # attacker without the key
     open(t._log_path, "a").write(_canon(fake).decode() + "\n")
     with pytest.raises(TamperError):
         replay(t._log_path, hmac_key=key)
     with pytest.raises(TamperError):
-        ClaimTrace(t._log_path, hmac_key=key)                     # refuses to resume from a bad log
+        ClaimTrace(t._log_path, hmac_key=key)  # refuses to resume from a bad log
 
 
 def test_truncated_or_garbage_line_detected(trace):
@@ -312,8 +380,9 @@ def test_truncated_or_garbage_line_detected(trace):
 
 # --- property-based / fuzz -----------------------------------------------------------------------------
 def _fuzz_case(tmp, ops, mode, allow_hedge):
-    t = ClaimTrace(os.path.join(tmp, f"fuzz_{uuid.uuid4().hex}.jsonl"),
-                   mode=mode, allow_hedge=allow_hedge, clock=Clock())
+    t = ClaimTrace(
+        os.path.join(tmp, f"fuzz_{uuid.uuid4().hex}.jsonl"), mode=mode, allow_hedge=allow_hedge, clock=Clock()
+    )
     admitted = []
     for a, scores, pick in ops:
         parents = [admitted[i % len(admitted)] for i in pick] if admitted else (["ghost"] if pick else [])
@@ -336,19 +405,26 @@ def _fuzz_case(tmp, ops, mode, allow_hedge):
 
 if HAVE_HYP:
     score_st = st.floats(min_value=-2, max_value=3, allow_nan=False)
-    op_st = st.tuples(st.sampled_from([0, 1, 1, 1]),
-                      st.dictionaries(st.sampled_from(list("abcde")), score_st, max_size=4),
-                      st.lists(st.integers(0, 50), max_size=3))
+    op_st = st.tuples(
+        st.sampled_from([0, 1, 1, 1]),
+        st.dictionaries(st.sampled_from(list("abcde")), score_st, max_size=4),
+        st.lists(st.integers(0, 50), max_size=3),
+    )
 
     @settings(max_examples=150, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    @given(ops=st.lists(op_st, max_size=25), mode=st.sampled_from(["geomean", "product", "bayes"]),
-           allow_hedge=st.booleans())
+    @given(
+        ops=st.lists(op_st, max_size=25),
+        mode=st.sampled_from(["geomean", "product", "bayes"]),
+        allow_hedge=st.booleans(),
+    )
     def test_property_invariants(tmp_path, ops, mode, allow_hedge):
         _fuzz_case(str(tmp_path), ops, mode, allow_hedge)
 
     @settings(max_examples=200, deadline=None)
-    @given(st.lists(st.floats(min_value=-5, max_value=5, allow_nan=False), max_size=8),
-           st.sampled_from(["geomean", "product"]))
+    @given(
+        st.lists(st.floats(min_value=-5, max_value=5, allow_nan=False), max_size=8),
+        st.sampled_from(["geomean", "product"]),
+    )
     def test_property_node_bounds(ws, mode):
         eff, op, status = roman_wheel_node(1, ws, mode=mode)
         assert 0.0 <= eff <= 1.0
@@ -361,7 +437,15 @@ if HAVE_HYP:
 def test_randomized_fuzz_loop(tmp_path):
     rng = random.Random(42)
     for case in range(60):
-        ops = [(rng.choice([0, 1, 1, 1]),
-                {k: rng.uniform(-1, 2) if rng.random() < .2 else rng.random() for k in rng.sample("abcde", rng.randint(0, 4))},
-                [rng.randint(0, 50) for _ in range(rng.randint(0, 2))]) for _ in range(rng.randint(1, 30))]
-        _fuzz_case(str(tmp_path), ops, rng.choice(["geomean", "product", "bayes"]), rng.random() < .5)
+        ops = [
+            (
+                rng.choice([0, 1, 1, 1]),
+                {
+                    k: rng.uniform(-1, 2) if rng.random() < 0.2 else rng.random()
+                    for k in rng.sample("abcde", rng.randint(0, 4))
+                },
+                [rng.randint(0, 50) for _ in range(rng.randint(0, 2))],
+            )
+            for _ in range(rng.randint(1, 30))
+        ]
+        _fuzz_case(str(tmp_path), ops, rng.choice(["geomean", "product", "bayes"]), rng.random() < 0.5)

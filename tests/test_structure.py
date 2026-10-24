@@ -1,4 +1,5 @@
 """Phase 4b structural veto: determinism, vector (not scalar), veto only on ACCEPT. Synthetic text only."""
+
 from roman_wheel_node import structure as S
 
 EV = ["The novel compound XR-201 reduced viral load in treated hamsters by 40 percent within two days."]
@@ -6,14 +7,14 @@ EV = ["The novel compound XR-201 reduced viral load in treated hamsters by 40 pe
 
 def test_vector_is_deterministic_and_normalised():
     a = S.vector("XR-201 reduced viral load by 40%")
-    b = S.vector("ＸＲ-201 REDUCED viral load by 40%")       # NFKC + casefold
+    b = S.vector("ＸＲ-201 REDUCED viral load by 40%")  # NFKC + casefold
     assert a == b and a.digest() == b.digest()
     assert a.numbers == ("40",) and "xr-201" in a.identifiers and a.directions == ((0, -1),)
 
 
 def test_vector_fields_do_not_collide_like_a_scalar_sum():
-    one = S.vector("not 5 cases")          # 1 negation, 1 number
-    two = S.vector("no never cases")       # 2 negations, 0 numbers
+    one = S.vector("not 5 cases")  # 1 negation, 1 number
+    two = S.vector("no never cases")  # 2 negations, 0 numbers
     r1, r2 = S.rule24_fields(one), S.rule24_fields(two)
     assert r1["fields"] != r2["fields"] and r1["digest"] != r2["digest"]
     assert r1["names"] == ("sides", "points", "dots", "intersections", "spirals")
@@ -21,7 +22,10 @@ def test_vector_fields_do_not_collide_like_a_scalar_sum():
 
 
 def test_verbatim_and_paraphrase_claims_are_not_vetoed():
-    for claim in ("XR-201 reduced viral load in treated hamsters", "The novel compound XR-201 reduced viral load in treated hamsters"):
+    for claim in (
+        "XR-201 reduced viral load in treated hamsters",
+        "The novel compound XR-201 reduced viral load in treated hamsters",
+    ):
         out, c = S.veto_accept("ACCEPT", claim, EV)
         assert out == "ACCEPT" and not c.veto, c
 

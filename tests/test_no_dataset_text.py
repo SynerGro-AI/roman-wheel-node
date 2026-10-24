@@ -3,6 +3,7 @@
 `results/phase3/` and `phase3/` are repo-only research files that are not in the sdist or wheel, so this module skips
 with that reason when they are absent.
 """
+
 import json
 import os
 
@@ -34,9 +35,11 @@ def test_scifact_report_candidates_are_ids_only():
 
 def test_label_review_md_renders_ids_only():
     import sys
+
     sys.path.insert(0, os.path.join(ROOT, "phase3"))
     from label_review import render_md
+
     lr = json.load(open(os.path.join(R3, "label_review.json")))
     md = render_md(lr)
     assert md == open(os.path.join(ROOT, "phase3", "label_review.md")).read()
-    assert '"' not in md   # no quoted dataset sentences
+    assert '"' not in md  # no quoted dataset sentences

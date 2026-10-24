@@ -5,6 +5,7 @@ Hard cap: CAP_USD over the whole of phase3/cache/spend.jsonl (user cap $320 tota
 auth error from xAI stops every worker and exits with code 3 (top up xAI, then rerun: the cache keeps progress).
 Usage: fresh_judges.py --ds hv_test_unjudged [--limit N] [--estimate|--go] [--shard i/n] [--workers W]
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -14,8 +15,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(HERE), "phase3"))
-import s2_judges as S   # noqa: E402
-from features import CACHE   # noqa: E402
+import s2_judges as S  # noqa: E402
+from features import CACHE  # noqa: E402
 
 CAP_USD = float(os.environ.get("RWN_P4_CAP", "315.0"))
 
@@ -25,7 +26,7 @@ def load_items(dss, limit=0, role=""):
     out = []
     for ds in dss:
         xs = [i for i in items if i["ds"] == ds]
-        xs.sort(key=lambda i: hashlib.sha256(("ord" + i["id"]).encode()).hexdigest())   # random but fixed order
+        xs.sort(key=lambda i: hashlib.sha256(("ord" + i["id"]).encode()).hexdigest())  # random but fixed order
         out += xs[:limit] if limit else xs
     return out
 

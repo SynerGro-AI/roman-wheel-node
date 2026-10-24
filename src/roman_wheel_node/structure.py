@@ -18,6 +18,7 @@ results/phase4b/. A field vetoes only if it met the pre-declared bar on half A: 
 and at least 3 caught for every correct accept lost. The number, negation, direction and absolute fields are
 computed and exported, but on half A they did not meet that bar, so they do not veto.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -32,33 +33,67 @@ __all__ = ["StructVec", "StructCheck", "FROZEN", "vector", "check", "veto_accept
 FROZEN: Dict = {
     "version": "4b.0",
     "veto_fields": ("identifier_mutation", "fragment", "near_copy_swap"),
-    "swap_context": 5,        # >= 5 matching tokens around the swapped slot ...
-    "swap_min_side": 1,       # ... with at least 1 on each side
-    "mutation_suffix": 4,     # identifier shares >= 4 trailing characters with an evidence identifier
+    "swap_context": 5,  # >= 5 matching tokens around the swapped slot ...
+    "swap_min_side": 1,  # ... with at least 1 on each side
+    "mutation_suffix": 4,  # identifier shares >= 4 trailing characters with an evidence identifier
     "on_veto": "NOT_SURE",
 }
 
 _WORD = re.compile(r"[a-z0-9\u00b5\u03b1-\u03c9]+(?:[-.][a-z0-9\u00b5\u03b1-\u03c9]+)*")
-STOP = frozenset("""a an the of in on at to for from by with and or but as is are was were be been being has have had do does did
-this that these those it its which who whom whose what when where why how than then there their they them we our you your he she
-his her i me my us not no nor so such can could may might will would shall should must also into over under about after before
-between during per via vs versus up down out off all any some each more most other another only own same very just new""".split())
+STOP = frozenset(
+    """a an the of in on at to for from by with and or but as is are was were be been being has have had do does did
+this that these those it its which who whom whose what when where why how than then there their they them we our you
+your he she
+his her i me my us not no nor so such can could may might will would shall should must also into over under about after
+before
+between during per via vs versus up down out off all any some each more most other another only own same very just
+new""".split()
+)
 NEGATION = frozenset("not no never none nor without cannot neither non".split())
-ABSOLUTE = frozenset("all every always never none entirely completely totally only sole solely guaranteed proven proves definitely "
-                     "certainly 100".split())
-HEDGE = frozenset("may might could possibly possible likely unlikely suggest suggests suggested appear appears potential "
-                  "potentially preliminary probably perhaps".split())
-NUMBER_WORDS = {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8",
-                "nine": "9", "ten": "10", "first": "1st", "second": "2nd", "third": "3rd", "single": "1", "twice": "2",
-                "half": "50", "dozen": "12", "hundred": "100", "thousand": "1000", "million": "1000000"}
+ABSOLUTE = frozenset(
+    "all every always never none entirely completely totally only sole solely guaranteed proven proves definitely "
+    "certainly 100".split()
+)
+HEDGE = frozenset(
+    "may might could possibly possible likely unlikely suggest suggests suggested appear appears potential "
+    "potentially preliminary probably perhaps".split()
+)
+NUMBER_WORDS = {
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+    "first": "1st",
+    "second": "2nd",
+    "third": "3rd",
+    "single": "1",
+    "twice": "2",
+    "half": "50",
+    "dozen": "12",
+    "hundred": "100",
+    "thousand": "1000",
+    "million": "1000000",
+}
 _DIR_AXES = (
-    ("increase increases increased increasing rise rises rising higher high more greater elevated boost boosts enhance "
-     "enhances enhanced promote promotes raise raises", "decrease decreases decreased decreasing reduce reduces reduced "
-     "reduction fall falls lower low less fewer decline declines diminished drop drops lowers"),
+    (
+        "increase increases increased increasing rise rises rising higher high more greater elevated boost boosts "
+        "enhance enhances enhanced promote promotes raise raises",
+        "decrease decreases decreased decreasing reduce reduces reduced "
+        "reduction fall falls lower low less fewer decline declines diminished drop drops lowers",
+    ),
     ("major large big broad wide strong strongly", "minor small narrow weak weakly slight"),
     ("better improve improves improved improvement benefit beneficial", "worse worsen worsens worsened harm harmful"),
-    ("positive", "negative"), ("safe", "unsafe dangerous"), ("effective efficacious", "ineffective"),
-    ("before earlier early prior", "after later late subsequent"), ("with", "against"),
+    ("positive", "negative"),
+    ("safe", "unsafe dangerous"),
+    ("effective efficacious", "ineffective"),
+    ("before earlier early prior", "after later late subsequent"),
+    ("with", "against"),
     ("prevent prevents prevented protect protects", "cause causes caused trigger triggers"),
     ("inhibit inhibits inhibited block blocks blocked", "activate activates activated stimulate stimulates"),
 )
@@ -68,8 +103,33 @@ for _i, (_up, _down) in enumerate(_DIR_AXES):
         DIRECTION.setdefault(_w, (_i, +1))
     for _w in _down.split():
         DIRECTION.setdefault(_w, (_i, -1))
-_SUFFIXES = ("ations", "ation", "ically", "ions", "ion", "ities", "ity", "ments", "ment", "ness", "ingly", "ing", "edly",
-             "ed", "ies", "es", "s", "ly", "ive", "ives", "al", "er", "ers", "ors", "or")
+_SUFFIXES = (
+    "ations",
+    "ation",
+    "ically",
+    "ions",
+    "ion",
+    "ities",
+    "ity",
+    "ments",
+    "ment",
+    "ness",
+    "ingly",
+    "ing",
+    "edly",
+    "ed",
+    "ies",
+    "es",
+    "s",
+    "ly",
+    "ive",
+    "ives",
+    "al",
+    "er",
+    "ers",
+    "ors",
+    "or",
+)
 _NUM = re.compile(r"^\d+(?:[.,]\d+)*(?:st|nd|rd|th)?$")
 
 
@@ -97,10 +157,10 @@ def morph_eq(a: str, b: str) -> bool:
     """Same word up to morphology/abbreviation: equal, prefix (>=3), compound tail (>=5) or shared 5-prefix."""
     if a == b:
         return True
-    s, l = sorted((a, b), key=len)
-    if len(s) >= 3 and l.startswith(s):
+    s, longer = sorted((a, b), key=len)
+    if len(s) >= 3 and longer.startswith(s):
         return True
-    if len(s) >= 5 and l.endswith(s):
+    if len(s) >= 5 and longer.endswith(s):
         return True
     n = 0
     while n < len(s) and a[n] == b[n]:
@@ -122,6 +182,7 @@ def _is_identifier(t: str) -> bool:
 @dataclass(frozen=True)
 class StructVec:
     """The structural vector of one text. Every field is kept separately; there is no total."""
+
     numbers: Tuple[str, ...] = ()
     negations: int = 0
     identifiers: Tuple[str, ...] = ()
@@ -165,6 +226,7 @@ def rule24_fields(v: StructVec) -> Dict[str, object]:
 @dataclass
 class StructCheck:
     """Field-by-field comparison of a claim with its evidence. ``veto`` follows :data:`FROZEN`."""
+
     identifier_mutation: List[Tuple[str, str]] = field(default_factory=list)
     fragment: List[str] = field(default_factory=list)
     near_copy_swap: List[Tuple[str, str, int, int]] = field(default_factory=list)
@@ -178,10 +240,16 @@ class StructCheck:
 
     def pattern(self) -> Dict[str, int]:
         """Counts only (no text): safe to log in aggregates."""
-        return {"identifier_mutation": len(self.identifier_mutation), "fragment": len(self.fragment),
-                "near_copy_swap": len(self.near_copy_swap), "numbers_missing": len(self.numbers_missing),
-                "negation_claim": self.negation[0], "negation_evidence": self.negation[1],
-                "direction_conflict": len(self.direction_conflict), "absolutes_unbacked": len(self.absolutes_unbacked)}
+        return {
+            "identifier_mutation": len(self.identifier_mutation),
+            "fragment": len(self.fragment),
+            "near_copy_swap": len(self.near_copy_swap),
+            "numbers_missing": len(self.numbers_missing),
+            "negation_claim": self.negation[0],
+            "negation_evidence": self.negation[1],
+            "direction_conflict": len(self.direction_conflict),
+            "absolutes_unbacked": len(self.absolutes_unbacked),
+        }
 
 
 def _mutations(CT: Sequence[str], EK: Iterable[str], min_suffix: int) -> List[Tuple[str, str]]:
@@ -206,7 +274,9 @@ def _mutations(CT: Sequence[str], EK: Iterable[str], min_suffix: int) -> List[Tu
     return out
 
 
-def _swaps(CT: Sequence[str], units: Sequence[str], EK: Sequence[str], ctx: int, side: int) -> List[Tuple[str, str, int, int]]:
+def _swaps(
+    CT: Sequence[str], units: Sequence[str], EK: Sequence[str], ctx: int, side: int
+) -> List[Tuple[str, str, int, int]]:
     """A claim content word with no match anywhere in the evidence, sitting in a slot of an evidence sentence where the
     surrounding context matches (>= ctx tokens, >= side on each side) but the evidence has a different content word."""
     C = [key(t) for t in CT]
@@ -221,19 +291,21 @@ def _swaps(CT: Sequence[str], units: Sequence[str], EK: Sequence[str], ctx: int,
             for j in range(len(S)):
                 if ST[j] in STOP or morph_eq(S[j], C[i]):
                     continue
-                l = 0
-                while i - l - 1 >= 0 and j - l - 1 >= 0 and morph_eq(C[i - l - 1], S[j - l - 1]):
-                    l += 1
+                left = 0
+                while i - left - 1 >= 0 and j - left - 1 >= 0 and morph_eq(C[i - left - 1], S[j - left - 1]):
+                    left += 1
                 r = 0
                 while i + r + 1 < len(C) and j + r + 1 < len(S) and morph_eq(C[i + r + 1], S[j + r + 1]):
                     r += 1
-                if l + r >= ctx and min(l, r) >= side:
-                    out.append((CT[i], ST[j], l, r))
+                if left + r >= ctx and min(left, r) >= side:
+                    out.append((CT[i], ST[j], left, r))
                     break
     return out
 
 
-def check(claim: str, evidence: Sequence[str], quotes: Optional[Sequence[str]] = None, rule: Optional[Dict] = None) -> StructCheck:
+def check(
+    claim: str, evidence: Sequence[str], quotes: Optional[Sequence[str]] = None, rule: Optional[Dict] = None
+) -> StructCheck:
     """Compare ``claim`` with its evidence sentences (plus optional judge quotes, used as extra sentences)."""
     rule = FROZEN if rule is None else rule
     units = [u for u in list(evidence) + list(quotes or ()) if u]
@@ -248,7 +320,9 @@ def check(claim: str, evidence: Sequence[str], quotes: Optional[Sequence[str]] =
         near_copy_swap=_swaps(CT, units, EK, rule["swap_context"], rule["swap_min_side"]),
         numbers_missing=sorted(set(cv.numbers) - set(ev.numbers)),
         negation=(cv.negations, ev.negations),
-        direction_conflict=sorted(d for d in cv.directions if (d[0], -d[1]) in ev.directions and d not in ev.directions),
+        direction_conflict=sorted(
+            d for d in cv.directions if (d[0], -d[1]) in ev.directions and d not in ev.directions
+        ),
         absolutes_unbacked=sorted(set(cv.absolutes) - set(ev.absolutes)),
         hedges=(len(cv.hedges), len(ev.hedges)),
     )
@@ -257,9 +331,15 @@ def check(claim: str, evidence: Sequence[str], quotes: Optional[Sequence[str]] =
     return res
 
 
-def veto_accept(outcome: str, claim: str, evidence: Sequence[str], quotes: Optional[Sequence[str]] = None,
-                rule: Optional[Dict] = None) -> Tuple[str, Optional[StructCheck]]:
-    """Apply the structural veto. Only an ACCEPT is ever changed (to NOT_SURE); every other outcome is returned as is."""
+def veto_accept(
+    outcome: str,
+    claim: str,
+    evidence: Sequence[str],
+    quotes: Optional[Sequence[str]] = None,
+    rule: Optional[Dict] = None,
+) -> Tuple[str, Optional[StructCheck]]:
+    """Apply the structural veto. Only an ACCEPT is ever changed (to NOT_SURE); every other outcome is returned as
+    is."""
     if outcome != "ACCEPT":
         return outcome, None
     c = check(claim, evidence, quotes, rule)
@@ -270,5 +350,6 @@ def frozen_rule_sha256() -> str:
     """Hash of the frozen rule's parameters together with this module's source (pins the pre-registered rule)."""
     import inspect
     import sys
+
     src = inspect.getsource(sys.modules[__name__])
     return hashlib.sha256((json.dumps(FROZEN, sort_keys=True) + "\n" + src).encode("utf-8")).hexdigest()

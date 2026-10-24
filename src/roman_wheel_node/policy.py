@@ -18,6 +18,7 @@ DATA_LICENSES.md). Its only certificate is the judge-panel profile ``panel``: ``
 population, alpha 10%, delta 0.05 (phase6/refit_policy_42.py). Nothing is certified at 5%, 2% or 1%, and the free
 local profiles are not certified at any level. See SAFETY.md.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -25,10 +26,22 @@ import json
 import math
 import os
 from dataclasses import dataclass, field
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Mapping, Optional, Sequence, Tuple
 
-__all__ = ["Policy", "Profile", "PolicyError", "load_policy", "policy_sha256", "DEFAULT_POLICY_PATH",
-           "DEFAULT_POLICY_SHA256", "PINNED", "OUTCOMES", "ACCEPT", "NOT_SURE", "BLOCK"]
+__all__ = [
+    "Policy",
+    "Profile",
+    "PolicyError",
+    "load_policy",
+    "policy_sha256",
+    "DEFAULT_POLICY_PATH",
+    "DEFAULT_POLICY_SHA256",
+    "PINNED",
+    "OUTCOMES",
+    "ACCEPT",
+    "NOT_SURE",
+    "BLOCK",
+]
 
 ACCEPT, NOT_SURE, BLOCK = "ACCEPT", "NOT_SURE", "BLOCK"
 OUTCOMES = (ACCEPT, NOT_SURE, BLOCK)
@@ -37,7 +50,7 @@ DEFAULT_POLICY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "
 DEFAULT_POLICY_SHA256 = "6f7bb9e3762754dc6ca6343c44f000c7caf05a819a1f63c857471856d3946c2a"
 PINNED = {os.path.abspath(DEFAULT_POLICY_PATH): DEFAULT_POLICY_SHA256}
 FINGERPRINTS = ("fp1", "fp2")
-EPS = 0.01                      # calibrated scores are clamped to [EPS, 1 - EPS] (as in Phase 3)
+EPS = 0.01  # calibrated scores are clamped to [EPS, 1 - EPS] (as in Phase 3)
 
 
 class PolicyError(Exception):
@@ -134,7 +147,7 @@ class Policy:
     default_profile: str
     profiles: Mapping[str, Profile]
     doc: Mapping = field(repr=False, default_factory=dict)
-    fingerprint: str = "fp1"          # exact-copy gate fingerprint: fp1 = raw sha256, fp2 = normalized (4.2.0)
+    fingerprint: str = "fp1"  # exact-copy gate fingerprint: fp1 = raw sha256, fp2 = normalized (4.2.0)
 
     def profile(self, name: Optional[str] = None) -> Profile:
         n = name or self.default_profile
@@ -156,12 +169,22 @@ def _profile(name: str, d: Mapping) -> Profile:
             raise PolicyError(f"profile {name}: source {s} lacks a reliability or calibrator")
     if not (0.0 < float(d["cutoff"]) < 1.0) or not float(d["accept_margin"]) > 0.0:
         raise PolicyError(f"profile {name}: cutoff must be in (0, 1) and accept_margin > 0 (accept-only)")
-    return Profile(name=name, sources=srcs, variant=d["variant"], prior=float(d["prior"]),
-                   reliability={k: float(v) for k, v in d["reliability"].items()}, cutoff=float(d["cutoff"]),
-                   hedge_width=float(d["hedge_width"]), accept_margin=float(d["accept_margin"]),
-                   calibrators=d["calibrators"], disagreement=dict(d.get("disagreement") or {}),
-                   certified=dict(d.get("certified") or {}), needs_judges=bool(d.get("needs_judges")),
-                   gate_judge_quote=d.get("gate_judge_quote"), raw=d)
+    return Profile(
+        name=name,
+        sources=srcs,
+        variant=d["variant"],
+        prior=float(d["prior"]),
+        reliability={k: float(v) for k, v in d["reliability"].items()},
+        cutoff=float(d["cutoff"]),
+        hedge_width=float(d["hedge_width"]),
+        accept_margin=float(d["accept_margin"]),
+        calibrators=d["calibrators"],
+        disagreement=dict(d.get("disagreement") or {}),
+        certified=dict(d.get("certified") or {}),
+        needs_judges=bool(d.get("needs_judges")),
+        gate_judge_quote=d.get("gate_judge_quote"),
+        raw=d,
+    )
 
 
 def load_policy(path: Optional[str] = None, expected_sha256: Optional[str] = None) -> Policy:
@@ -194,7 +217,14 @@ def load_policy(path: Optional[str] = None, expected_sha256: Optional[str] = Non
         raise PolicyError(f"unknown gate fingerprint {fpv!r}; have {FINGERPRINTS}")
     if fpv == "fp2":
         from .fingerprint import NORMALIZE_V2_TABLE_SHA256
+
         if (doc.get("gate") or {}).get("normalize_table_sha256") != NORMALIZE_V2_TABLE_SHA256:
             raise PolicyError("policy fp2 normalization table does not match this package's normalize_v2")
-    return Policy(version=str(doc["version"]), sha256=h, default_profile=doc["default_profile"], profiles=profs, doc=doc,
-                  fingerprint=fpv)
+    return Policy(
+        version=str(doc["version"]),
+        sha256=h,
+        default_profile=doc["default_profile"],
+        profiles=profs,
+        doc=doc,
+        fingerprint=fpv,
+    )

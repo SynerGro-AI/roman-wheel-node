@@ -24,6 +24,7 @@ The fp2 gate is a strict superset of the fp1 gate. A unit passes if its fp1 hash
 so anything fp1 admits, fp2 also admits. ``quote_verbatim_v2`` is the matching superset of the Phase 3 judge-quote
 gate.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -31,8 +32,17 @@ import re
 import unicodedata
 from typing import Iterable, Optional, Sequence, Set
 
-__all__ = ["FP_VERSIONS", "normalize_v2", "fp1", "fp2", "fingerprint", "trusted_set", "exact_gate_v2",
-           "quote_verbatim_v2", "NORMALIZE_V2_TABLE_SHA256"]
+__all__ = [
+    "FP_VERSIONS",
+    "normalize_v2",
+    "fp1",
+    "fp2",
+    "fingerprint",
+    "trusted_set",
+    "exact_gate_v2",
+    "quote_verbatim_v2",
+    "NORMALIZE_V2_TABLE_SHA256",
+]
 
 FP_VERSIONS = ("fp1", "fp2")
 _FP2_TAG = "rwn-fp2:"
