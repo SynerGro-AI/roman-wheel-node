@@ -60,7 +60,9 @@ def text(R) -> str:
         if C.get("label_noise_candidates"):
             L.append(f"Label-noise candidates (every judge confidently disagrees with gold, gold evidence): {len(C['label_noise_candidates'])}")
             for x in C["label_noise_candidates"]:
-                L.append(f"  {x['key']:12s} gold={x['gold']:10s} panel={x['panel']:10s} {x['claim'][:110]}")
+                # SciFact IDs only, never claim text (SciFact is licensed for non-commercial use)
+                L.append(f"  {x['key']:12s} gold={x['gold']:10s} panel={x['panel']:10s}".rstrip()
+                         + f"  (SciFact {x['key'].split(':')[0]} claim id {x['claim_id']}; cited docs {','.join(x['cited'])})")
         if C.get("selective"):
             L.append("Selective mode (abstain band picked on TRAIN out-of-fold posteriors, applied to dev unchanged):")
             for pol_, S in C["selective"].items():
