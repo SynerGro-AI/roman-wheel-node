@@ -22,6 +22,9 @@ C:\src\roman-wheel-node\phase5\bundle\pairs_bundle.json.sha256
 Expected sha256: `fe71efd2ff5370c52084a46d5d530b4c57c6663c259790178b69bb77757baf56`. The scripts check this hash
 against the training record, so the file must be byte-identical.
 
+
+> **RTX 50-series (e.g. 5070 Ti):** run `.\phase5\setup_gpu.ps1` instead of the torch install line. It installs the official PyTorch 2.14.1 built for CUDA 13.2, which has native sm_120 kernels and runs on any driver reporting CUDA 13.2+ (13.5 included). cu124 has no kernels for these cards; do not fall back to CPU.
+
 ## 1. Set up (PowerShell, one time, about 10 to 20 minutes, mostly downloads)
 
 ```powershell
