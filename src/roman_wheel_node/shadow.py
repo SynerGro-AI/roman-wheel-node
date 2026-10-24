@@ -158,7 +158,7 @@ def _malformed_scores(prof: Profile, raw: Mapping[str, Any]) -> List[str]:
     def ok(v: Any) -> bool:
         try:
             x = float(v["S"])
-        except (KeyError, TypeError, ValueError, IndexError):
+        except Exception:  # any failure means unusable (an int past float range raises OverflowError): never raise
             return False
         return math.isfinite(x) and 0.0 <= x <= 1.0
 

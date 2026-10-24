@@ -85,3 +85,22 @@ def test_malformed_score_is_labelled_malformed_not_missing(tmp_path):
         r = ShadowRunner(str(tmp_path / f"s{n}"), sources=lambda c, s, raw=raw: raw, trusted_units=["x."])
         v = r.observe("x.", ["x."])
         assert (v.outcome, v.reason) == ("NOT_SURE", why), raw
+
+
+def test_out_of_range_score_fails_closed_not_raises(tmp_path):
+    """1.2.1 regression: an S that float() cannot even convert (an int past float range raises OverflowError, an
+    object whose __float__ raises) must give NOT_SURE with error:malformed_score, never an exception out of decide."""
+
+    class Bad:
+        def __float__(self):
+            raise RuntimeError("no float here")
+
+    for n, s in enumerate([10**400, -(10**400), Bad()]):
+        raw = {"overlap": {"S": 0.9}, "nli2": {"S": s}}
+        r = ShadowRunner(str(tmp_path / f"o{n}"), sources=lambda c, e, raw=raw: raw, trusted_units=["x."])
+        v = r.observe("x.", ["x."])
+        assert (v.outcome, v.reason) == ("NOT_SURE", "error:malformed_score:nli2"), s
+        assert r.errors == 0  # observe's last-resort guard (which counts an error) was not what saved it
+        d = r.node.decide("x.", raw, 1)  # the node itself returns a fail-closed verdict, it does not raise
+        assert (d.outcome, d.reason) == ("NOT_SURE", "error:malformed_score:nli2"), s
+        assert r.node.decide("x.", raw, 0).outcome == "BLOCK"  # gate failed: BLOCK, not an exception
