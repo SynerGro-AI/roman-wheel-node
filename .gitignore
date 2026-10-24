@@ -21,3 +21,5 @@ phase3/data/
 phase3/models/
 phase3/cache/
 .env
+# phase 4 shadow-mode logs (claims, evidence, labels: never commit)
+rwn_shadow/

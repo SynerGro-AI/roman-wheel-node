@@ -25,6 +25,10 @@ docstring of `src/roman_wheel_node/trace.py`.
 | G2 | **Zero-propagation.** A claim whose parent is blocked, NOT_SURE, unknown, forged or from another trace is evaluated with `a = 0` and blocks. Descendants of an unverified claim can never enter, at any depth. | parent identity check in `ClaimTrace.submit`. | `tests/test_trace.py::test_zero_propagation_through_generations`, `::test_blocked_is_invisible`, `::test_forged_claim_object_cannot_become_parent`, `::test_claim_from_another_trace_is_not_a_parent`; `tests/test_core_band.py::test_forced_not_sure_and_zero_propagation`; parent clause of `tests/test_fail_closed.py` |
 | G3 | **Non-bypassable gate.** `ClaimTrace.submit` is the only way to create a `Claim`. `Claim` cannot be constructed directly (private token), is immutable, and cannot be pickled or copied into a new object. The trace has no public mutators, and context is a tuple. | `Claim.__init__` token check, `__slots__`, `__setattr__`, `__reduce__`. | `tests/test_trace.py::test_claim_cannot_be_constructed_directly`, `::test_claim_is_immutable`, `::test_claim_cannot_be_pickled_or_copied_into_a_new_object`, `::test_trace_has_no_public_mutators`, `::test_raw_string_content_must_be_str_and_scored`, `::test_private_list_injection_is_caught_by_verify` |
 | G4 | **Tamper-evident, hash-chained audit.** Every call, admitted or not, appends one JSONL record with the full audit tuple (inputs, reliabilities, dependence model, cutoff, band, eff, opcode, status, parents, time). The record carries `prev` and `hash = H(prev ‖ canonical(record))`, optionally keyed with HMAC. `replay()` verifies the chain **and** recomputes every decision. Editing, deleting, reordering, truncating or forging a record (even with a recomputed hash, unless keyed) is detected. | `trace.py` `_chain`, `replay`, `ClaimTrace.verify`. | `tests/test_trace.py::test_every_call_logged_with_full_audit_tuple`, `::test_replay_reconstructs_exactly`, `::test_editing_a_logged_decision_is_detected`, `::test_deleting_or_reordering_records_is_detected`, `::test_forged_entry_with_recomputed_hash_but_wrong_decision_is_detected`, `::test_forged_consistent_entry_detected_with_hmac`, `::test_truncated_or_garbage_line_detected`, `::test_in_memory_tampering_is_caught_by_verify`, `::test_deleted_log_is_caught_by_verify`; `tests/test_dependence.py::test_trace_tampered_dependence_model_detected` |
+| G5 | **Frozen, pinned policy.** A deployed node runs from one policy file whose sha256 is pinned in the loader. An edited, re-hashed or swapped file is refused. Only three outcomes exist, `ACCEPT`, `NOT_SURE` and `BLOCK`, and the policy is accept-only: it never rejects on its posterior. | `policy.load_policy`, `policy_sha256`, `DEFAULT_POLICY_SHA256`. | `tests/test_phase4_shadow.py::test_default_policy_is_pinned_and_honest`, `::test_tampered_policy_refused`, `::test_policy_never_rejects_on_posterior` |
+| G6 | **Shadow mode never alters agent outputs.** `ShadowRunner.wrap` returns the same object the agent returned, and the agent's exceptions propagate unchanged. Every node, source, extractor or logging failure is caught and logged as NOT_SURE. | `shadow.ShadowRunner.wrap`, `observe` guard, `_jsonable`. | `tests/test_phase4_shadow.py::test_shadow_returns_the_agent_output_unchanged` (hypothesis: random outputs, raw scores incl. NaN/inf/strings, crashing sources, gates), `::test_agent_exceptions_propagate_unchanged`, `::test_extract_crash_does_not_touch_output`, `::test_cli_default_has_no_judges` |
+| G7 | **Deployed node fails closed.** A missing source, malformed score, source crash, or missing judge leads to `NOT_SURE`. A failed exact-copy gate, missing evidence, or no trusted store leads to `BLOCK`. A paid profile without judges is never `ACCEPT`. Enforce mode (opt-in) releases an output only if every claim is ACCEPTed. | `FrozenNode.decide` (two independent decision paths must agree, else NOT_SURE), `exact_gate`. | `::test_fail_closed_cases`, `::test_enforce_releases_only_accepts`, `::test_retrieval_feeds_the_gate`, `::test_shadow_returns_the_agent_output_unchanged` |
+| G8 | **Paid judges off by default.** `ShadowRunner` has no judges unless one is passed. `XAIPanel` refuses to construct without `enable=True` and a `cap_usd`. `XAI_API_KEY` is not read before then, and never logged. | `sources.XAIPanel`, `ShadowRunner(judges=None)`. | `::test_judges_off_by_default_and_key_never_read`, `::test_cli_default_has_no_judges` |
 
 Limits of (a):
 
@@ -180,3 +184,32 @@ Full details: `results/phase3/RESULTS.md` (Phase 3e) and `results/phase3/step3e.
   added post hoc (δ ≤ 0.15 jointly); the certificates are out-of-fold.
 * **Net:** no claim of 99% or 100% accuracy is supported on real data. The structural guarantee in (a) is unchanged: an
   uncertain claim is never accepted.
+
+### b8. Phase 4: fresh never-tuned-on sets, frozen pre-registered rules (shadow mode, end to end)
+
+Full table: `results/phase4/SUMMARY.md`. Per-profile reports: `results/phase4/fresh_*.txt`.
+
+* **Fresh sets.** None of these was used to select or tune any rule:
+  * COVID-Fact: 4,086 pairs, 32% SUPPORT. Its refuted claims are one-word counterfactual edits of the supported ones.
+  * HealthVer dev: 1,917 pairs.
+  * The 308 HealthVer test pairs Phase 3d did not judge.
+  * Both datasets are internal and unlicensed. Only aggregates are committed.
+  * Labels are dataset gold, collapsed to SUPPORT vs not.
+* **Rules.** Each profile's rule was frozen in `rwn-policy-4.0.0` and pre-registered in `prereg.json` before any label
+  was imported. There was no search, and the run was one pass through the real `ShadowRunner` / `ClaimTrace` path. The
+  logs verify.
+* **Free local profile (`local`).** On all 6,311 fresh pairs: 633 ACCEPTs (10.0% coverage), 204 of them unsupported.
+  Precision is 67.8% [64.0, 71.4], and the upper bound on the false-accept share is 35.4%. **Not certified at 1%, 2%
+  or 5%.**
+  * Almost all of its false accepts are COVID-Fact counterfactuals: precision there is 66.8%. Small NLI models can't
+    see a one-word swap.
+  * On HealthVer dev it accepts only 1.1%, at 95.2% precision.
+  * The free sources are much weaker than the judge panel, as expected.
+* **Judge panel (`panel`, frozen Phase 3e rule):** see `results/phase4/SUMMARY.md`. The paid run was capped at $315
+  of the user's $320 total.
+* **Non-determinism finding.** The int8 ONNX DeBERTa-v3-small model (`nli`) gives different outputs for the same
+  input on the box's CPU (onnxruntime 1.31, avx512-vnni kernels). The default `local` profile therefore leaves it out.
+  `local-lite` and the certified `panel` configuration keep it, as frozen in Phase 3. The audit log records the scores
+  actually used, so replay stays exact. A full-precision ONNX export, or the GPU, removes the issue.
+* **Net:** the fresh data does not support any 1% or 2% claim. What the free profile collects is the material for
+  one: 299 error-free accepts certify 1%, but only for a rule whose precision is actually near 100%.
