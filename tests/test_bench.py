@@ -113,7 +113,6 @@ def test_committed_results_reproduce(key, seeds):
                 assert R(v) == pol[p][m]["per_seed"][s], (key, s, p, m)
 
 
-@pytest.mark.skipif(os.environ.get("RWN_FULL_BENCH") != "1", reason="set RWN_FULL_BENCH=1 (~1 min on 8 cores)")
 def test_full_benchmark_byte_identical_to_committed():
     chk = subprocess.run(
         [sys.executable, "-m", "roman_wheel_node.bench", "--seeds", "20", "--check", os.path.join(ROOT, "results")],
@@ -174,7 +173,6 @@ def test_committed_dependence_results_reproduce(key, seeds):
                 assert R(v) == pol[p][m]["per_seed"][s], (key, s, p, m)
 
 
-@pytest.mark.skipif(os.environ.get("RWN_FULL_BENCH") != "1", reason="set RWN_FULL_BENCH=1 (~70 s on 8 cores)")
 def test_full_dependence_benchmark_byte_identical_to_committed():
     chk = subprocess.run(
         [

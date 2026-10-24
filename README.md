@@ -226,7 +226,7 @@ Reading the calibration table:
 pip install -e ".[bench]"
 python -m roman_wheel_node.bench --seeds 20                  # writes results/ (~1 min on 8 cores)
 python -m roman_wheel_node.bench --seeds 20 --check results  # prints IDENTICAL if byte-for-byte equal
-RWN_FULL_BENCH=1 python -m pytest tests/test_bench.py         # the same check as a test
+python -m pytest tests/test_bench.py                          # the same check as a test (runs by default)
 ```
 `benchmark.json` and `benchmark.txt` are byte-identical across runs and worker counts. This was verified on Python
 3.9, 3.12 and 3.13. The charts are not byte-compared, because PNG bytes depend on the matplotlib version.
