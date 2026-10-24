@@ -8,7 +8,9 @@ can enter an agent's trace. Pure Python (3.9+), standard library only, zero depe
 
 **Shipped policy 4.3.0: free, local profiles only, fitted only on SciFact train (commercial-use licences, see
 [DATA_LICENSES.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/DATA_LICENSES.md)). No xAI/Grok or other
-hosted-model output is used in any shipped weight, and the package makes no API calls.** On held-out SciFact dev the
+hosted-model output is used in any shipped weight, and the package calls no hosted model and reads no API key.**
+(The one network access: the optional `nli2` source downloads its Hugging Face model by name on first use, unless
+you pass a local path or it is already cached; `overlap` and a local ONNX `nli` directory need no network.) On held-out SciFact dev the
 default profile (`local`) accepted 58 of 300 claims with 6 false accepts (precision 89.7%) and `local-lite` accepted 16
 with 1 false (93.8%). **Neither profile is certified at any error level** (10%, 5%, 2% or 1%). These are the only
 real-data numbers this release claims; see [Policy 4.3.0](#policy-430-local-only-fitted-on-scifact). To fit a policy
@@ -347,7 +349,10 @@ respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(
 Policy 4.3.0 fits both profiles on SciFact train only (799 claims; CC BY 4.0 claims, ODC-By 1.0 abstracts) from the
 local models' scores, with the public `roman_wheel_node.fit` API, then evaluates once on held-out SciFact dev (300
 claims). HealthVer, Climate-FEVER and COVID-Fact are not used, and no hosted-model output is used anywhere in the fit.
-Script: `phase6/refit_policy_43.py`; report: `results/phase6/refit_43.txt` (repository). Licences and attribution:
+Script: `phase6/refit_policy_43.py`; report: `results/phase6/refit_43.txt` (repository). Re-running the script
+needs the local SciFact feature cache `phase3/cache/step2` (the local models' scores for SciFact train and dev), which
+is a private research cache, not in git or the sdist; rebuild it with `phase3/s2_data.py` and the local feature step
+before the published dev numbers can be reproduced. Licences and attribution:
 [DATA_LICENSES.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/DATA_LICENSES.md).
 
 | Profile | ACCEPT (of 300) | False accepts | Precision (95% upper bound on false share) | Supported claims accepted | Accuracy, NOT_SURE = reject |
@@ -369,7 +374,7 @@ Script: `phase6/refit_policy_43.py`; report: `results/phase6/refit_43.txt` (repo
 `roman_wheel_node.fit` turns your own labelled examples into a frozen policy file, with the same method that produced
 4.3.0: per-source isotonic calibration, Beta source reliabilities and a learned cut-off, then an accept-only margin
 pre-registered on out-of-fold posteriors, and optionally a Learn-Then-Test certificate. Local sources only, no API
-calls, and the same examples in the same order give a byte-identical file.
+calls (an `nli2` model given by Hugging Face id is downloaded on first use), and the same examples in the same order give a byte-identical file.
 
 ```bash
 # one example per line: {"claim": "...", "evidence": ["sentence", ...], "label": "SUPPORT" | "CONTRADICT" | "NEI" | true | false}
@@ -422,7 +427,7 @@ reported number comes from them.**
 * `RELEASING.md`: how a release is built and published (tag on `main`, reviewed `pypi` environment).
 * `phase5/`: the Phase 5 pair-checker pipeline (split, bundle, train, evaluate; not part of the package). Its
   `--tiny-random`, `--limit` and `--smoke` flags are test-only (see [Test-only smoke flags](#test-only-smoke-flags-phase-5)).
-* `tests/`: 250 tests. In the repository 248 pass and 2 slow full-benchmark tests skip unless `RWN_FULL_BENCH=1` is set (then all 250 pass). The suite also passes under `pytest -W error`. From an unpacked sdist against the installed wheel, 206 pass and 14 skip, each with a stated reason (repo-only research folders, committed results and the local SciFact feature cache are not shipped). `tests/test_no_xai_in_package.py` fails if anything xAI-derived reaches the installed package; `tests/test_fit.py` fits, loads and runs a policy from deterministic synthetic data.
+* `tests/`: 270 tests (measured for 1.2.1 on Python 3.13). In a clean checkout 266 pass and 4 skip: 2 slow full-benchmark tests (run with `RWN_FULL_BENCH=1`, then 268 pass), 1 that needs the private `phase3/cache/step2` SciFact feature cache and 1 that needs an internal COVID-Fact cache, neither of which is in git. The suite also passes under `pytest -W error` and with `python -X warn_default_encoding -W error::EncodingWarning`. From an unpacked sdist against the installed wheel (Python 3.9 to 3.14), 226 pass and 14 skip, each with a stated reason (repo-only research folders, committed results and the local SciFact feature cache are not shipped). `tests/test_no_xai_in_package.py` fails if anything xAI-derived reaches the installed package; `tests/test_fit.py` fits, loads and runs a policy from deterministic synthetic data.
 * `benchmarks/train_sim.py` and `benchmarks/results_v1.0.0.*`: the original demo and the 1.0.0 five-seed results, kept for history.
 
 ## Support development (planned)
