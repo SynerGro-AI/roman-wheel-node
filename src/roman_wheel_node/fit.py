@@ -126,8 +126,8 @@ def load_examples(path: str) -> List[Example]:
             if line.strip():
                 try:
                     d = json.loads(line)
-                except ValueError as e:
-                    raise FitError(f"{path}:{i}: not JSON ({e})") from e
+                except (ValueError, RecursionError) as e:  # RecursionError: nesting deeper than the parser allows
+                    raise FitError(f"{path}:{i}: not JSON ({type(e).__name__}: {str(e)[:200]})") from e
                 out.append(_norm_example(d, f"{os.path.basename(path)}:{i}"))
     return out
 
