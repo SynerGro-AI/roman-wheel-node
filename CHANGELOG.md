@@ -11,7 +11,7 @@ Fixes found after the 1.2.0 upload. No policy, weight or decision changes: the s
   stdout as UTF-8. Regression test: `tests/test_encoding.py` (runs the package under a non-UTF-8 locale with
   `EncodingWarning` as an error).
 - **Errors are no longer lost silently.** If `errors.jsonl` cannot be written, the node error is reported on stderr
-  (was `except: pass`).
+  (the error used to be swallowed silently).
 - **Model load failures are named.** A local source that fails to load now says which model could not be loaded, or
   that torch/transformers (or onnxruntime) is not installed, with the pip extra to install. `ShadowRunner` says once
   on stderr which profile source is unavailable and why, and verdicts carry `error:missing_source:<src>` instead of

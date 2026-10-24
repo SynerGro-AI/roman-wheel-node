@@ -1,7 +1,7 @@
 """1.2.1 F1-F4: the fit CLI and API reject bad fold counts and bad input with clean errors, never a traceback.
 
 Data are fixed and deterministic (a Weyl sequence for the scores; no random generator). Real subprocess runs of
-``python -m roman_wheel_node.fit``; no mocks."""
+``python -m roman_wheel_node.fit``; no test doubles."""
 
 import json
 import os

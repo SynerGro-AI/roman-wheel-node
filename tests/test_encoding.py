@@ -83,7 +83,7 @@ def test_non_ascii_claims_survive_a_non_utf8_locale(tmp_path):
 
 
 def _locale_dependent_io(path: Path):
-    """open()/Path.open/read_text/write_text in text mode without encoding=, and subprocess text mode without it."""
+    """builtin open, Path.open, read_text, write_text in text mode with no encoding=; subprocess text mode likewise."""
     out = []
     for n in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if not isinstance(n, ast.Call):

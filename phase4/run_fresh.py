@@ -130,9 +130,8 @@ def main() -> None:
         a.profile,
         note=f"Phase 4 fresh sets {a.ds}; decisions were logged before this file and before any label",
     )
-    with open(
-        os.path.join(log, "labels.jsonl"), "a", encoding="utf-8"
-    ) as f:  # dataset gold labels (the user cannot label by hand)
+    labels_path = os.path.join(log, "labels.jsonl")
+    with open(labels_path, "a", encoding="utf-8") as f:  # dataset gold labels (the user cannot label by hand)
         for it in items:
             f.write(
                 json.dumps(

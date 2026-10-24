@@ -2,7 +2,7 @@
 
 The examples here are SYNTHETIC, generated deterministically below (fixed strides through a word list and a Weyl
 sequence; no random generator, no dataset text). They test the mechanics only and are not an evaluation of anything.
-No mocks: the real local ``overlap`` scorer (:class:`~roman_wheel_node.sources.LocalSources` with no models)
+No test doubles: the real local ``overlap`` scorer (:class:`~roman_wheel_node.sources.LocalSources` with no models)
 computes the features, and the fitted policy is loaded with the real loader and run through the real FrozenNode and
 ShadowRunner.
 """
