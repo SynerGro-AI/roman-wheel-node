@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased: Phase 5, pair checker (GPU run pending) and the fp2 exact-copy fingerprint
+- **Policy 4.1.0 (`policies/rwn-policy-4.1.0.json`, sha 2156f584)** keeps 4.0.0's profiles. It adds a versioned
+  `rwn-fp2` exact-copy fingerprint to the gate: NFC, invisible-character removal, quote/dash normalization and
+  whitespace collapse. It is not NFKC and does not fold case.
+  - fp2 is a strict superset of fp1, and elisions such as "..." or "> " still fail.
+  - 4.0.0 is unchanged and stays the default. `ShadowRunner(policy=load_policy(POLICY_4_1_PATH))` or
+    `--policy 4.1.0` opts in.
+- Measured on cached panel decisions (`results/phase5/fp2_gate.txt`, cache-only, $0): exact-copy BLOCKs fall from 49
+  to 32.
+  - 17 claims are un-blocked: 7 true, 10 false.
+  - After the frozen decision rule, 1 true claim becomes ACCEPT (SciFact) and 0 false claims become ACCEPT.
+- **Phase 5 pair checker:**
+  - `phase5/` holds a leakage-safe COVID-Fact split. It keeps the Phase 4b halves and quarantines A groups that share
+    a sentence with B.
+  - The committed manifest has hashed group IDs only. There is a frozen protocol, a training script (CUDA/CPU,
+    seeded), and an A_dev prereg -> single held-out B evaluation with LTT fixed-sequence certification.
+  - Runbook: `PHASE5_DESKTOP.md`.
+
 ## Unreleased: Phase 4, shadow mode, frozen policy 4.0.0, fresh-set certification
 - `src/roman_wheel_node/policy.py` + `policies/rwn-policy-4.0.0.json`: a frozen, sha256-pinned policy.
   - Outcomes are ACCEPT, NOT_SURE and BLOCK only. The policy is accept-only.
