@@ -1,6 +1,84 @@
 # Changelog
 
-## 1.2.0 (unreleased)
+## 1.2.1 (UNRELEASED)
+Fixes found after the 1.2.0 upload. No policy, weight or decision changes: the shipped policy is still
+`rwn-policy-4.3.0`, and every decision on the same inputs is unchanged.
+
+### Fixed
+- **Non-ASCII claims on Windows (and any non-UTF-8 locale).** Every text file the package, tests and scripts open,
+  read or write now uses `encoding="utf-8"` (it used the locale encoding, cp1252 on Windows, so a claim with `≥` or
+  `α` could fail to log and audit logs were not portable between systems). The shadow CLI reads stdin and writes
+  stdout as UTF-8. Regression test: `tests/test_encoding.py` (runs the package under a non-UTF-8 locale with
+  `EncodingWarning` as an error).
+- **Errors are no longer lost silently.** If `errors.jsonl` cannot be written, the node error is reported on stderr
+  (the error used to be swallowed silently).
+- **Model load failures are named.** A local source that fails to load now says which model could not be loaded, or
+  that torch/transformers (or onnxruntime) is not installed, with the pip extra to install. `ShadowRunner` says once
+  on stderr which profile source is unavailable and why, and verdicts carry `error:missing_source:<src>` instead of
+  `error:KeyError`.
+- **`fit` input checks.** `folds` must be an integer of at least 2 (`--folds 1` was an IndexError; on the CLI it is
+  now a usage error, exit 2). The "both classes in every fold" check is now really per fold. An unreadable,
+  non-UTF-8 or invalid examples file is a usage error and an unwritable output file is a clean `fit failed`, not a
+  traceback. A deeply nested JSON line in the examples file is a usage error too (it was an uncaught
+  `RecursionError`), and the "too few examples" message now says what is counted
+  (`need at least 50 examples for 5-fold cross-fitting; got 12`).
+- **Shadow CLI input.** A claim containing Unicode line separators (U+2028, U+0085, form feed and so on) is one claim:
+  stdin and `--claims` are split on `\n` only (`str.splitlines()` split them into several claims). Non-UTF-8 or
+  invalid JSON on stdin, in the claims file or in the corpus file (including deeply nested JSON, and valid JSON whose
+  `\uXXXX` escapes leave a lone surrogate, which is not Unicode text) is a clear usage error naming the file and line,
+  exit 2, instead of a traceback. Reading claims from `-` with stdin closed is a usage error too.
+- **Malformed scores are labelled as such.** A source score that is present but has no `S` that `float()` can turn
+  into a finite value in [0, 1] gives `error:malformed_score:<src>`; `error:missing_source:<src>` now means the score
+  is really absent.
+- **CHANGELOG:** 1.2.0 is dated (it said "unreleased" after it was uploaded); a test keeps only the current version
+  undated.
+
+### Changed
+- Tests: no test skips itself any more in a clean checkout. The two full-benchmark byte-identity tests run by default
+  (no `RWN_FULL_BENCH`); the 4.3.0 refit test (`tests/test_repo_data.py`, repo-only) reads SciFact data built by the
+  new `scripts/fetch_test_data.py` from pinned public sources and fails, printing that command, when it is missing;
+  CI and the release workflow run the fetch step. Hypothesis is imported unconditionally (it is in the `test` extra),
+  so missing it is an error, not silently fewer tests. The COVID-Fact manifest check, which needs an internal cache that
+  is never distributed, moved out of pytest to `phase5/check_manifest_from_data.py`.
+- CI: runners pinned to `ubuntu-24.04`, Python 3.14 added to the matrix, a `windows-2025` job, a pytest run with
+  `-X warn_default_encoding -W error::EncodingWarning`, a ruff job, `twine check --strict`, actions pinned to SHAs.
+- Release build: also runs `ruff format --check .` and the EncodingWarning pytest run, fetches the SciFact test data,
+  and fails if any test is skipped.
+- Package metadata: Python 3.9-3.14 and Development Status classifiers.
+- README: "no API calls" qualified (the optional `nli2` model is downloaded from Hugging Face by name on first use),
+  the private `phase3/cache/step2` feature cache needed to reproduce the published dev numbers is stated, and the test
+  counts are re-measured.
+- Tests use fixed deterministic data instead of seeded random generators in `tests/test_fit.py`.
+
+### Known issues (planned for 1.2.2, target 2026-11-06)
+These are not fixed in 1.2.1. Apart from score typing, which is unchanged since 1.2.0, none changes a decision:
+each is a crash or a wrong exit code on bad input, or a gap in a test or docstring, never an ACCEPT.
+- `--trust-given-evidence` with an `evidence` value that is not a list, or a list with non-text items, gives a
+  traceback instead of a usage error (`shadow.py` main, `sources.py` exact-copy hashing).
+- A corpus line whose `sentences` list holds non-text items gives a traceback (`sources.py` BM25 tokenising).
+- A missing, binary or deeply nested `--policy-file` gives a `PolicyError` or `RecursionError` traceback instead of
+  exit 2 (`policy.py` `load_policy`).
+- CR-only line endings (`\r` with no `\n`) are a usage error (exit 2) on stdin, which is read as one line, but a
+  claims file opened in text mode treats each `\r` as a line break and runs (exit 0); the two should agree.
+- `tests/test_test_deps.py` catches `import hypothesis` inside `try`, but not `importlib.import_module("hypothesis")`
+  or `__import__("hypothesis")` inside `try`.
+- Scores are not strictly typed: `ok()` (`shadow.py`) and `Policy.calibrate` (`policy.py`) apply `float()`, so an
+  `S` of `"0.5"`, `"1"` or `True` is accepted as a score and can ACCEPT, as in 1.2.0. 1.2.2 will accept only real
+  numbers (no `str` or `bool`) in both. Changing it in 1.2.1 would change decisions.
+- The library call `FrozenNode.decide()` with a claim holding a lone surrogate raises `UnicodeEncodeError` while
+  writing its log. `ShadowRunner.observe` fails closed (NOT_SURE, `error:UnicodeEncodeError`), and the CLI rejects
+  such input with exit 2.
+- The corpus lone-surrogate test (`tests/test_shadow_cli_input.py`) reuses inputs whose line 1 is not a valid corpus
+  row, so without the fix it fails on the message, not on the original crash. It needs a case with a valid corpus row
+  holding the surrogate.
+- The `_lone_surrogate` docstring (`shadow.py`) says it reports the first unpaired surrogate, but with two in one line
+  it can report a later one (the line number is right).
+
+### Release provenance
+- 1.2.0 on PyPI was a manual `twine` upload from PR commit `13725f7` (same tree as merge `9dcdb4f`) before the merge,
+  with no tag and no attestations. 1.2.1 is the first release to go through `release.yml` from a `v1.2.1` tag.
+
+## 1.2.0 (2026-10-24)
 Everything since 1.0.0. Version 1.1.0 was never published, so its changes are included here.
 
 ### Breaking changes

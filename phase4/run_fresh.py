@@ -73,14 +73,14 @@ def main() -> None:
     ap.add_argument("--profile", required=True, choices=("local", "local-lite", "panel"))
     ap.add_argument("--ds", default="hv_test_unjudged,covidfact,hv_dev")
     a = ap.parse_args()
-    items = [i for i in json.load(open(os.path.join(P4, "items.json"))) if i["ds"] in a.ds.split(",")]
+    items = [i for i in json.load(open(os.path.join(P4, "items.json"), encoding="utf-8")) if i["ds"] in a.ds.split(",")]
     log = os.path.join(P4, f"shadow_{a.profile}")
     if os.path.exists(os.path.join(log, "fresh_claims.jsonl")):
         sys.exit(f"{log} already has a run; move it away to rerun")
     m = os.path.join(ROOT, "phase3", "models")
     judges = None
     if a.profile == "panel":
-        local = json.load(open(os.path.join(P4, "local.json")))
+        local = json.load(open(os.path.join(P4, "local.json"), encoding="utf-8"))
 
         def src(claim, sents):
             return _cur["raw"]  # cached local features of the current item
@@ -130,7 +130,8 @@ def main() -> None:
         a.profile,
         note=f"Phase 4 fresh sets {a.ds}; decisions were logged before this file and before any label",
     )
-    with open(os.path.join(log, "labels.jsonl"), "a") as f:  # dataset gold labels (the user cannot label by hand)
+    labels_path = os.path.join(log, "labels.jsonl")
+    with open(labels_path, "a", encoding="utf-8") as f:  # dataset gold labels (the user cannot label by hand)
         for it in items:
             f.write(
                 json.dumps(
@@ -144,8 +145,11 @@ def main() -> None:
                 + "\n"
             )
     rows = FR.load_jsonl(os.path.join(log, "fresh_claims.jsonl"))
-    lab = {json.loads(line)["id"]: json.loads(line)["label"] for line in open(os.path.join(log, "labels.jsonl"))}
-    with open(os.path.join(log, "labels.jsonl"), "w") as f:  # rewrite keyed by the logged claim id
+    lab = {
+        json.loads(line)["id"]: json.loads(line)["label"]
+        for line in open(os.path.join(log, "labels.jsonl"), encoding="utf-8")
+    }
+    with open(os.path.join(log, "labels.jsonl"), "w", encoding="utf-8") as f:  # rewrite keyed by the logged claim id
         for r in rows:
             f.write(
                 json.dumps(
@@ -164,12 +168,12 @@ def main() -> None:
     )
     out = os.path.join(ROOT, "results", "phase4")
     os.makedirs(out, exist_ok=True)
-    json.dump(res, open(os.path.join(out, f"fresh_{a.profile}.json"), "w"), indent=1)
+    json.dump(res, open(os.path.join(out, f"fresh_{a.profile}.json"), "w", encoding="utf-8"), indent=1)
     txt = (
         FR.report(res)
         + f"\n{NOTE}\nshadow counts {runner.counts}, node errors {runner.errors}, elapsed {time.time() - t0:.0f}s\n"
     )
-    open(os.path.join(out, f"fresh_{a.profile}.txt"), "w").write(txt)
+    open(os.path.join(out, f"fresh_{a.profile}.txt"), "w", encoding="utf-8").write(txt)
     print(txt)
 
 

@@ -42,7 +42,7 @@ def main() -> None:
     rows, _ = S2.build_rows()
     F = S3E.features(rows)
     pool = [r for r in rows if r["ds"] in RF.FIT_DS]
-    items = {i["id"]: i for i in json.load(open(os.path.join(CACHE, "step2", "items.json")))}
+    items = {i["id"]: i for i in json.load(open(os.path.join(CACHE, "step2", "items.json"), encoding="utf-8"))}
     margin = load_policy().profile("panel").accept_margin
     o, d, c = E.oof_effs(pool, RF.COND, RF.PROFILES["panel"], "logit")
     feats = [dict(F[r["id"]], dis=d[i]) for i, r in enumerate(pool)]
@@ -72,7 +72,7 @@ def main() -> None:
         "frozen_rule_effect": {k: res[k] for k in ("false_accepts_caught", "correct_accepts_lost", "veto_reasons")},
     }
     os.makedirs(RF.RES, exist_ok=True)
-    json.dump(out, open(os.path.join(RF.RES, "structural_scifact.json"), "w"), indent=1, default=list)
+    json.dump(out, open(os.path.join(RF.RES, "structural_scifact.json"), "w", encoding="utf-8"), indent=1, default=list)
     print(json.dumps(out, indent=1, default=list))
 
 

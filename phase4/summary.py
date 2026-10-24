@@ -37,7 +37,7 @@ def main():
         f = os.path.join(R, f"fresh_{p}.json")
         if not os.path.exists(f):
             continue
-        res = json.load(open(f))
+        res = json.load(open(f, encoding="utf-8"))
         for g, s in res["groups"].items():
             ci = s["precision_ci95"]
             a = s["alphas"]
@@ -55,7 +55,7 @@ def main():
                 + f" | {pct(s['false_accept_share_upper'])} | {cert('0.01')} | {cert('0.02')} | {cert('0.05')} | "
                 f"{need('0.01')} / {need('0.02')} |"
             )
-    open(os.path.join(R, "SUMMARY.md"), "w").write("\n".join(L) + "\n")
+    open(os.path.join(R, "SUMMARY.md"), "w", encoding="utf-8").write("\n".join(L) + "\n")
     print("\n".join(L))
 
 

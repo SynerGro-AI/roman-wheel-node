@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sys
 import threading
 import time
@@ -112,7 +113,14 @@ class FrozenNode:
             except Exception as e:  # missing source, bad score, anything: fail closed
                 d = self.trace.submit(claim if isinstance(claim, str) else repr(claim), {}, a=a, not_sure=True)
                 out = BLOCK if a != 1 else NOT_SURE
-                return Verdict(out, None, f"error:{type(e).__name__}", "", self.trace.head(), d.seq)
+                miss = _missing_sources(self.prof, raw) if isinstance(raw, Mapping) else []
+                bad = _malformed_scores(self.prof, raw) if isinstance(raw, Mapping) and not miss else []
+                why = (
+                    f"error:missing_source:{','.join(miss)}"
+                    if miss
+                    else (f"error:malformed_score:{','.join(bad)}" if bad else f"error:{type(e).__name__}")
+                )
+                return Verdict(out, None, why, "", self.trace.head(), d.seq)
 
 
 def _jsonable(x: Any) -> Any:
@@ -126,6 +134,125 @@ def _jsonable(x: Any) -> Any:
     if isinstance(x, (list, tuple)):
         return [_jsonable(v) for v in x]
     return repr(x)
+
+
+def _stderr(line: str) -> None:
+    """Best-effort report on stderr (the last place an error can go; it must not raise into the agent)."""
+    try:
+        print(line, file=sys.stderr, flush=True)
+    except Exception:  # stderr itself is closed or unencodable: retry with ASCII escapes, then give up
+        try:
+            print(line.encode("ascii", "backslashreplace").decode("ascii"), file=sys.stderr, flush=True)
+        except Exception:
+            return
+
+
+def _missing_sources(prof: Profile, raw: Mapping[str, Any]) -> List[str]:
+    """Sources the profile needs that are absent from ``raw`` (no entry, or None)."""
+    return [s for s in prof.sources if raw.get(s) is None]
+
+
+def _malformed_scores(prof: Profile, raw: Mapping[str, Any]) -> List[str]:
+    """Sources the profile needs that are present in ``raw`` but give no score ``Profile.calibrate`` accepts
+    (an entry that is not ``{"S": ...}``, or an S that ``float()`` cannot turn into a finite value in [0, 1])."""
+
+    def ok(v: Any) -> bool:
+        try:
+            x = float(v["S"])
+        except Exception:  # any failure means unusable (an int past float range raises OverflowError): never raise
+            return False
+        return math.isfinite(x) and 0.0 <= x <= 1.0
+
+    return [s for s in prof.sources if raw.get(s) is not None and not ok(raw[s])]
+
+
+def _read_text_lines(stream: Any) -> List[str]:
+    """Lines of a text stream decoded as UTF-8 regardless of the locale (stdin on Windows is cp1252 by default)."""
+    buf = getattr(stream, "buffer", None)
+    data = buf.read().decode("utf-8") if buf is not None else stream.read()
+    # split on "\n" only: str.splitlines() also splits on U+2028, U+2029 and U+0085, which JSON written with
+    # ensure_ascii=False carries raw inside strings (json.loads ignores a trailing "\r")
+    return data.split("\n")
+
+
+def _write_line(line: str) -> None:
+    """Write one UTF-8 line to stdout regardless of the locale encoding."""
+    buf = getattr(sys.stdout, "buffer", None)
+    if buf is None:
+        print(line)
+        return
+    sys.stdout.flush()
+    buf.write((line + "\n").encode("utf-8"))
+    buf.flush()
+
+
+def _file_lines(ap: Any, path: str) -> List[str]:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read().split("\n")
+    except UnicodeDecodeError as e:
+        ap.error(f"{path}: not UTF-8 ({e})")
+    except OSError as e:
+        ap.error(f"cannot read {path}: {e.strerror or e}")
+
+
+def _jsonl_objects(ap: Any, name: str, lines: List[str]) -> List[Tuple[int, dict]]:
+    """(line number, object) for each non-blank line; a bad line is a usage error (exit 2), never a traceback."""
+    out = []
+    for i, line in enumerate(lines, 1):
+        if not line.strip():
+            continue
+        try:
+            d = json.loads(line)
+        except (ValueError, RecursionError) as e:
+            ap.error(f"{name}: line {i}: not JSON ({type(e).__name__}: {str(e)[:200]})")
+        if not isinstance(d, dict):
+            ap.error(f"{name}: line {i}: expected a JSON object, got {type(d).__name__}")
+        bad = _lone_surrogate(d)
+        if bad is not None:
+            ap.error(f"{name}: line {i}: not valid Unicode text (lone surrogate \\u{ord(bad):04x} from a JSON escape)")
+        out.append((i, d))
+    return out
+
+
+_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
+def _lone_surrogate(obj: Any) -> Optional[str]:
+    """The first unpaired surrogate (U+D800..U+DFFF) in any key or string of a parsed JSON value, else None.
+
+    UTF-8 input cannot carry one, but a JSON escape such as ``"\\ud800"`` can; such a string can never be written out
+    as UTF-8 (claims are echoed on stdout and logged), so it is rejected as invalid text. Iterative: values nested as
+    deep as ``json.loads`` accepts must not hit the recursion limit."""
+    stack = [obj]
+    while stack:
+        x = stack.pop()
+        if isinstance(x, str):
+            m = _SURROGATE.search(x)
+            if m:
+                return m.group()
+        elif isinstance(x, dict):
+            stack.extend(x.keys())
+            stack.extend(x.values())
+        elif isinstance(x, list):
+            stack.extend(x)
+    return None
+
+
+def _read_claims(ap: Any, claims: str) -> List[dict]:
+    if claims == "-":
+        if sys.stdin is None:  # fd 0 closed when Python started: there is no stdin object at all
+            ap.error("stdin is closed: pipe the claims JSONL in, or give a claims file instead of '-'")
+        try:
+            lines = _read_text_lines(sys.stdin)
+        except UnicodeDecodeError as e:
+            ap.error(f"stdin: not UTF-8 ({e})")
+        except (OSError, ValueError) as e:  # fd closed or invalid after start (ValueError: I/O on closed file)
+            ap.error(f"cannot read stdin: {getattr(e, 'strerror', None) or e}")
+        name = "stdin"
+    else:
+        lines, name = _file_lines(ap, claims), claims
+    return [d for _, d in _jsonl_objects(ap, name, lines)]
 
 
 ClaimSpec = Union[str, Tuple[str, Sequence[str]], Mapping[str, Any]]
@@ -182,6 +309,7 @@ class ShadowRunner:
 
             sources = LocalSources(nli_dir=nli_dir, nli2=nli2, hf_cache=hf_cache, device=device)
         self.sources = sources
+        self._warn_missing_sources()
         self.bm25 = BM25(corpus) if corpus else None
         self.fingerprint = self.node.policy.fingerprint
         hs = set(trusted_hashes or ())
@@ -297,16 +425,35 @@ class ShadowRunner:
     def verify(self):
         return self.node.trace.verify()
 
+    def _warn_missing_sources(self) -> None:
+        """Say once, on stderr, which source the profile needs but did not load (and why), instead of leaving every
+        claim to fail closed with no visible cause."""
+        avail = getattr(self.sources, "available", None)
+        if avail is None:
+            return
+        miss = [s for s in self.node.prof.sources if s not in avail]
+        if not miss:
+            return
+        errs = getattr(self.sources, "errors", {}) or {}
+        why = "; ".join(errs.get(s, f"{s}: not configured (pass {'nli_dir' if s == 'nli' else s}=...)") for s in miss)
+        _stderr(
+            f"roman-wheel-node: profile {self.node.prof.name!r} needs source(s) {miss} that are not available: {why}. "
+            f"Every claim will fail closed (NOT_SURE, reason error:missing_source:{','.join(miss)})."
+        )
+
     def _error(self, where: str, e: BaseException) -> None:
         self.errors += 1
+        msg = f"{type(e).__name__}: {e}"
+        if any(t in msg for t in ("API_KEY", "TOKEN", "Bearer", "Authorization")):  # never log a credential
+            msg = type(e).__name__
         try:
-            msg = f"{type(e).__name__}: {e}"
-            if any(t in msg for t in ("API_KEY", "TOKEN", "Bearer", "Authorization")):  # never log a credential
-                msg = type(e).__name__
-            with open(os.path.join(self.log_dir, "errors.jsonl"), "a") as f:
+            with open(os.path.join(self.log_dir, "errors.jsonl"), "a", encoding="utf-8") as f:
                 f.write(json.dumps({"ts": time.time(), "where": where, "error": msg[:300]}) + "\n")
-        except Exception:
-            pass
+        except Exception as w:  # errors.jsonl unwritable: never lose the error silently, report it on stderr
+            _stderr(
+                f"roman-wheel-node: could not write {os.path.join(self.log_dir, 'errors.jsonl')} "
+                f"({type(w).__name__}); node error in {where}: {msg[:300]}"
+            )
 
 
 def _main(argv: Optional[Sequence[str]] = None) -> int:
@@ -342,16 +489,11 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     corpus = None
     if args.corpus:
         corpus = {}
-        with open(args.corpus) as f:
-            for line in f:
-                if line.strip():
-                    d = json.loads(line)
-                    corpus[str(d["doc_id"])] = list(d["sentences"])
-    if args.claims == "-":
-        items = [json.loads(line) for line in sys.stdin if line.strip()]
-    else:
-        with open(args.claims) as f:
-            items = [json.loads(line) for line in f if line.strip()]
+        for i, d in _jsonl_objects(ap, args.corpus, _file_lines(ap, args.corpus)):
+            if "doc_id" not in d or not isinstance(d.get("sentences"), list):
+                ap.error(f"{args.corpus}: line {i}: needs 'doc_id' and a 'sentences' list")
+            corpus[str(d["doc_id"])] = list(d["sentences"])
+    items = _read_claims(ap, args.claims)
     trusted = {sha256(s) for it in items for s in it.get("evidence") or []} if args.trust_given_evidence else None
     pol = load_policy(args.policy_file, args.policy_sha256)
     if trusted is not None and pol.fingerprint == "fp2":
@@ -372,7 +514,7 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     )
     for it, v in r.stream(items):
         if not args.enforce or v.outcome == ACCEPT:
-            print(json.dumps(it, ensure_ascii=False))
+            _write_line(json.dumps(it, ensure_ascii=False))
     r.verify()
     print(
         json.dumps(

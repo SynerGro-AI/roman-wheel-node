@@ -7,7 +7,9 @@ import roman_wheel_node as pkg
 
 
 def run(*args):
-    return subprocess.run([sys.executable, "-m", "roman_wheel_node", *args], capture_output=True, text=True, timeout=60)
+    return subprocess.run(
+        [sys.executable, "-m", "roman_wheel_node", *args], capture_output=True, text=True, encoding="utf-8", timeout=60
+    )
 
 
 def test_version():

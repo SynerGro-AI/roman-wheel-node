@@ -8,7 +8,9 @@ can enter an agent's trace. Pure Python (3.9+), standard library only, zero depe
 
 **Shipped policy 4.3.0: free, local profiles only, fitted only on SciFact train (commercial-use licences, see
 [DATA_LICENSES.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/DATA_LICENSES.md)). No xAI/Grok or other
-hosted-model output is used in any shipped weight, and the package makes no API calls.** On held-out SciFact dev the
+hosted-model output is used in any shipped weight, and the package calls no hosted model and reads no API key.**
+(The one network access: the optional `nli2` source downloads its Hugging Face model by name on first use, unless
+you pass a local path or it is already cached; `overlap` and a local ONNX `nli` directory need no network.) On held-out SciFact dev the
 default profile (`local`) accepted 58 of 300 claims with 6 false accepts (precision 89.7%) and `local-lite` accepted 16
 with 1 false (93.8%). **Neither profile is certified at any error level** (10%, 5%, 2% or 1%). These are the only
 real-data numbers this release claims; see [Policy 4.3.0](#policy-430-local-only-fitted-on-scifact). To fit a policy
@@ -83,8 +85,8 @@ outcomes (half-life 500, 0.001 grid, `default` until `min_obs`).
 ```python
 from roman_wheel_node import roman_wheel_node, LiveWeights, ThresholdLearner, give_feedback
 
-live = LiveWeights("weights_ledger.jsonl")           # half_life=150 by default (None = never forget)
-thr  = ThresholdLearner("threshold_ledger.jsonl")    # half_life=500, min_obs=30, default cut-off 0.5
+live = LiveWeights("weights_ledger.jsonl")  # half_life=150 by default (None = never forget)
+thr = ThresholdLearner("threshold_ledger.jsonl")  # half_life=500, min_obs=30, default cut-off 0.5
 
 scores = {"drone": 0.95, "trial": 0.81, "instr": 0.12}
 eff, op, status = roman_wheel_node(1, scores, live, mode="bayes", threshold=thr)  # variant="hard"
@@ -112,13 +114,13 @@ variant="hard", prior=0.5, assumed_reliability=0.75, cutoff=None) -> (eff, opcod
 ```python
 from roman_wheel_node.trace import ClaimTrace, replay
 
-trace = ClaimTrace("audit.jsonl", live=live, mode="bayes")      # allow_hedge=False by default
+trace = ClaimTrace("audit.jsonl", live=live, mode="bayes")  # allow_hedge=False by default
 root = trace.submit("sha matches release", {"drone": 0.95, "trial": 0.9}, a=1)
 if root.admitted:
     child = trace.submit("so the build is reproducible", {"trial": 0.8}, a=1, parents=[root.claim])
-context = trace.context()        # immutable tuple of admitted Claim objects
-replay("audit.jsonl")            # verifies the hash chain and recomputes every decision
-trace.verify()                   # also checks the in-memory claims against the log
+context = trace.context()  # immutable tuple of admitted Claim objects
+replay("audit.jsonl")  # verifies the hash chain and recomputes every decision
+trace.verify()  # also checks the in-memory claims against the log
 ```
 
 Invariants (all covered by tests, including property-based tests with hypothesis):
@@ -224,7 +226,7 @@ Reading the calibration table:
 pip install -e ".[bench]"
 python -m roman_wheel_node.bench --seeds 20                  # writes results/ (~1 min on 8 cores)
 python -m roman_wheel_node.bench --seeds 20 --check results  # prints IDENTICAL if byte-for-byte equal
-RWN_FULL_BENCH=1 python -m pytest tests/test_bench.py         # the same check as a test
+python -m pytest tests/test_bench.py                          # the same check as a test (runs by default)
 ```
 `benchmark.json` and `benchmark.txt` are byte-identical across runs and worker counts. This was verified on Python
 3.9, 3.12 and 3.13. The charts are not byte-compared, because PNG bytes depend on the matplotlib version.
@@ -252,9 +254,10 @@ independent scenarios: the paired difference is ≤ 0.01 points, with 19–20 of
 
 ```python
 from roman_wheel_node import DependenceLearner, roman_wheel_node, give_feedback
-dep = DependenceLearner("dependence_ledger.jsonl")          # half_life=150 claims by default
+
+dep = DependenceLearner("dependence_ledger.jsonl")  # half_life=150 claims by default
 eff, op, status = roman_wheel_node(1, scores, mode="bayes", variant="ess", dependence=dep)
-give_feedback(scores, truth, dependence=dep)                # once the truth is known
+give_feedback(scores, truth, dependence=dep)  # once the truth is known
 # ClaimTrace(..., mode="bayes", variant="ess", dependence=dep) logs the exact model snapshot, so replay() is exact
 ```
 
@@ -311,8 +314,9 @@ certificate on data the node was never tuned on.
 
 ```python
 from roman_wheel_node.shadow import ShadowRunner
+
 rwn = ShadowRunner("rwn_shadow/", nli2="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli", corpus=trusted_docs)
-respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(out)])   # same return value
+respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(out)])  # same return value
 ```
 
 * **Policy.** `src/roman_wheel_node/policies/rwn-policy-4.3.0.json`, loaded by `roman_wheel_node.policy.load_policy()`.
@@ -345,7 +349,13 @@ respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(
 Policy 4.3.0 fits both profiles on SciFact train only (799 claims; CC BY 4.0 claims, ODC-By 1.0 abstracts) from the
 local models' scores, with the public `roman_wheel_node.fit` API, then evaluates once on held-out SciFact dev (300
 claims). HealthVer, Climate-FEVER and COVID-Fact are not used, and no hosted-model output is used anywhere in the fit.
-Script: `phase6/refit_policy_43.py`; report: `results/phase6/refit_43.txt` (repository). Licences and attribution:
+Script: `phase6/refit_policy_43.py`; report: `results/phase6/refit_43.txt` (repository). The inputs of the fit can be
+rebuilt from pinned public sources: `python scripts/fetch_test_data.py` downloads SciFact `data.tar.gz` from the Allen
+Institute (sha256-pinned) and combines it with `phase6/data/scifact_step2_features.json` (in git: SciFact claim ids,
+gold doc ids and the local models' rounded scores, no text) into `~/.cache/roman_wheel_node/test-data/scifact-step2`
+(or `$RWN_TEST_DATA`). `tests/test_repo_data.py` refits 4.3.0 from that data and requires the result to equal the
+shipped policy; without the data it fails and prints the command. The full research script also compares against
+other private research caches (`phase3/cache/`), which are not in git. Licences and attribution:
 [DATA_LICENSES.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/DATA_LICENSES.md).
 
 | Profile | ACCEPT (of 300) | False accepts | Precision (95% upper bound on false share) | Supported claims accepted | Accuracy, NOT_SURE = reject |
@@ -367,7 +377,7 @@ Script: `phase6/refit_policy_43.py`; report: `results/phase6/refit_43.txt` (repo
 `roman_wheel_node.fit` turns your own labelled examples into a frozen policy file, with the same method that produced
 4.3.0: per-source isotonic calibration, Beta source reliabilities and a learned cut-off, then an accept-only margin
 pre-registered on out-of-fold posteriors, and optionally a Learn-Then-Test certificate. Local sources only, no API
-calls, and the same examples in the same order give a byte-identical file.
+calls (an `nli2` model given by Hugging Face id is downloaded on first use), and the same examples in the same order give a byte-identical file.
 
 ```bash
 # one example per line: {"claim": "...", "evidence": ["sentence", ...], "label": "SUPPORT" | "CONTRADICT" | "NEI" | true | false}
@@ -384,7 +394,7 @@ from roman_wheel_node.sources import LocalSources
 
 src = LocalSources(nli2="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli")
 doc = fit_policy("my_labels.jsonl", profiles={"local": ("nli2", "overlap")}, sources=src, alphas=(0.10,))
-sha = write_policy(doc, "my-policy.json")                       # returns the file's sha256; pin it
+sha = write_policy(doc, "my-policy.json")  # returns the file's sha256; pin it
 rwn = ShadowRunner("rwn_shadow/", policy=load_policy("my-policy.json", expected_sha256=sha), sources=src)
 ```
 
@@ -420,7 +430,7 @@ reported number comes from them.**
 * `RELEASING.md`: how a release is built and published (tag on `main`, reviewed `pypi` environment).
 * `phase5/`: the Phase 5 pair-checker pipeline (split, bundle, train, evaluate; not part of the package). Its
   `--tiny-random`, `--limit` and `--smoke` flags are test-only (see [Test-only smoke flags](#test-only-smoke-flags-phase-5)).
-* `tests/`: 250 tests. In the repository 248 pass and 2 slow full-benchmark tests skip unless `RWN_FULL_BENCH=1` is set (then all 250 pass). The suite also passes under `pytest -W error`. From an unpacked sdist against the installed wheel, 206 pass and 14 skip, each with a stated reason (repo-only research folders, committed results and the local SciFact feature cache are not shipped). `tests/test_no_xai_in_package.py` fails if anything xAI-derived reaches the installed package; `tests/test_fit.py` fits, loads and runs a policy from deterministic synthetic data.
+* `tests/`: 290 tests (measured for 1.2.1 on Python 3.14). In a clean checkout all 290 pass and none skip, after `python scripts/fetch_test_data.py` has built the SciFact test data (pinned by sha256; without it the two `tests/test_repo_data.py` checks that need it fail and print that command). That includes the two full 20-seed benchmark byte-identity tests (`tests/test_repo_bench.py`, about 1 min each on 8 cores). The suite also passes under `pytest -W error` and with `python -X warn_default_encoding -W error::EncodingWarning`. From an unpacked sdist against the installed wheel (Python 3.9 to 3.14), 241 pass and 11 skip, each with a stated reason (repo-only research folders and committed results are not shipped; the repo-only `tests/test_repo_*.py` files are left out of the sdist). The COVID-Fact split-manifest check needs an internal cache that is never distributed, so it is a maintainer script, not a test. From the repository root, with the cache at `phase3/cache/phase4/items.json` (or pass `--items PATH`), run `python phase5/check_manifest_from_data.py`. It prints `manifest reproduces from data` and exits 0 when the committed manifest reproduces and no claim text or raw group key leaks into it. It exits 1 on a mismatch or leak, printing each problem on stderr and then `FAILED` on stdout. It exits 2 when the cache is missing, unreadable or malformed, with the reason on stderr (`tests/test_repo_manifest_check.py` checks exits 1 and 2 without any COVID-Fact data). `tests/test_no_xai_in_package.py` fails if anything xAI-derived reaches the installed package; `tests/test_fit.py` fits, loads and runs a policy from deterministic synthetic data.
 * `benchmarks/train_sim.py` and `benchmarks/results_v1.0.0.*`: the original demo and the 1.0.0 five-seed results, kept for history.
 
 ## Support development (planned)

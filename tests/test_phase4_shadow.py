@@ -8,6 +8,8 @@ import uuid
 from pathlib import Path
 
 import pytest
+from hypothesis import HealthCheck, given, settings  # a required test dependency ([test] extra): no silent skip
+from hypothesis import strategies as st
 
 from roman_wheel_node import fresh as FR
 from roman_wheel_node.policy import (
@@ -21,14 +23,6 @@ from roman_wheel_node.policy import (
 )
 from roman_wheel_node.shadow import FrozenNode, ShadowRunner
 from roman_wheel_node.sources import BM25, LocalSources, exact_gate, sha256
-
-try:
-    from hypothesis import HealthCheck, given, settings
-    from hypothesis import strategies as st
-
-    HAVE_HYP = True
-except ImportError:  # pragma: no cover
-    HAVE_HYP = False
 
 EV = ["Vitamin D supplementation reduced the incidence of acute respiratory infection in the trial."]
 TRUST = {sha256(s) for s in EV}
@@ -59,14 +53,14 @@ def test_default_policy_is_pinned_and_honest():
 
 
 def test_tampered_policy_refused(tmp_path):
-    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text())
+    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text(encoding="utf-8"))
     doc["profiles"]["local"]["accept_margin"] = 0.01
     bad = tmp_path / "p.json"
-    bad.write_text(json.dumps(doc))
+    bad.write_text(json.dumps(doc), encoding="utf-8")
     with pytest.raises(PolicyError):  # body no longer matches its own hash
         load_policy(str(bad))
     doc["sha256"] = policy_sha256(doc)  # re-hashed forgery: refused against the pinned hash
-    bad.write_text(json.dumps(doc))
+    bad.write_text(json.dumps(doc), encoding="utf-8")
     with pytest.raises(PolicyError):
         load_policy(str(bad), expected_sha256=load_policy().sha256)
     with pytest.raises(PolicyError):
@@ -89,7 +83,7 @@ class Out:
         self.v = v
 
 
-if HAVE_HYP:
+class TestShadowProperties:  # hypothesis property tests
     outputs = st.one_of(
         st.none(),
         st.integers(),
@@ -117,7 +111,7 @@ if HAVE_HYP:
         trusted=st.booleans(),
         claims=st.lists(st.text(max_size=30), max_size=3),
     )
-    def test_shadow_returns_the_agent_output_unchanged(tmp_path, out, raw, ev, boom, trusted, claims):
+    def test_shadow_returns_the_agent_output_unchanged(self, tmp_path, out, raw, ev, boom, trusted, claims):
         def src(claim, sents):
             if boom:
                 raise RuntimeError("source crashed")
@@ -144,10 +138,10 @@ if HAVE_HYP:
 
     @settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(nli2=st.floats(0, 1), ov=st.floats(0, 1), contra=st.floats(0, 1))
-    def test_enforce_releases_only_accepts(tmp_path, nli2, ov, contra):
+    def test_enforce_releases_only_accepts(self, tmp_path, nli2, ov, contra):
         r = runner(tmp_path, sources=fake_sources(nli2, ov, contra), enforce=True, on_withhold=lambda o, v: "WITHHELD")
         res = r.wrap(lambda: "answer", extract=lambda o: [("claim", EV)])()
-        v = json.loads(Path(r.fresh_path).read_text().splitlines()[-1])["outcome"]
+        v = json.loads(Path(r.fresh_path).read_text(encoding="utf-8").splitlines()[-1])["outcome"]
         assert res == ("answer" if v == ACCEPT else "WITHHELD")
 
 
@@ -197,7 +191,7 @@ def test_retrieval_feeds_the_gate(tmp_path):
     corpus = {"d1": EV, "d2": ["Unrelated sentence about climate models and sea level."]}
     r = runner(tmp_path, corpus=corpus, trusted_hashes=None)
     v = r.observe("vitamin D reduced respiratory infection")
-    rec = json.loads(Path(r.fresh_path).read_text().splitlines()[-1])
+    rec = json.loads(Path(r.fresh_path).read_text(encoding="utf-8").splitlines()[-1])
     assert rec["retrieved"] and rec["evidence"] == EV and rec["a"] == 1 and v.outcome == ACCEPT
     assert exact_gate(EV, BM25(corpus).hashes()) == 1 and exact_gate(["x"], BM25(corpus).hashes()) == 0
 
@@ -236,7 +230,7 @@ def test_cli_default_is_local(tmp_path, capsys):
     from roman_wheel_node.shadow import _main
 
     f = tmp_path / "c.jsonl"
-    f.write_text(json.dumps({"claim": "c", "evidence": EV}) + "\n")
+    f.write_text(json.dumps({"claim": "c", "evidence": EV}) + "\n", encoding="utf-8")
     assert _main([str(f), "--log-dir", str(tmp_path / "L"), "--trust-given-evidence"]) == 0
     out = capsys.readouterr()
     assert json.loads(out.out.splitlines()[0])["claim"] == "c"  # shadow echoes every item unchanged
@@ -260,7 +254,7 @@ def test_prereg_label_certify_flow(tmp_path):
     FR.prereg(d, r.node.policy.sha256, r.node.prof.name)
     with pytest.raises(FileExistsError):
         FR.prereg(d, r.node.policy.sha256, r.node.prof.name)
-    with open(os.path.join(d, "labels.jsonl"), "w") as f:
+    with open(os.path.join(d, "labels.jsonl"), "w", encoding="utf-8") as f:
         for x in FR.load_jsonl(r.fresh_path):
             f.write(json.dumps({"id": x["id"], "label": "UNSURE" if x["meta"]["k"] < 10 else "SUPPORT"}) + "\n")
     res = FR.certify(d)

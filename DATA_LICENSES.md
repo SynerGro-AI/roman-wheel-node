@@ -42,6 +42,16 @@ Cohan, Hannaneh Hajishirzi. "Fact or Fiction: Verifying Scientific Claims." EMNL
 CC BY 4.0. Abstracts are from S2ORC under ODC-By 1.0 (Allen Institute for AI). No SciFact text is redistributed in this
 package: the policy holds only calibration breakpoints, reliabilities and thresholds.
 
+The repository (not the package) also holds `phase6/data/scifact_step2_features.json`, used only by the repo-only
+test `tests/test_repo_data.py`: for 1,099 SciFact claims (train 799, dev 300) the claim id, split, gold doc ids and
+five scores from the two MIT/Apache-2.0 models listed under "Models" below and a lexical overlap, rounded to 6 decimals. It contains no
+SciFact text and no HealthVer, Climate-FEVER or COVID-Fact data. `scripts/fetch_test_data.py` combines it with SciFact
+`data.tar.gz` downloaded from the Allen Institute
+(https://scifact.s3-us-west-2.amazonaws.com/release/latest/data.tar.gz, 3,115,079 bytes, sha256
+`11c621288d41ac144d29b13b0f8503b3820b7d6e8b1f6ff24dff335c196d76be`), on the user's machine. SciFact's licence
+(CC BY 4.0 claims and annotations, ODC-By 1.0 abstracts, checked above) permits this, including commercial use, with
+the attribution given here.
+
 ## Models (not shipped; downloaded by the user at run time)
 
 | Model | Licence (Hugging Face model card) | URL | Commercial use OK? | Used by |

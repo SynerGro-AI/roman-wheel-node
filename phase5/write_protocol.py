@@ -65,7 +65,7 @@ P["sha256"] = C.canon_sha(P)
 
 if __name__ == "__main__":
     if os.path.exists(C.PROTOCOL):
-        old = json.load(open(C.PROTOCOL))
+        old = json.load(open(C.PROTOCOL, encoding="utf-8"))
         sys.exit(0 if old["sha256"] == P["sha256"] else "protocol.json exists and differs: refusing")
-    json.dump(P, open(C.PROTOCOL, "w"), indent=1, sort_keys=True)
+    json.dump(P, open(C.PROTOCOL, "w", encoding="utf-8"), indent=1, sort_keys=True)
     print("protocol", P["sha256"])

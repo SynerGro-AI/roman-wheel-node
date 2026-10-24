@@ -115,23 +115,34 @@ class LocalSources:
         if nli_dir:
             try:
                 self._nli = _OnnxNLI(nli_dir, threads=threads, device=device)
-            except Exception as e:  # missing package / model: the source is absent (profiles fail closed)
-                self.errors["nli"] = f"{type(e).__name__}: {e}"[:200]
+            except ImportError as e:  # missing package: the source is absent (profiles fail closed)
+                self.errors["nli"] = (
+                    f"nli: onnxruntime/tokenizers/numpy not installed (pip install 'roman-wheel-node[local-nli]'): {e}"
+                )[:300]
+            except Exception as e:  # missing / unreadable model: the source is absent (profiles fail closed)
+                msg = f"nli: could not load the ONNX NLI model from {nli_dir!r}: {type(e).__name__}: {e}"
+                self.errors["nli"] = msg[:300]
         if nli2:
             try:
                 import torch
                 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+            except ImportError as e:
+                self.errors["nli2"] = (
+                    f"nli2: torch/transformers not installed (pip install 'roman-wheel-node[local-nli2]'): {e}"
+                )[:300]
+            else:
+                self._load_nli2(torch, AutoTokenizer, AutoModelForSequenceClassification, nli2, hf_cache, device)
 
-                self._torch = torch
-                self._tok2 = AutoTokenizer.from_pretrained(nli2, cache_dir=hf_cache)
-                self._m2 = (
-                    AutoModelForSequenceClassification.from_pretrained(nli2, cache_dir=hf_cache).eval().to(device)
-                )
-                self._dev = device
-                self._lab2 = {v.lower(): int(k) for k, v in self._m2.config.id2label.items()}
-                self._nli2 = True
-            except Exception as e:
-                self.errors["nli2"] = f"{type(e).__name__}: {e}"[:200]
+    def _load_nli2(self, torch, AutoTokenizer, AutoModelForSequenceClassification, nli2, hf_cache, device) -> None:
+        try:
+            self._torch = torch
+            self._tok2 = AutoTokenizer.from_pretrained(nli2, cache_dir=hf_cache)
+            self._m2 = AutoModelForSequenceClassification.from_pretrained(nli2, cache_dir=hf_cache).eval().to(device)
+            self._dev = device
+            self._lab2 = {v.lower(): int(k) for k, v in self._m2.config.id2label.items()}
+            self._nli2 = True
+        except Exception as e:  # missing / unreadable model: the source is absent (profiles fail closed)
+            self.errors["nli2"] = f"nli2: could not load model {nli2!r}: {type(e).__name__}: {e}"[:300]
 
     @property
     def available(self) -> Tuple[str, ...]:
@@ -174,7 +185,7 @@ class _OnnxNLI:
         from tokenizers import Tokenizer
 
         self.np = np
-        with open(os.path.join(model_dir, "config.json")) as f:
+        with open(os.path.join(model_dir, "config.json"), encoding="utf-8") as f:
             cfg = json.load(f)
         self.labels = [cfg["id2label"][str(i)] for i in range(len(cfg["id2label"]))]
         self.tok = Tokenizer.from_file(os.path.join(model_dir, "tokenizer.json"))

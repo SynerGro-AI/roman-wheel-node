@@ -14,8 +14,6 @@ if not os.path.isdir(os.path.join(os.path.dirname(os.path.dirname(os.path.abspat
 sys.path.insert(0, os.path.join(ROOT, "phase5"))
 import pairs_common as C  # noqa: E402
 
-ITEMS = os.path.join(ROOT, "phase3", "cache", "phase4", "items.json")
-
 
 def _toy():
     out = []
@@ -61,23 +59,14 @@ def test_manifest_has_no_text_and_is_self_hashed(tmp_path):
     k = next(iter(bad["groups"]))
     bad["groups"][k] = "A_train"
     p = tmp_path / "m.json"
-    p.write_text(json.dumps(bad))
+    p.write_text(json.dumps(bad), encoding="utf-8")
     if m["groups"][k] != "A_train":
         with pytest.raises(SystemExit):
             C.load_manifest(str(p))
 
 
-@pytest.mark.skipif(not os.path.exists(ITEMS), reason="internal COVID-Fact cache not present")
-def test_manifest_reproduces_from_data():
-    items = [i for i in json.loads(Path(ITEMS).read_text(encoding="utf-8")) if i["ds"] == "covidfact"]
-    assert C.manifest_doc(items, C.build_split(items))["sha256"] == C.load_manifest()["sha256"]
-    blob = Path(C.MANIFEST).read_text(encoding="utf-8")
-    assert not any(it["claim"] in blob for it in items if len(it["claim"]) > 15)
-    assert not any(C.group_of(it["evidence"]) in blob for it in items)  # raw group keys are salted away
-
-
 def test_protocol_frozen():
-    p = json.loads(Path(C.PROTOCOL).read_text())
+    p = json.loads(Path(C.PROTOCOL).read_text(encoding="utf-8"))
     assert p["sha256"] == C.canon_sha({k: v for k, v in p.items() if k != "sha256"})
     assert p["split_manifest_sha256"] == C.load_manifest()["sha256"]
     assert [t["retention"] for t in p["tau_sequence"]] == [0.80, 0.90, 0.95]

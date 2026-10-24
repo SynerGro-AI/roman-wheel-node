@@ -72,9 +72,10 @@ def _load(path):
         return json.load(f)
 
 
-def load_rows():
-    items = _load(os.path.join(CACHE, "items.json"))
-    local = _load(os.path.join(CACHE, "local.json"))
+def load_rows(cache=CACHE):
+    """SciFact rows from a step2 cache: the research cache, or the one scripts/fetch_test_data.py builds."""
+    items = _load(os.path.join(cache, "items.json"))
+    local = _load(os.path.join(cache, "local.json"))
     rows = []
     for it in items:
         if it["ds"] not in (*FIT_DS, TEST_DS):
@@ -193,7 +194,11 @@ def main() -> None:
     new = load_policy(OUT, expected_sha256=doc["sha256"])
 
     prev_txt = subprocess.run(
-        ["git", "-C", ROOT, "show", f"{PREV_COMMIT}:{PREV_PATH}"], check=True, capture_output=True, text=True
+        ["git", "-C", ROOT, "show", f"{PREV_COMMIT}:{PREV_PATH}"],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
     ).stdout
     prev = json.loads(prev_txt)
     res = {
@@ -225,11 +230,11 @@ def main() -> None:
             "certified": p.certified,
         }
     os.makedirs(RES, exist_ok=True)
-    with open(os.path.join(RES, "refit_43.json"), "w") as f:
+    with open(os.path.join(RES, "refit_43.json"), "w", encoding="utf-8") as f:
         json.dump(res, f, indent=1, default=float)
         f.write("\n")
     txt = report(res)
-    with open(os.path.join(RES, "refit_43.txt"), "w") as f:
+    with open(os.path.join(RES, "refit_43.txt"), "w", encoding="utf-8") as f:
         f.write(txt)
     print(txt)
 

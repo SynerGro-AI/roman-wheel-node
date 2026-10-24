@@ -152,7 +152,7 @@ class DependenceLearner:
         self._truth = [0.0, 0.0]  # decayed [false, true] counts (base rate for ess_cal)
         self._cache: Dict[Tuple[Tuple[str, ...], str], dict] = {}
         if os.path.exists(self.path):
-            with open(self.path) as f:
+            with open(self.path, encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         self._apply(json.loads(line))
@@ -161,7 +161,7 @@ class DependenceLearner:
     def record(self, scores: Mapping[str, float], truth: bool, note: str = "") -> None:
         """Append one resolved claim (its source scores and the truth). Append-only."""
         ev = {"t": time.time(), "votes": votes_of(scores), "truth": bool(truth), "note": note}
-        with open(self.path, "a") as f:
+        with open(self.path, "a", encoding="utf-8") as f:
             f.write(json.dumps(ev, sort_keys=True) + "\n")
             f.flush()
         self._apply(ev)

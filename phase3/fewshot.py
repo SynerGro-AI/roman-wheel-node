@@ -19,7 +19,7 @@ QUOTA = {"SUPPORT": 4, "CONTRADICT": 3, "NEI": 3}
 def build() -> str:
     from judges import selected
 
-    feats = json.load(open(os.path.join(CACHE, "local_features.json")))
+    feats = json.load(open(os.path.join(CACHE, "local_features.json"), encoding="utf-8"))
     used = set(selected(feats))
     corpus = load_corpus(DATA)
     pool = [c for c in load_claims(DATA, "train") if f"train:{c.claim_id}" not in used]

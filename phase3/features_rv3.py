@@ -41,13 +41,13 @@ def main(splits) -> None:
     corpus = load_corpus(DATA)
     nli = NLIScorer(os.path.join(HERE, "models", "nli-deberta-v3-small"))
     ov = OverlapScorer()
-    feats = json.load(open(os.path.join(CACHE, "local_features.json")))
+    feats = json.load(open(os.path.join(CACHE, "local_features.json"), encoding="utf-8"))
     out_path = os.path.join(CACHE, "local_features_rv3.json")
-    out = json.load(open(out_path)) if os.path.exists(out_path) else {}
+    out = json.load(open(out_path, encoding="utf-8")) if os.path.exists(out_path) else {}
     t0 = time.time()
     for split in splits:
         keys = [k for k in selected(feats) if k.startswith(split)]
-        ranks = json.load(open(os.path.join(CACHE, f"ranks_{split}.json")))[PIPE]
+        ranks = json.load(open(os.path.join(CACHE, f"ranks_{split}.json"), encoding="utf-8"))[PIPE]
         assert len(ranks) == len(keys)
         for n, (k, rk) in enumerate(zip(keys, ranks)):
             if k in out:
@@ -92,8 +92,8 @@ def main(splits) -> None:
             }
             if n % 25 == 0:
                 print(split, n, f"{time.time() - t0:.0f}s", flush=True)
-                json.dump(out, open(out_path, "w"), sort_keys=True)
-    json.dump(out, open(out_path, "w"), sort_keys=True)
+                json.dump(out, open(out_path, "w", encoding="utf-8"), sort_keys=True)
+    json.dump(out, open(out_path, "w", encoding="utf-8"), sort_keys=True)
     print("wrote", out_path, len(out), flush=True)
 
 

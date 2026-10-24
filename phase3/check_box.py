@@ -21,11 +21,11 @@ CANDIDATES = [
 def main():
     mem = {
         line.split(":")[0]: int(line.split()[1])
-        for line in open("/proc/meminfo")
+        for line in open("/proc/meminfo", encoding="utf-8")
         if line.split(":")[0] in ("MemTotal", "MemAvailable")
     }
     du = shutil.disk_usage(os.getcwd())
-    flags = set(next(line for line in open("/proc/cpuinfo") if line.startswith("flags")).split())
+    flags = set(next(line for line in open("/proc/cpuinfo", encoding="utf-8") if line.startswith("flags")).split())
     print(f"RAM total {mem['MemTotal'] / 1e6:.1f} GB, available {mem['MemAvailable'] / 1e6:.1f} GB")
     print(
         f"disk free {du.free / 1e9:.0f} GB;  CPUs {os.cpu_count()};  "

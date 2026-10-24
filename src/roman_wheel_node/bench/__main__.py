@@ -37,7 +37,7 @@ def main(argv=None) -> int:
         def same(path: str, body: str) -> bool:
             if not os.path.exists(path):
                 return False
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 return f.read() == body
 
         bad = [
@@ -48,9 +48,9 @@ def main(argv=None) -> int:
         print("IDENTICAL" if not bad else f"DIFFERENT: {', '.join(bad)}")
         return 1 if bad else 0
     os.makedirs(a.out, exist_ok=True)
-    with open(os.path.join(a.out, "benchmark.json"), "w") as f:
+    with open(os.path.join(a.out, "benchmark.json"), "w", encoding="utf-8") as f:
         f.write(js)
-    with open(os.path.join(a.out, "benchmark.txt"), "w") as f:
+    with open(os.path.join(a.out, "benchmark.txt"), "w", encoding="utf-8") as f:
         f.write(txt)
     print(txt)
     if not a.no_plots:

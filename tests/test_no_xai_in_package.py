@@ -83,7 +83,7 @@ def test_loader_refuses_hosted_model_profiles(tmp_path):
         mutate(doc)
         doc["sha256"] = policy_sha256(doc)
         p = tmp_path / "p.json"
-        p.write_text(json.dumps(doc))
+        p.write_text(json.dumps(doc), encoding="utf-8")
         with pytest.raises(PolicyError):
             load_policy(str(p), expected_sha256=doc["sha256"])
 

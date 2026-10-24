@@ -46,7 +46,7 @@ def sha(s: str) -> str:
 
 def load_corpus(data_dir: str) -> Dict[str, Doc]:
     out: Dict[str, Doc] = {}
-    with open(os.path.join(data_dir, "corpus.jsonl")) as f:
+    with open(os.path.join(data_dir, "corpus.jsonl"), encoding="utf-8") as f:
         for line in f:
             d = json.loads(line)
             out[str(d["doc_id"])] = Doc(str(d["doc_id"]), d["title"], tuple(d["abstract"]))
@@ -66,7 +66,7 @@ def load_claims(data_dir: str, split: str) -> List[SciFactClaim]:
     if split == "test":
         raise ValueError("SciFact test labels are hidden; evaluate on dev")
     out = []
-    with open(os.path.join(data_dir, f"claims_{split}.jsonl")) as f:
+    with open(os.path.join(data_dir, f"claims_{split}.jsonl"), encoding="utf-8") as f:
         for line in f:
             c = json.loads(line)
             labels = {e["label"] for evs in c["evidence"].values() for e in evs}

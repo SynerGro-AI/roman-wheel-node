@@ -141,7 +141,7 @@ class NLIScorer:
         from tokenizers import Tokenizer
 
         self.np = np
-        with open(os.path.join(model_dir, "config.json")) as f:
+        with open(os.path.join(model_dir, "config.json"), encoding="utf-8") as f:
             cfg = json.load(f)
         self.labels = [cfg["id2label"][str(i)] for i in range(len(cfg["id2label"]))]
         self.tok = Tokenizer.from_file(os.path.join(model_dir, "tokenizer.json"))
@@ -235,7 +235,7 @@ class SpendLedger:
     def _sync(self) -> None:
         if not os.path.exists(self.path):
             return
-        with open(self.path) as f:
+        with open(self.path, encoding="utf-8") as f:
             f.seek(self._off)
             while True:
                 line = f.readline()
@@ -254,7 +254,7 @@ class SpendLedger:
 
     def add(self, model: str, usd: float, ticks: Optional[int]) -> None:
         with self.lock:
-            with open(self.path, "a") as f:
+            with open(self.path, "a", encoding="utf-8") as f:
                 f.write(json.dumps({"model": model, "usd": usd, "ticks": ticks}) + "\n")
             self._sync()
 
@@ -427,7 +427,7 @@ class XAIJudge:
         self._lock = threading.Lock()
         self._cache: Dict[str, dict] = {}
         if cache_path and os.path.exists(cache_path):
-            with open(cache_path) as f:
+            with open(cache_path, encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         r = json.loads(line)
@@ -512,7 +512,7 @@ class XAIJudge:
         with self._lock:
             self._cache[key] = rec
             if self.cache_path:
-                with open(self.cache_path, "a") as f:
+                with open(self.cache_path, "a", encoding="utf-8") as f:
                     f.write(json.dumps(rec) + "\n")
         self.last_usage = usage
         return rec

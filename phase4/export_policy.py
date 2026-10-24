@@ -96,9 +96,9 @@ def main() -> None:
     sys.exit(HISTORICAL)
     rows, _ = S2.build_rows()
     pool = [r for r in rows if r["ds"] in S2.CALIB]
-    cert = json.load(open(os.path.join(ROOT, "results", "phase3", "step3e.json")))["risks"]["accept_precision"][
-        "scifact"
-    ]["certificates"]["alphas"]
+    cert = json.load(open(os.path.join(ROOT, "results", "phase3", "step3e.json"), encoding="utf-8"))["risks"][
+        "accept_precision"
+    ]["scifact"]["certificates"]["alphas"]
     c5, c10 = cert["0.05"], cert["0.1"]
     assert c5["certified"] and c5["config"] == "pooled|bayes-logit [all]|base" and c5["rho"] == 0.0
     import judges as JD
@@ -177,13 +177,13 @@ def main() -> None:
     }
     doc["sha256"] = policy_sha256(doc)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with open(OUT, "w") as f:
+    with open(OUT, "w", encoding="utf-8") as f:
         json.dump(doc, f, indent=1, sort_keys=True, allow_nan=False)
         f.write("\n")
     pp = os.path.join(ROOT, "src", "roman_wheel_node", "policy.py")
-    s = open(pp).read()
+    s = open(pp, encoding="utf-8").read()
     s = re.sub(r'DEFAULT_POLICY_SHA256 = "[^"]*"', f'DEFAULT_POLICY_SHA256 = "{doc["sha256"]}"', s)
-    open(pp, "w").write(s)
+    open(pp, "w", encoding="utf-8").write(s)
     for n, p in profiles.items():
         print(
             n,

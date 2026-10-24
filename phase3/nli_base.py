@@ -32,7 +32,7 @@ def main() -> None:
     lab = {v.lower(): int(k) for k, v in model.config.id2label.items()}
     corpus = load_corpus(DATA)
     path = os.path.join(CACHE, "local_features.json")
-    feats = json.load(open(path))
+    feats = json.load(open(path, encoding="utf-8"))
     t0 = time.time()
     for n, (k, f) in enumerate(sorted(feats.items())):
         for cond in ("retrieved", "gold"):
@@ -60,7 +60,7 @@ def main() -> None:
             f[cond]["nli2_contra"], f[cond]["nli2_contra_at"] = round(best_c[0], 6), best_c[1]
         if n % 100 == 0:
             print(n, f"{time.time() - t0:.0f}s", flush=True)
-    json.dump(feats, open(path + ".tmp", "w"), sort_keys=True)
+    json.dump(feats, open(path + ".tmp", "w", encoding="utf-8"), sort_keys=True)
     os.replace(path + ".tmp", path)
     print("updated", path)
 

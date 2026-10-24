@@ -68,7 +68,7 @@ def main() -> None:
             feats[f"{split}:{c.claim_id}"] = row
             if n % 100 == 0:
                 print(split, n, f"{time.time() - t0:.0f}s", flush=True)
-    json.dump(feats, open(out_path, "w"), sort_keys=True)
+    json.dump(feats, open(out_path, "w", encoding="utf-8"), sort_keys=True)
     print("wrote", out_path, len(feats))
 
 

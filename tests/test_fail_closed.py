@@ -6,15 +6,10 @@ import os
 import random
 import uuid
 
+from hypothesis import HealthCheck, given, settings  # a required test dependency ([test] extra): no silent skip
+from hypothesis import strategies as st
+
 from roman_wheel_node.trace import ClaimTrace, replay
-
-try:
-    from hypothesis import HealthCheck, given, settings
-    from hypothesis import strategies as st
-
-    HAVE_HYP = True
-except ImportError:  # pragma: no cover
-    HAVE_HYP = False
 
 
 def _case(tmp, ops, band, allow_hedge, mode):
@@ -45,29 +40,25 @@ def _case(tmp, ops, band, allow_hedge, mode):
     assert rep.n_admitted == len(held) and rep.n_records == len(ops)
 
 
-band_st = (
-    st.one_of(st.none(), st.tuples(st.floats(0, 1), st.floats(0, 1)).map(lambda x: (min(x), max(x))))
-    if HAVE_HYP
-    else None
+band_st = st.one_of(st.none(), st.tuples(st.floats(0, 1), st.floats(0, 1)).map(lambda x: (min(x), max(x))))
+
+op_st = st.tuples(
+    st.sampled_from([0, 1, 1, 1]),
+    st.dictionaries(st.sampled_from(list("abcd")), st.floats(-1, 2, allow_nan=False), max_size=4),
+    st.booleans(),
+    st.lists(st.integers(0, 40), max_size=2),
 )
 
-if HAVE_HYP:
-    op_st = st.tuples(
-        st.sampled_from([0, 1, 1, 1]),
-        st.dictionaries(st.sampled_from(list("abcd")), st.floats(-1, 2, allow_nan=False), max_size=4),
-        st.booleans(),
-        st.lists(st.integers(0, 40), max_size=2),
-    )
 
-    @settings(max_examples=200, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    @given(
-        ops=st.lists(op_st, max_size=20),
-        band=band_st,
-        allow_hedge=st.booleans(),
-        mode=st.sampled_from(["geomean", "product", "bayes"]),
-    )
-    def test_property_fail_closed(tmp_path, ops, band, allow_hedge, mode):
-        _case(str(tmp_path), ops, band, allow_hedge, mode)
+@settings(max_examples=200, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    ops=st.lists(op_st, max_size=20),
+    band=band_st,
+    allow_hedge=st.booleans(),
+    mode=st.sampled_from(["geomean", "product", "bayes"]),
+)
+def test_property_fail_closed(tmp_path, ops, band, allow_hedge, mode):
+    _case(str(tmp_path), ops, band, allow_hedge, mode)
 
 
 def test_fail_closed_fuzz_loop(tmp_path):

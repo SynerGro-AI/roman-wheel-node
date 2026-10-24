@@ -28,9 +28,9 @@ def main(items_path: str = "", out_path: str = "") -> None:
     lab = {v.lower(): int(k) for k, v in nm.config.id2label.items()}
     nli = NLIScorer(os.path.join(HERE, "models", "nli-deberta-v3-small"))
     ov = OverlapScorer()
-    items = json.load(open(items_path or os.path.join(CACHE, "step2", "items.json")))
+    items = json.load(open(items_path or os.path.join(CACHE, "step2", "items.json"), encoding="utf-8"))
     path = out_path or os.path.join(CACHE, "step2", "local.json")
-    out = json.load(open(path)) if os.path.exists(path) else {}
+    out = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
     t0 = time.time()
     for n, it in enumerate(items):
         if it["id"] in out:
@@ -54,8 +54,8 @@ def main(items_path: str = "", out_path: str = "") -> None:
         }
         if n % 200 == 0:
             print(n, f"{time.time() - t0:.0f}s", flush=True)
-            json.dump(out, open(path, "w"))
-    json.dump(out, open(path, "w"))
+            json.dump(out, open(path, "w", encoding="utf-8"))
+    json.dump(out, open(path, "w", encoding="utf-8"))
     print("wrote", path, len(out), flush=True)
 
 

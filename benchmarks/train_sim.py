@@ -55,7 +55,7 @@ for i in range(1, N + 1):
         )
         stat_ok = live_ok = stat_fa = live_fa = 0
 
-json.dump(rows, open("train_results.json", "w"), indent=1)
+json.dump(rows, open("train_results.json", "w", encoding="utf-8"), indent=1)
 print(f"{'claims':>6} {'static':>7} {'live':>6} {'FA st':>6} {'FA lv':>6}  reliabilities")
 for r in rows:
     print(

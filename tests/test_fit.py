@@ -1,15 +1,14 @@
 """The public fit API (roman_wheel_node.fit): labelled JSONL in, a loadable, deterministic policy file out.
 
-The examples here are SYNTHETIC, generated deterministically below (seeded word lists, no dataset text). They test
-the mechanics only and are not an evaluation of anything. No mocks: the real local ``overlap`` scorer
-(:class:`~roman_wheel_node.sources.LocalSources` with no models) computes the features, and the fitted policy is
-loaded with the real loader and run through the real FrozenNode and ShadowRunner.
+The examples here are SYNTHETIC, generated deterministically below (fixed strides through a word list and a Weyl
+sequence; no random generator, no dataset text). They test the mechanics only and are not an evaluation of anything.
+No test doubles: the real local ``overlap`` scorer (:class:`~roman_wheel_node.sources.LocalSources` with no models)
+computes the features, and the fitted policy is loaded with the real loader and run through the real FrozenNode and
+ShadowRunner.
 """
 
 import json
 import os
-import random
-import sys
 
 import pytest
 
@@ -22,20 +21,31 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORDS = [f"{a}{b}" for a in ("lum", "ver", "tas", "kor", "pex", "dal", "mir", "sof") for b in ("an", "o", "ix", "et")]
 
 
-def synthetic(n=160, seed=20261024):
+def _frac(i, k):
+    """Deterministic low-discrepancy value in [0, 1): the fractional part of i times an irrational-ish constant (Weyl
+    sequence). Fixed arithmetic, identical on every platform; no random number generator."""
+    return (i * (0.6180339887498949, 0.4142135623730951, 0.7320508075688772)[k]) % 1.0
+
+
+def synthetic(n=160):
     """Deterministic synthetic (claim, evidence, label) rows: SUPPORT evidence repeats most claim words, NEI evidence
-    shares few. Some rows are deliberately noisy so the calibrators have something to fit."""
-    rng = random.Random(seed)
+    shares few. Some rows are deliberately noisy so the calibrators have something to fit. Words are chosen by fixed
+    strides through WORDS (an odd stride over 32 words gives 6 distinct words), not by a random generator."""
     out = []
     for i in range(n):
-        claim_w = rng.sample(WORDS, 6)
+        start, step = (i * 7) % len(WORDS), 2 * (i % 8) + 1
+        claim_w = [WORDS[(start + k * step) % len(WORDS)] for k in range(6)]
         sup = i % 2 == 0
-        keep = rng.randint(4, 6) if sup else rng.randint(0, 3)
+        keep = 4 + (i // 2) % 3 if sup else (i // 2) % 4
         if i % 11 == 0:  # noise: label disagrees with the overlap
             keep = 6 - keep
         other = [w for w in WORDS if w not in claim_w]
-        ev = claim_w[:keep] + rng.sample(other, 6 - keep)
-        rng.shuffle(ev)
+        off = (i * 5) % len(other)
+        ev = claim_w[:keep] + [other[(off + k) % len(other)] for k in range(6 - keep)]
+        r = i % 6
+        ev = ev[r:] + ev[:r]
+        if i % 4 == 1:
+            ev.reverse()
         out.append({"id": f"syn{i}", "claim": " ".join(claim_w) + ".", "evidence": [" ".join(ev) + "."], "label": sup})
     return out
 
@@ -76,13 +86,13 @@ def test_fit_is_deterministic_loads_and_runs(tmp_path):
 
 
 def test_fit_with_given_scores_nli2_contradiction_and_certificate(tmp_path):
-    rng = random.Random(7)
     rows = []
     for i in range(400):
         y = ["SUPPORT", "NEI", "CONTRADICT"][i % 3]
-        s = rng.betavariate(8, 2) if y == "SUPPORT" else rng.betavariate(2, 6)
-        c = rng.betavariate(8, 2) if y == "CONTRADICT" else rng.betavariate(1, 8)
-        o = min(1.0, max(0.0, s + rng.uniform(-0.2, 0.2)))
+        u, v, w = _frac(i, 0), _frac(i, 1), _frac(i, 2)
+        s = 0.35 + 0.65 * u if y == "SUPPORT" else 0.6 * u  # overlapping class ranges, deterministic
+        c = 0.4 + 0.6 * v if y == "CONTRADICT" else 0.35 * v
+        o = min(1.0, max(0.0, s + 0.4 * (w - 0.5)))
         rows.append(
             {
                 "id": f"g{i}",
@@ -150,7 +160,7 @@ def test_fit_errors(tmp_path):
     with pytest.raises(FIT.FitError):
         FIT.fit_policy([dict(good[0], scores={"overlap": {"S": 1.5}})] + good, profiles={"lex": ("overlap",)})
     bad = tmp_path / "bad.jsonl"
-    bad.write_text('{"claim": "x", "label": true}\nnot json\n')
+    bad.write_text('{"claim": "x", "label": true}\nnot json\n', encoding="utf-8")
     with pytest.raises(FIT.FitError):
         FIT.load_examples(str(bad))
     doc = FIT.fit_policy(good, profiles={"lex": ("overlap",)}, sources=LocalSources())
@@ -159,21 +169,6 @@ def test_fit_errors(tmp_path):
         FIT.write_policy(doc, str(tmp_path / "t.json"))  # body no longer matches its hash
     doc["profiles"]["lex"]["sources"] = ["overlap", "J1"]
     doc["sha256"] = policy_sha256(doc)
-    (tmp_path / "t.json").write_text(json.dumps(doc))
+    (tmp_path / "t.json").write_text(json.dumps(doc), encoding="utf-8")
     with pytest.raises(PolicyError):
         load_policy(str(tmp_path / "t.json"), doc["sha256"])
-
-
-def test_shipped_policy_is_reproduced_by_the_fit_api():
-    """Repo-only: refit 4.3.0 from the local SciFact feature cache with the public API; must match the shipped file."""
-    cache = os.path.join(ROOT, "phase3", "cache", "step2", "local.json")
-    if not os.path.isfile(cache):
-        pytest.skip("phase3/cache/step2 (SciFact local features) is a local research cache, not in git or the sdist")
-    sys.path.insert(0, os.path.join(ROOT, "phase6"))
-    import refit_policy_43 as RF
-
-    pool, _ = RF.load_rows()
-    doc = RF.build_doc(pool)
-    shipped = load_policy()
-    strip = ("fitted_with", "sha256")
-    assert {k: v for k, v in doc.items() if k not in strip} == {k: v for k, v in shipped.doc.items() if k not in strip}

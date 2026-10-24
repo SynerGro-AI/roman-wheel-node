@@ -77,7 +77,7 @@ def main():
     out["veto"] = {
         c: out["conditions"][c][ver]["cv_veto"] > out["conditions"][c][ver]["cv_no_veto"] for c in ("gold", "rv3")
     }
-    json.dump(out, open(E.SELECTION_3C, "w"), indent=1, sort_keys=True)
+    json.dump(out, open(E.SELECTION_3C, "w", encoding="utf-8"), indent=1, sort_keys=True)
     print("selected", ver, out["veto"])
 
 

@@ -41,13 +41,13 @@ def main() -> None:
 
     J = make_judges(SpendLedger(os.path.join(CACHE, "spend.jsonl"), 1e-9))  # cache reads only
     panel = ("J1", "J2", "J4", "J7", "J9", "J10")
-    s2 = json.load(open(os.path.join(CACHE, "step2", "items.json")))
+    s2 = json.load(open(os.path.join(CACHE, "step2", "items.json"), encoding="utf-8"))
     items = []
     for it in s2:
         if it["ds"] == "healthver_test" and not all(J[n].cached(it["claim"], it["evidence"]) for n in panel):
             items.append(dict(it, ds="hv_test_unjudged", role="fresh"))
     lab = {"SUPPORTED": "SUPPORT", "REFUTED": "CONTRADICT"}
-    for n, line in enumerate(open(COVIDFACT)):
+    for n, line in enumerate(open(COVIDFACT, encoding="utf-8")):
         r = json.loads(line)
         sents = [s.strip() for s in r["evidence"] if s.strip()]
         items.append(
@@ -63,7 +63,7 @@ def main() -> None:
             }
         )
     hl = {"Supports": "SUPPORT", "Refutes": "CONTRADICT", "Neutral": "NEI"}
-    for r in csv.DictReader(open(os.path.join(RAW, "hv_dev.csv"))):
+    for r in csv.DictReader(open(os.path.join(RAW, "hv_dev.csv"), encoding="utf-8")):
         ev = r["evidence"].strip()
         sents = [s.strip() for s in SPLIT.split(ev) if s.strip()]
         items.append(
@@ -84,7 +84,7 @@ def main() -> None:
             seen.add(it["id"])
             out.append(it)
     os.makedirs(OUT, exist_ok=True)
-    json.dump(out, open(os.path.join(OUT, "items.json"), "w"))
+    json.dump(out, open(os.path.join(OUT, "items.json"), "w", encoding="utf-8"))
     from collections import Counter
 
     print(Counter((i["ds"], i["label3"]) for i in out))

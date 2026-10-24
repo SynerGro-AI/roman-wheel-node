@@ -119,10 +119,10 @@ def test_ledger_is_append_only(tmp_path):
     w = lw(tmp_path, half_life=None)
     path = tmp_path / "w.jsonl"
     w.observe("a", 1)
-    first = path.read_text()
+    first = path.read_text(encoding="utf-8")
     w.observe("a", 0)
     w.observe("b", 1)
-    after = path.read_text()
+    after = path.read_text(encoding="utf-8")
     assert after.startswith(first) and len(after.splitlines()) == 3
     assert all(set(json.loads(line)) >= {"t", "source", "outcome", "d_alpha", "d_beta"} for line in after.splitlines())
 
@@ -291,7 +291,7 @@ def test_node_uses_learned_cutoff_and_feedback_roundtrip(tmp_path):
 def test_audit_log(tmp_path):
     p = tmp_path / "audit.jsonl"
     r = roman_wheel_node(1, {"a": 0.8}, mode="bayes", log_path=str(p))
-    ev = json.loads(p.read_text())
+    ev = json.loads(p.read_text(encoding="utf-8"))
     assert (ev["eff"], ev["opcode"], ev["status"]) == r and ev["mode"] == "bayes:hard"
 
 

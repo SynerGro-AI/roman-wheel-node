@@ -66,7 +66,7 @@ def main() -> None:
         "current_frozen_veto_fields": list(RS.ST.FROZEN["veto_fields"]),
         "frozen_rule_effect": {k: res[k] for k in ("false_accepts_caught", "correct_accepts_lost", "veto_reasons")},
     }
-    with open(os.path.join(RF.RES, "structural_scifact_43.json"), "w") as f:
+    with open(os.path.join(RF.RES, "structural_scifact_43.json"), "w", encoding="utf-8") as f:
         json.dump(out, f, indent=1, default=list)
         f.write("\n")
     print(json.dumps(out, indent=1, default=list))

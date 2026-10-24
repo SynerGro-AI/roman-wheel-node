@@ -60,20 +60,20 @@ def main() -> None:
     assert pol41.fingerprint == "fp2"
     node = FrozenNode(os.path.join(tempfile.mkdtemp(prefix="rwn_fp2_"), "audit.jsonl"), pol41, "panel")
     gold = {}
-    for line in open(os.path.join(LOGS["phase4_fresh"], "labels.jsonl")):
+    for line in open(os.path.join(LOGS["phase4_fresh"], "labels.jsonl"), encoding="utf-8"):
         r = json.loads(line)
         gold[("phase4_fresh", r["id"])] = r["label"] == "SUPPORT"
 
     def lst(x):
         return x if isinstance(x, list) else ast.literal_eval(x)
 
-    items = {i["id"]: i for i in json.load(open(os.path.join(CACHE, "step2", "items.json")))}
-    items.update({i["id"]: i for i in json.load(open(os.path.join(CACHE, "phase4", "items.json")))})
+    items = {i["id"]: i for i in json.load(open(os.path.join(CACHE, "step2", "items.json"), encoding="utf-8"))}
+    items.update({i["id"]: i for i in json.load(open(os.path.join(CACHE, "phase4", "items.json"), encoding="utf-8"))})
     s2 = {k: i["label3"] == "SUPPORT" for k, i in items.items()}
     tot = collections.Counter()
     per = collections.defaultdict(collections.Counter)
     for log, d in LOGS.items():
-        recs = [json.loads(line) for line in open(os.path.join(d, "fresh_claims.jsonl"))]
+        recs = [json.loads(line) for line in open(os.path.join(d, "fresh_claims.jsonl"), encoding="utf-8")]
         # as in phase4/run_fresh.py and phase4b collect: the trusted store is every evidence unit of the run's items,
         # and the judge cache key is the item's Phase 3d evidence text
         units = [u for r in recs for u in lst(items[r["meta"]["id"]]["units"])]
@@ -121,7 +121,7 @@ def main() -> None:
         "note": NOTE,
     }
     os.makedirs(OUT, exist_ok=True)
-    json.dump(res, open(os.path.join(OUT, "fp2_gate.json"), "w"), indent=1, sort_keys=True)
+    json.dump(res, open(os.path.join(OUT, "fp2_gate.json"), "w", encoding="utf-8"), indent=1, sort_keys=True)
     lines = [f"fp2 exact-copy gate on cached panel decisions (policy 4.1.0 {pol41.sha256[:12]}, profile panel)", ""]
     for k, v in list(sorted(per.items())) + [("TOTAL", tot)]:
         lines.append(
@@ -132,7 +132,7 @@ def main() -> None:
             f"{v['unblocked_false_ACCEPT_after_4b_veto_ACCEPT']})"
         )
     lines += ["", NOTE]
-    open(os.path.join(OUT, "fp2_gate.txt"), "w").write("\n".join(lines) + "\n")
+    open(os.path.join(OUT, "fp2_gate.txt"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
     print("\n".join(lines))
 
 
