@@ -1,9 +1,17 @@
-"""SciFact is licensed for non-commercial use: committed Phase 3 outputs carry SciFact IDs only, never dataset text."""
+"""Committed Phase 3 outputs carry SciFact IDs only, never dataset text (see DATA_LICENSES.md).
+
+`results/phase3/` and `phase3/` are repo-only research files that are not in the sdist or wheel, so this module skips
+with that reason when they are absent.
+"""
 import json
 import os
 
+import pytest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 R3 = os.path.join(ROOT, "results", "phase3")
+if not (os.path.isdir(R3) and os.path.isdir(os.path.join(ROOT, "phase3"))):
+    pytest.skip("results/phase3/ and phase3/ are repo-only (not in the sdist/wheel)", allow_module_level=True)
 TEXT_KEYS = {"claim", "title", "quote", "evidence", "abstract", "sentence", "text"}
 
 

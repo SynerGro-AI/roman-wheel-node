@@ -132,7 +132,7 @@ class ShadowRunner:
             built from ``nli_dir`` / ``nli2``; with neither, only ``overlap`` is available, so profiles fail closed).
         corpus: trusted ``{doc_id: [sentence, ...]}``; gives the exact-copy gate its hash set and BM25 retrieval.
         trusted_hashes: extra sha256 set for the gate (e.g. evidence the agent quoted from a verified store).
-            Under an fp2 policy (4.1.0+) entries may also be ``fingerprint.fp2`` values.
+            Under an fp2 policy (4.2.0) entries may also be ``fingerprint.fp2`` values.
         trusted_units: extra trusted sentences (hashed with the policy's fingerprint version).
         judges: an opt-in :class:`~roman_wheel_node.sources.XAIPanel` (paid). None (default) = no judges.
         enforce: False (default) = shadow; True = release outputs only when every claim is ACCEPTed.
@@ -289,8 +289,8 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("claims", help="input JSONL; '-' for stdin")
     ap.add_argument("--log-dir", default="rwn_shadow")
     ap.add_argument("--profile", default=None, help="local (default), local-lite, or panel (needs --enable-xai-judges)")
-    ap.add_argument("--policy", default=None, choices=[None, "4.0.0", "4.1.0"],
-                    help="frozen policy: 4.0.0 (default, raw-byte gate) or 4.1.0 (fp2 NFC-normalized gate)")
+    ap.add_argument("--policy", default="4.2.0", choices=["4.2.0"],
+                    help="frozen policy (only 4.2.0 ships: fp2 NFC-normalized gate, fitted on SciFact train only)")
     ap.add_argument("--corpus", default=None, help="trusted corpus JSONL {doc_id, sentences:[..]} (gate + retrieval)")
     ap.add_argument("--trust-given-evidence", action="store_true",
                     help="treat evidence given in the stream as trusted exact copies (only if your pipeline verified it)")
@@ -315,13 +315,10 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     src = sys.stdin if args.claims == "-" else open(args.claims)
     items = [json.loads(l) for l in src if l.strip()]
     trusted = {sha256(s) for it in items for s in it.get("evidence") or []} if args.trust_given_evidence else None
-    if trusted is not None and args.policy == "4.1.0":
+    pol = load_policy()
+    if trusted is not None and pol.fingerprint == "fp2":
         from .fingerprint import trusted_set
         trusted |= trusted_set((s for it in items for s in it.get("evidence") or []), "fp2")
-    pol = None
-    if args.policy == "4.1.0":
-        from .policy import POLICY_4_1_PATH
-        pol = load_policy(POLICY_4_1_PATH)
     r = ShadowRunner(args.log_dir, policy=pol, profile=args.profile, corpus=corpus, trusted_hashes=trusted, judges=judges,
                      enforce=args.enforce, nli_dir=args.nli_dir, nli2=args.nli2, hf_cache=args.hf_cache,
                      device=args.device)

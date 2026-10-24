@@ -1,4 +1,4 @@
-"""Roman Wheel Node (algorithm v3, package 1.0.0): an exact-copy gate plus learned, auditable evidence fusion.
+"""Roman Wheel Node (algorithm v3, package 1.2.0): an exact-copy gate plus learned, auditable evidence fusion.
 
 Every claim an agent wants to put in its trace goes through :func:`roman_wheel_node`.
 
@@ -34,7 +34,7 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Uni
 
 __all__ = ["clamp01", "opcode", "opcode_learned", "LiveWeights", "ThresholdLearner",
            "roman_wheel_node", "give_feedback", "Result", "BAYES_VARIANTS"]
-__version__ = "1.0.0"   # package version (algorithm generation: v3)
+__version__ = "1.2.0"   # package version (algorithm generation: v3)
 
 Result = Tuple[float, str, str]                    # (eff, opcode, status)
 Scores = Union[Mapping[str, float], Sequence[float]]

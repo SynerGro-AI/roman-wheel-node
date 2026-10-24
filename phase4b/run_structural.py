@@ -32,6 +32,7 @@ sys.path.insert(0, os.environ.get("RWN_P3", os.path.join(ROOT, "phase3")))
 from features import CACHE                                           # noqa: E402
 from roman_wheel_node import fresh as FR                             # noqa: E402
 from roman_wheel_node import structure as ST                         # noqa: E402
+HISTORICAL = ("superseded: rwn-policy-4.0.0/4.1.0 were fitted partly on HealthVer and no longer ship (policy 4.2.0, phase6/refit_policy_42.py). Reproduce this historical run from git commit 3857154.")
 
 SEED = "rwn-phase4b-structural-2026-10-22"
 P4B = os.path.join(CACHE, "phase4b")
@@ -51,6 +52,9 @@ def _lst(x):
 
 
 def collect() -> None:
+    from roman_wheel_node.policy import DEFAULT_POLICY_SHA256
+    if DEFAULT_POLICY_SHA256 != "254804f8ac9b500ef1951879fb64328b0f54303b8bef20e38b1684545f876eb1":
+        sys.exit(HISTORICAL)
     from factcheck.interfaces import SpendLedger
     from judges import make_judges
     from roman_wheel_node.shadow import ShadowRunner

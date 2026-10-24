@@ -28,12 +28,13 @@ sys.path.insert(0, os.environ.get("RWN_P3", os.path.join(ROOT, "phase3")))
 from features import CACHE                                                       # noqa: E402
 from roman_wheel_node import structure as ST                                     # noqa: E402
 from roman_wheel_node.fingerprint import exact_gate_v2, quote_verbatim_v2, trusted_set  # noqa: E402
-from roman_wheel_node.policy import POLICY_4_1_PATH, load_policy                 # noqa: E402
+from roman_wheel_node.policy import load_policy                                 # noqa: E402
 from roman_wheel_node.shadow import FrozenNode, quote_verbatim    # noqa: E402
 from roman_wheel_node.sources import exact_gate, sha256                          # noqa: E402
 
 PANEL = ("J1", "J2", "J4", "J7", "J9", "J10")
 OUT = os.path.join(ROOT, "results", "phase5")
+HISTORICAL = ("superseded: rwn-policy-4.0.0/4.1.0 were fitted partly on HealthVer and no longer ship (policy 4.2.0, phase6/refit_policy_42.py). Reproduce this historical run from git commit 3857154.")
 NOTE = "HealthVer and COVID-Fact: internal, unlicensed datasets; aggregates only, no text or per-item output"
 LOGS = {"phase4_fresh": os.path.join(CACHE, "phase4", "shadow_panel"),
         "phase4b_replay": os.path.join(CACHE, "phase4b", "replay_1792687785")}
@@ -43,7 +44,8 @@ def main() -> None:
     from factcheck.interfaces import SpendLedger
     from judges import make_judges
     J = {n: j for n, j in make_judges(SpendLedger(os.path.join(CACHE, "spend.jsonl"), 1e-9)).items() if n in PANEL}
-    pol41 = load_policy(POLICY_4_1_PATH)
+    sys.exit(HISTORICAL)
+    pol41 = load_policy()
     assert pol41.fingerprint == "fp2"
     node = FrozenNode(os.path.join(tempfile.mkdtemp(prefix="rwn_fp2_"), "audit.jsonl"), pol41, "panel")
     gold = {}

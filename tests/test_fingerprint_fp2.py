@@ -1,4 +1,4 @@
-"""Task B: the fp2 (NFC-normalized, versioned) exact-copy fingerprint and policy 4.1.0."""
+"""Task B: the fp2 (NFC-normalized, versioned) exact-copy fingerprint and the shipped fp2 policy (4.2.0)."""
 import json
 import os
 import unicodedata
@@ -7,8 +7,7 @@ import pytest
 from hypothesis import given, settings, strategies as st
 
 from roman_wheel_node import fingerprint as FP
-from roman_wheel_node.policy import (DEFAULT_POLICY_PATH, DEFAULT_POLICY_SHA256, POLICY_4_1_PATH, POLICY_4_1_SHA256,
-                                     PolicyError, load_policy, policy_sha256)
+from roman_wheel_node.policy import DEFAULT_POLICY_PATH, DEFAULT_POLICY_SHA256, PolicyError, load_policy, policy_sha256
 from roman_wheel_node.shadow import ShadowRunner, quote_verbatim
 from roman_wheel_node.sources import exact_gate, sha256
 
@@ -82,28 +81,29 @@ def test_quote_v2_superset_on_ascii(q, pad):
         assert FP.quote_verbatim_v2(q, [unit], hs)
 
 
-def test_policy_400_untouched_and_410_pinned():
-    p0, p1 = load_policy(), load_policy(POLICY_4_1_PATH)
-    assert p0.sha256 == DEFAULT_POLICY_SHA256 == "254804f8ac9b500ef1951879fb64328b0f54303b8bef20e38b1684545f876eb1"
-    assert p0.version == "4.0.0" and p0.fingerprint == "fp1"
-    assert p1.sha256 == POLICY_4_1_SHA256 and p1.version == "4.1.0" and p1.fingerprint == "fp2"
-    assert p1.doc["parent_policy"]["sha256"] == DEFAULT_POLICY_SHA256
-    assert all(p0.profiles[k].raw == p1.profiles[k].raw for k in p0.profiles) and set(p0.profiles) == set(p1.profiles)
-    assert p1.doc["gate"]["normalize_table_sha256"] == FP.NORMALIZE_V2_TABLE_SHA256
+def test_policy_420_pinned_fp2_and_only_policy_shipped():
+    p = load_policy()
+    assert p.sha256 == DEFAULT_POLICY_SHA256 == "6f7bb9e3762754dc6ca6343c44f000c7caf05a819a1f63c857471856d3946c2a"
+    assert p.version == "4.2.0" and p.fingerprint == "fp2"
+    assert p.doc["gate"]["normalize_table_sha256"] == FP.NORMALIZE_V2_TABLE_SHA256
+    assert "SciFact train" in p.doc["data_licences"] and "No HealthVer" in p.doc["data_licences"]
+    for prof in p.profiles.values():                 # every profile was fitted on SciFact train only
+        assert prof.raw["calibration"]["pool"].startswith("SciFact train")
+    assert sorted(os.listdir(os.path.dirname(DEFAULT_POLICY_PATH))) == ["rwn-policy-4.2.0.json"]
 
 
-def test_policy_410_tamper_refused(tmp_path):
-    doc = json.load(open(POLICY_4_1_PATH))
+def test_policy_420_tamper_refused(tmp_path):
+    doc = json.load(open(DEFAULT_POLICY_PATH))
     doc["gate"]["normalize_table_sha256"] = "0" * 64
     doc["sha256"] = policy_sha256(doc)
     p = tmp_path / "x.json"; p.write_text(json.dumps(doc))
     with pytest.raises(PolicyError):
         load_policy(str(p))
-    doc = json.load(open(POLICY_4_1_PATH)); doc["gate"]["fingerprint"] = "fp7"; doc["sha256"] = policy_sha256(doc)
+    doc = json.load(open(DEFAULT_POLICY_PATH)); doc["gate"]["fingerprint"] = "fp7"; doc["sha256"] = policy_sha256(doc)
     p.write_text(json.dumps(doc))
     with pytest.raises(PolicyError):
         load_policy(str(p))
-    doc = json.load(open(POLICY_4_1_PATH)); doc["profiles"]["local"]["cutoff"] = 0.5      # edited body, old hash
+    doc = json.load(open(DEFAULT_POLICY_PATH)); doc["profiles"]["local"]["cutoff"] = 0.5      # edited body, old hash
     p.write_text(json.dumps(doc))
     with pytest.raises(PolicyError):
         load_policy(str(p))
@@ -112,8 +112,13 @@ def test_policy_410_tamper_refused(tmp_path):
 def test_shadow_runner_fp2_vs_fp1(tmp_path):
     src = lambda c, s: {"nli2": {"S": 0.999, "C": 0.0}, "overlap": {"S": 1.0}}
     messy = ["Vitamin  D reduced infections by 12%\u00a0in adults."]
-    r0 = ShadowRunner(str(tmp_path / "a"), sources=src, trusted_units=[S])
-    r1 = ShadowRunner(str(tmp_path / "b"), policy=load_policy(POLICY_4_1_PATH), sources=src, trusted_units=[S])
+    doc = {k: v for k, v in json.load(open(DEFAULT_POLICY_PATH)).items() if k not in ("sha256", "gate")}
+    doc["sha256"] = policy_sha256(doc)                 # the same profiles with the fp1 (raw sha256) gate
+    p_fp1 = tmp_path / "fp1.json"; p_fp1.write_text(json.dumps(doc))
+    pol1 = load_policy(str(p_fp1), expected_sha256=doc["sha256"])
+    assert pol1.fingerprint == "fp1"
+    r0 = ShadowRunner(str(tmp_path / "a"), policy=pol1, sources=src, trusted_units=[S])
+    r1 = ShadowRunner(str(tmp_path / "b"), sources=src, trusted_units=[S])
     assert r0.observe("claim", messy).outcome == "BLOCK"
     assert r1.observe("claim", messy).outcome != "BLOCK"
     assert r1.observe("claim", ["Vitamin D reduced infections by 21% in adults."]).outcome == "BLOCK"

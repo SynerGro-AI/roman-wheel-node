@@ -1,0 +1,21 @@
+Policy 4.2.0 refit (SciFact train only, n=799) vs 4.0.0 (SciFact + HealthVer train)
+held-out: scifact_dev n=300; policy 4.2.0 sha256 6f7bb9e3762754dc6ca6343c44f000c7caf05a819a1f63c857471856d3946c2a
+
+4.2.0 panel certificate (SciFact train out-of-fold, 1 test, delta 0.05):
+  alpha 10%: certified, 280 accepted / 17 false, upper95 9.0%
+  alpha 5%: not certified
+  alpha 2%: not certified
+  alpha 1%: not certified
+
+[panel]
+  4.0.0: ACCEPT 63 (rate 21.0%), false accepts 1, precision 98.4% (FA upper95 7.3%), coverage of supported 50.0%, BLOCK 2, NOT_SURE 235, accuracy decided 96.9%, accuracy all (NOT_SURE=reject) 79.0%
+  4.2.0: ACCEPT 108 (rate 36.0%), false accepts 7, precision 93.5% (FA upper95 11.8%), coverage of supported 81.5%, BLOCK 2, NOT_SURE 190, accuracy decided 92.7%, accuracy all (NOT_SURE=reject) 90.0%
+  params: 4.0.0 cutoff 0.106 margin 9.093 threshold 0.9991; 4.2.0 cutoff 0.133 margin 1.175 threshold 0.3318
+[local]
+  4.0.0: ACCEPT 51 (rate 17.0%), false accepts 4, precision 92.2% (FA upper95 17.1%), coverage of supported 37.9%, BLOCK 0, NOT_SURE 249, accuracy decided 92.2%, accuracy all (NOT_SURE=reject) 73.0%
+  4.2.0: ACCEPT 64 (rate 21.3%), false accepts 9, precision 85.9% (FA upper95 23.3%), coverage of supported 44.4%, BLOCK 0, NOT_SURE 236, accuracy decided 85.9%, accuracy all (NOT_SURE=reject) 74.0%
+  params: 4.0.0 cutoff 0.466 margin 0.686 threshold 0.6342; 4.2.0 cutoff 0.413 margin 0.854 threshold 0.6231
+[local-lite]
+  4.0.0: ACCEPT 17 (rate 5.7%), false accepts 1, precision 94.1% (FA upper95 25.0%), coverage of supported 12.9%, BLOCK 0, NOT_SURE 283, accuracy decided 94.1%, accuracy all (NOT_SURE=reject) 63.7%
+  4.2.0: ACCEPT 16 (rate 5.3%), false accepts 1, precision 93.8% (FA upper95 26.4%), coverage of supported 12.1%, BLOCK 0, NOT_SURE 284, accuracy decided 93.8%, accuracy all (NOT_SURE=reject) 63.3%
+  params: 4.0.0 cutoff 0.475 margin 0.625 threshold 0.6282; 4.2.0 cutoff 0.457 margin 0.818 threshold 0.6560

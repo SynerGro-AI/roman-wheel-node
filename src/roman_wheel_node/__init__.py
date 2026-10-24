@@ -8,7 +8,7 @@ from .dependence import DependenceLearner, FrozenDependence
 from .trace import Claim, ClaimTrace, Decision, TamperError, replay
 from .policy import Policy, PolicyError, load_policy
 
-__version__ = "1.0.0"
+__version__ = "1.2.0"
 __all__ = ["roman_wheel_node", "LiveWeights", "ThresholdLearner", "give_feedback", "clamp01",
            "opcode", "opcode_learned", "Result", "BAYES_VARIANTS",
            "DependenceLearner", "FrozenDependence", "ClaimTrace", "Claim", "Decision", "TamperError", "replay", "Policy", "PolicyError", "load_policy", "__version__"]

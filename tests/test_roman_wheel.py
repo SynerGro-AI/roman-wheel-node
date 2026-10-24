@@ -250,4 +250,4 @@ def test_audit_log(tmp_path):
 
 def test_package_metadata():
     import roman_wheel_node as pkg
-    assert pkg.__version__ == "1.0.0" and callable(pkg.roman_wheel_node)
+    assert pkg.__version__ == "1.2.0" and callable(pkg.roman_wheel_node)

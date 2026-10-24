@@ -33,6 +33,7 @@ import s2_eval as S2          # noqa: E402
 import s3e_rules as R         # noqa: E402
 from roman_wheel_node import LiveWeights, ThresholdLearner, give_feedback, roman_wheel_node   # noqa: E402
 from roman_wheel_node.policy import policy_sha256   # noqa: E402
+HISTORICAL = ("superseded: rwn-policy-4.0.0/4.1.0 were fitted partly on HealthVer and no longer ship (policy 4.2.0, phase6/refit_policy_42.py). Reproduce this historical run from git commit 3857154.")
 
 COND = "gold"
 PANEL = list(S2.PANEL)
@@ -74,6 +75,7 @@ def prereg_margin(pool, srcs):
 
 
 def main() -> None:
+    sys.exit(HISTORICAL)
     rows, _ = S2.build_rows()
     pool = [r for r in rows if r["ds"] in S2.CALIB]
     cert = json.load(open(os.path.join(ROOT, "results", "phase3", "step3e.json")))["risks"]["accept_precision"]["scifact"]["certificates"]["alphas"]

@@ -19,9 +19,11 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, "src"))
 from roman_wheel_node import policy as P                         # noqa: E402
 from roman_wheel_node.fingerprint import NORMALIZE_V2_TABLE_SHA256  # noqa: E402
+HISTORICAL = ("superseded: rwn-policy-4.0.0/4.1.0 were fitted partly on HealthVer and no longer ship (policy 4.2.0, phase6/refit_policy_42.py). Reproduce this historical run from git commit 3857154.")
 
 
 def main() -> None:
+    sys.exit(HISTORICAL)
     base = P.load_policy()                                       # verifies the 4.0.0 pin
     assert base.sha256 == P.DEFAULT_POLICY_SHA256 and base.version == "4.0.0"
     doc = {k: v for k, v in json.load(open(P.DEFAULT_POLICY_PATH, encoding="utf-8")).items() if k != "sha256"}

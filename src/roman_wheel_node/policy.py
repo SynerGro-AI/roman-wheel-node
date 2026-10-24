@@ -2,7 +2,7 @@
 
 A policy file is JSON with everything a frozen node needs: per-source isotonic calibrators, Beta reliabilities, the
 learned cut-off, the accept-only margin and the disagreement rule, per *profile*. It is produced once from calibration
-data (``phase4/export_policy.py``) and never learns at run time.
+data (``phase6/refit_policy_42.py``) and never learns at run time.
 
 Outcomes are exactly three:
 
@@ -13,9 +13,10 @@ Outcomes are exactly three:
   profile, or anything unexpected. The policy never rejects on its posterior (accept-only), and it **fails closed**:
   NOT_SURE is never admitted.
 
-Honesty: the only certificate behind any profile is Phase 3e's (``accept_precision`` risk, SciFact population, alpha 5%,
-delta 0.05, judge-panel profile ``panel``). Nothing is certified at 1% or 2%, and the free local profiles are not
-certified at any level. See SAFETY.md.
+Honesty: the shipped policy is 4.2.0, fitted only on SciFact train (claims CC BY 4.0, abstracts ODC-By 1.0; see
+DATA_LICENSES.md). Its only certificate is the judge-panel profile ``panel``: ``accept_precision`` risk, SciFact
+population, alpha 10%, delta 0.05 (phase6/refit_policy_42.py). Nothing is certified at 5%, 2% or 1%, and the free
+local profiles are not certified at any level. See SAFETY.md.
 """
 from __future__ import annotations
 
@@ -27,19 +28,14 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 __all__ = ["Policy", "Profile", "PolicyError", "load_policy", "policy_sha256", "DEFAULT_POLICY_PATH",
-           "DEFAULT_POLICY_SHA256", "POLICY_4_1_PATH", "POLICY_4_1_SHA256", "PINNED", "OUTCOMES", "ACCEPT", "NOT_SURE",
-           "BLOCK"]
+           "DEFAULT_POLICY_SHA256", "PINNED", "OUTCOMES", "ACCEPT", "NOT_SURE", "BLOCK"]
 
 ACCEPT, NOT_SURE, BLOCK = "ACCEPT", "NOT_SURE", "BLOCK"
 OUTCOMES = (ACCEPT, NOT_SURE, BLOCK)
-DEFAULT_POLICY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "rwn-policy-4.0.0.json")
+DEFAULT_POLICY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "rwn-policy-4.2.0.json")
 # sha256 of the canonical policy body (every key except "sha256"); pinned here so a swapped or edited file is refused
-DEFAULT_POLICY_SHA256 = "254804f8ac9b500ef1951879fb64328b0f54303b8bef20e38b1684545f876eb1"
-# 4.1.0 = the 4.0.0 profiles byte-for-byte plus the fp2 (NFC-normalized, versioned) exact-copy fingerprint. Opt-in:
-# the default stays 4.0.0. Produced by phase5/export_policy_41.py.
-POLICY_4_1_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "rwn-policy-4.1.0.json")
-POLICY_4_1_SHA256 = "2156f5844d0d1fdad9d415b0aba0226c8c6b17a8a9b2294546b166dff4c3c82d"
-PINNED = {os.path.abspath(DEFAULT_POLICY_PATH): DEFAULT_POLICY_SHA256, os.path.abspath(POLICY_4_1_PATH): POLICY_4_1_SHA256}
+DEFAULT_POLICY_SHA256 = "6f7bb9e3762754dc6ca6343c44f000c7caf05a819a1f63c857471856d3946c2a"
+PINNED = {os.path.abspath(DEFAULT_POLICY_PATH): DEFAULT_POLICY_SHA256}
 FINGERPRINTS = ("fp1", "fp2")
 EPS = 0.01                      # calibrated scores are clamped to [EPS, 1 - EPS] (as in Phase 3)
 
@@ -138,7 +134,7 @@ class Policy:
     default_profile: str
     profiles: Mapping[str, Profile]
     doc: Mapping = field(repr=False, default_factory=dict)
-    fingerprint: str = "fp1"          # exact-copy gate fingerprint: fp1 = raw sha256 (<= 4.0.0), fp2 = normalized
+    fingerprint: str = "fp1"          # exact-copy gate fingerprint: fp1 = raw sha256, fp2 = normalized (4.2.0)
 
     def profile(self, name: Optional[str] = None) -> Profile:
         n = name or self.default_profile

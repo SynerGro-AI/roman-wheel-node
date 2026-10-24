@@ -1,0 +1,187 @@
+{
+ "protocol": "Policy 4.2.0: refit every shipped profile on commercial-use data only (zero API calls; judges read from cache).\n\nWhy: rwn-policy-4.0.0 / 4.1.0 were fitted on SciFact train + HealthVer train. The owner's rule for anything that ships\nis \"fitted only on data whose licence permits commercial use, verified at the primary source\" (DATA_LICENSES.md).\nOf the datasets this project has used, SciFact (claims CC BY 4.0, abstracts ODC-By 1.0) is the only one in scope:\nHealthVer is excluded by the owner's decision, Climate-FEVER and COVID-Fact have no licence at their primary source.\n\nProtocol (fixed before any SciFact dev number was computed for 4.2.0):\n* Fit pool: SciFact train with gold evidence (the 799 claims of the Phase 3e SciFact population; the 10 J9 few-shot\n  claims stay excluded). Same fitting code as 4.0.0 (phase4/export_policy.fit): isotonic calibrators, Beta\n  reliabilities, learned cut-off.\n* local / local-lite: accept margin pre-registered exactly as in 4.0.0 (phase4/export_policy.prereg_margin), on the\n  SciFact-only out-of-fold posteriors.\n* panel: the same structural config as 4.0.0's panel (bayes-logit over all nine sources, base rule, accept-only,\n  rho = 0), calibrated on SciFact only. Its margin comes from LTT fixed-sequence testing (K = 40, one-sided\n  Clopper-Pearson, delta = 0.05, accept-precision risk) on the SciFact-only out-of-fold posteriors. The family is this\n  one config (n_tests = 1), declared in advance. The 5% certificate is used if it exists, else 10%; if neither\n  certifies, the panel profile is not shipped.\n* Gate: fp2 exact-copy fingerprint, as 4.1.0.\n* Held-out evaluation: SciFact dev (300 claims, gold evidence; never used to fit 4.0.0 or 4.2.0, but its numbers were\n  reported in Phase 3, so it is not pristine). Both 4.0.0 (from git, 3857154) and 4.2.0 are run through the same\n  runtime (roman_wheel_node.shadow.FrozenNode) on the same cached source outputs.\nOutputs: src/roman_wheel_node/policies/rwn-policy-4.2.0.json, the pin in policy.py, results/phase6/refit_42.{json,txt}\n(aggregates only).\n\n    env -u XAI_API_KEY python3 phase6/refit_policy_42.py\n",
+ "skipped_incomplete": {},
+ "fit_pool_n": 799,
+ "test": "scifact_dev",
+ "test_n": 300,
+ "policy_4_2_0_sha256": "6f7bb9e3762754dc6ca6343c44f000c7caf05a819a1f63c857471856d3946c2a",
+ "baseline": "rwn-policy-4.0.0 254804f8ac9b500ef1951879fb64328b0f54303b8bef20e38b1684545f876eb1 (git 3857154)",
+ "panel_certificate_4_2_0": {
+  "0.1": {
+   "certified": true,
+   "m_a": 1.1747359841409104,
+   "m_r": Infinity,
+   "step": 40,
+   "decided": 280,
+   "errors": 17,
+   "accepted": 280,
+   "false_accepts": 17,
+   "upper": 0.08968083179366616,
+   "config": "scifact|bayes-logit [all]|base",
+   "rho": 0.0,
+   "n": 799
+  },
+  "0.05": {
+   "certified": false
+  },
+  "0.02": {
+   "certified": false
+  },
+  "0.01": {
+   "certified": false
+  }
+ },
+ "panel_certificate_tests": 1,
+ "profiles": {
+  "panel": {
+   "4.0.0": {
+    "n": 300,
+    "ACCEPT": 63,
+    "NOT_SURE": 235,
+    "BLOCK": 2,
+    "accepted_true": 62,
+    "false_accepts": 1,
+    "blocked_true": 1,
+    "supported": 124,
+    "errors_or_mismatch": 0,
+    "accept_rate": 0.21,
+    "accept_precision": 0.9841269841269841,
+    "false_accept_share_upper95_cp": 0.073098617260472,
+    "coverage_of_supported": 0.5,
+    "decided": 65,
+    "accuracy_decided": 0.9692307692307692,
+    "accuracy_all_not_sure_as_reject": 0.79
+   },
+   "4.2.0": {
+    "n": 300,
+    "ACCEPT": 108,
+    "NOT_SURE": 190,
+    "BLOCK": 2,
+    "accepted_true": 101,
+    "false_accepts": 7,
+    "blocked_true": 1,
+    "supported": 124,
+    "errors_or_mismatch": 0,
+    "accept_rate": 0.36,
+    "accept_precision": 0.9351851851851852,
+    "false_accept_share_upper95_cp": 0.11829149485576121,
+    "coverage_of_supported": 0.8145161290322581,
+    "decided": 110,
+    "accuracy_decided": 0.9272727272727272,
+    "accuracy_all_not_sure_as_reject": 0.9
+   },
+   "params": {
+    "4.0.0": {
+     "cutoff": 0.106,
+     "margin": 9.092917296278914,
+     "threshold": 0.9990524194817871
+    },
+    "4.2.0": {
+     "cutoff": 0.133,
+     "margin": 1.1747359841409104,
+     "threshold": 0.3318224567636762
+    }
+   }
+  },
+  "local": {
+   "4.0.0": {
+    "n": 300,
+    "ACCEPT": 51,
+    "NOT_SURE": 249,
+    "BLOCK": 0,
+    "accepted_true": 47,
+    "false_accepts": 4,
+    "blocked_true": 0,
+    "supported": 124,
+    "errors_or_mismatch": 0,
+    "accept_rate": 0.17,
+    "accept_precision": 0.9215686274509803,
+    "false_accept_share_upper95_cp": 0.17055902294011585,
+    "coverage_of_supported": 0.3790322580645161,
+    "decided": 51,
+    "accuracy_decided": 0.9215686274509803,
+    "accuracy_all_not_sure_as_reject": 0.73
+   },
+   "4.2.0": {
+    "n": 300,
+    "ACCEPT": 64,
+    "NOT_SURE": 236,
+    "BLOCK": 0,
+    "accepted_true": 55,
+    "false_accepts": 9,
+    "blocked_true": 0,
+    "supported": 124,
+    "errors_or_mismatch": 0,
+    "accept_rate": 0.21333333333333335,
+    "accept_precision": 0.859375,
+    "false_accept_share_upper95_cp": 0.23256644607030227,
+    "coverage_of_supported": 0.4435483870967742,
+    "decided": 64,
+    "accuracy_decided": 0.859375,
+    "accuracy_all_not_sure_as_reject": 0.74
+   },
+   "params": {
+    "4.0.0": {
+     "cutoff": 0.466,
+     "margin": 0.6862961338143052,
+     "threshold": 0.6341555269610819
+    },
+    "4.2.0": {
+     "cutoff": 0.413,
+     "margin": 0.8544690855407959,
+     "threshold": 0.623138687667942
+    }
+   }
+  },
+  "local-lite": {
+   "4.0.0": {
+    "n": 300,
+    "ACCEPT": 17,
+    "NOT_SURE": 283,
+    "BLOCK": 0,
+    "accepted_true": 16,
+    "false_accepts": 1,
+    "blocked_true": 0,
+    "supported": 124,
+    "errors_or_mismatch": 0,
+    "accept_rate": 0.056666666666666664,
+    "accept_precision": 0.9411764705882353,
+    "false_accept_share_upper95_cp": 0.2501244518664764,
+    "coverage_of_supported": 0.12903225806451613,
+    "decided": 17,
+    "accuracy_decided": 0.9411764705882353,
+    "accuracy_all_not_sure_as_reject": 0.6366666666666667
+   },
+   "4.2.0": {
+    "n": 300,
+    "ACCEPT": 16,
+    "NOT_SURE": 284,
+    "BLOCK": 0,
+    "accepted_true": 15,
+    "false_accepts": 1,
+    "blocked_true": 0,
+    "supported": 124,
+    "errors_or_mismatch": 0,
+    "accept_rate": 0.05333333333333334,
+    "accept_precision": 0.9375,
+    "false_accept_share_upper95_cp": 0.26395739728856865,
+    "coverage_of_supported": 0.12096774193548387,
+    "decided": 16,
+    "accuracy_decided": 0.9375,
+    "accuracy_all_not_sure_as_reject": 0.6333333333333333
+   },
+   "params": {
+    "4.0.0": {
+     "cutoff": 0.475,
+     "margin": 0.6247707263384971,
+     "threshold": 0.6282431514602672
+    },
+    "4.2.0": {
+     "cutoff": 0.457,
+     "margin": 0.8178589888370968,
+     "threshold": 0.6559805764385525
+    }
+   }
+  }
+ }
+}

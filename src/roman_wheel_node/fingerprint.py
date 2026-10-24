@@ -1,9 +1,9 @@
-"""Versioned text fingerprints for the exact-copy gate (policy 4.1.0+).
+"""Versioned text fingerprints for the exact-copy gate (fp2: policy 4.2.0, the shipped default).
 
 Fingerprint versions:
 
-* ``fp1``: the Phase 1-4 gate, ``sha256(text.encode("utf-8"))``. A byte-identical copy is required. Frozen policy
-  rwn-policy-4.0.0 uses this, and it is unchanged.
+* ``fp1``: the Phase 1-4 gate, ``sha256(text.encode("utf-8"))``. A byte-identical copy is required. It is unchanged,
+  and an fp2 gate still accepts any unit whose raw fp1 hash is trusted.
 * ``fp2``: ``"rwn-fp2:" + sha256(normalize_v2(text))``. ``normalize_v2`` only removes differences that cannot change
   what a sentence says:
 

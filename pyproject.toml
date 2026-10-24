@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "roman-wheel-node"
-version = "1.0.0"
+version = "1.2.0"
 description = "Exact-copy gate + learning, append-only Bayesian source weighting for filtering agent claims."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -29,6 +29,9 @@ bench = ["matplotlib>=3.5"]
 local-nli = ["onnxruntime>=1.16", "tokenizers>=0.15", "numpy"]
 local-nli2 = ["torch", "transformers>=4.40", "sentencepiece", "protobuf"]
 
+[project.scripts]
+roman-wheel-node = "roman_wheel_node.__main__:main"
+
 [project.urls]
 Homepage = "https://github.com/SynerGro-AI/roman-wheel-node"
 Source = "https://github.com/SynerGro-AI/roman-wheel-node"
@@ -40,6 +43,13 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 roman_wheel_node = ["py.typed", "policies/*.json"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

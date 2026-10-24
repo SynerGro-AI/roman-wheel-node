@@ -27,6 +27,7 @@ from roman_wheel_node import fresh as FR                          # noqa: E402
 from roman_wheel_node.shadow import ShadowRunner                   # noqa: E402
 from roman_wheel_node.sources import LocalSources, sha256          # noqa: E402
 from features import CACHE                                         # noqa: E402
+HISTORICAL = ("superseded: rwn-policy-4.0.0/4.1.0 were fitted partly on HealthVer and no longer ship (policy 4.2.0, phase6/refit_policy_42.py). Reproduce this historical run from git commit 3857154.")
 
 P4 = os.path.join(CACHE, "phase4")
 NOTE = "HealthVer and COVID-Fact: internal, unlicensed datasets; data and per-item outputs are not redistributed"
@@ -51,6 +52,9 @@ def cached_panel():
 
 
 def main() -> None:
+    from roman_wheel_node.policy import DEFAULT_POLICY_SHA256
+    if DEFAULT_POLICY_SHA256 != "254804f8ac9b500ef1951879fb64328b0f54303b8bef20e38b1684545f876eb1":
+        sys.exit(HISTORICAL)
     ap = argparse.ArgumentParser()
     ap.add_argument("--profile", required=True, choices=("local", "local-lite", "panel"))
     ap.add_argument("--ds", default="hv_test_unjudged,covidfact,hv_dev")

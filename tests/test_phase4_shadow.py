@@ -41,7 +41,7 @@ def test_default_policy_is_pinned_and_honest():
     assert p.doc["outcomes"] == [ACCEPT, NOT_SURE, BLOCK]
     assert "Nothing is certified at 1% or 2%" in p.doc["honesty"]
     c = p.profile("panel").certified
-    assert c["alpha"] == 0.05 and "SciFact" in c["population"] and p.profile("panel").needs_judges
+    assert c["alpha"] == 0.10 and "SciFact" in c["population"] and p.profile("panel").needs_judges
     for name in ("local", "local-lite"):
         assert p.profile(name).certified["alpha"] is None
     for prof in p.profiles.values():                   # accept-only: positive margin over the learned cut-off
