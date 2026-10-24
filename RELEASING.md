@@ -35,7 +35,7 @@ publishing (OIDC). No PyPI API token is stored in the repository or its secrets,
 |---|---|---|
 | Tag commit is on `main` | build, step "Tag commit is on main" (full-history checkout, `fetch-depth: 0`) | `git merge-base --is-ancestor $GITHUB_SHA origin/main`, else the build fails |
 | Tag equals package version | build | `v<__version__>` must equal the tag |
-| Quality gates | build | `ruff check .`, `pytest -W error`, `python -m build`, `twine check --strict`, fresh-venv wheel install and CLI smoke |
+| Quality gates | build | `ruff check .`, `ruff format --check .`, SciFact test-data fetch, `pytest -W error` (a skipped test fails the build), the same suite with EncodingWarning as an error, `python -m build`, `twine check --strict`, fresh-venv wheel install and CLI smoke |
 | Reviewed environment | publish, first step | `gh api repos/<repo>/environments/pypi` must list at least one `required_reviewers` protection rule, else the job fails before downloading anything |
 | Least privilege | publish | `id-token: write` (OIDC for trusted publishing) and `actions: read` (lets `GITHUB_TOKEN` read the environment's protection rules); workflow default is `contents: read` |
 | No half-cancelled uploads | per-job concurrency | build: group `release-build-<ref>`, a newer run cancels an older build; publish: group `publish-<ref>`, `cancel-in-progress: false` |

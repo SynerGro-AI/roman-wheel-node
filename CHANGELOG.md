@@ -40,6 +40,8 @@ Fixes found after the 1.2.0 upload. No policy, weight or decision changes: the s
   is never distributed, moved out of pytest to `phase5/check_manifest_from_data.py`.
 - CI: runners pinned to `ubuntu-24.04`, Python 3.14 added to the matrix, a `windows-2025` job, a pytest run with
   `-X warn_default_encoding -W error::EncodingWarning`, a ruff job, `twine check --strict`, actions pinned to SHAs.
+- Release build: also runs `ruff format --check .` and the EncodingWarning pytest run, fetches the SciFact test data,
+  and fails if any test is skipped.
 - Package metadata: Python 3.9-3.14 and Development Status classifiers.
 - README: "no API calls" qualified (the optional `nli2` model is downloaded from Hugging Face by name on first use),
   the private `phase3/cache/step2` feature cache needed to reproduce the published dev numbers is stated, and the test

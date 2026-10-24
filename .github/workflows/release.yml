@@ -49,11 +49,21 @@ jobs:
           version="$(python -c 'import roman_wheel_node; print(roman_wheel_node.__version__)')"
           test "v${version}" = "${TAG}" || { echo "tag ${TAG} does not match package version ${version}"; exit 1; }
       - name: Ruff
-        run: ruff check .
+        run: |
+          ruff check .
+          ruff format --check .
       - name: SciFact test data (pinned by sha256)
         run: python scripts/fetch_test_data.py
-      - name: Tests (warnings are errors; any skip is reported)
-        run: python -m pytest -q -rs -W error
+      - name: Tests (warnings are errors; a skipped test fails the release)
+        shell: bash # explicit bash runs with -eo pipefail, so a pytest failure still fails the step through tee
+        run: |
+          python -m pytest -q -rs -W error 2>&1 | tee "$RUNNER_TEMP/pytest.out"
+          if grep -q '^SKIPPED' "$RUNNER_TEMP/pytest.out"; then
+            echo "skipped tests are not allowed in a release build"
+            exit 1
+          fi
+      - name: Tests with locale-default text I/O as an error (EncodingWarning)
+        run: python -X warn_default_encoding -W error::EncodingWarning -m pytest -q -W error -p no:cacheprovider
       - name: Build sdist and wheel
         run: python -m build
       - name: Twine check
