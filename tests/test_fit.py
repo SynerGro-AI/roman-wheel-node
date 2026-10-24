@@ -9,7 +9,6 @@ ShadowRunner.
 
 import json
 import os
-import sys
 
 import pytest
 
@@ -173,18 +172,3 @@ def test_fit_errors(tmp_path):
     (tmp_path / "t.json").write_text(json.dumps(doc), encoding="utf-8")
     with pytest.raises(PolicyError):
         load_policy(str(tmp_path / "t.json"), doc["sha256"])
-
-
-def test_shipped_policy_is_reproduced_by_the_fit_api():
-    """Repo-only: refit 4.3.0 from the local SciFact feature cache with the public API; must match the shipped file."""
-    cache = os.path.join(ROOT, "phase3", "cache", "step2", "local.json")
-    if not os.path.isfile(cache):
-        pytest.skip("phase3/cache/step2 (SciFact local features) is a local research cache, not in git or the sdist")
-    sys.path.insert(0, os.path.join(ROOT, "phase6"))
-    import refit_policy_43 as RF
-
-    pool, _ = RF.load_rows()
-    doc = RF.build_doc(pool)
-    shipped = load_policy()
-    strip = ("fitted_with", "sha256")
-    assert {k: v for k, v in doc.items() if k not in strip} == {k: v for k, v in shipped.doc.items() if k not in strip}

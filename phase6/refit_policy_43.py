@@ -72,9 +72,10 @@ def _load(path):
         return json.load(f)
 
 
-def load_rows():
-    items = _load(os.path.join(CACHE, "items.json"))
-    local = _load(os.path.join(CACHE, "local.json"))
+def load_rows(cache=CACHE):
+    """SciFact rows from a step2 cache: the research cache, or the one scripts/fetch_test_data.py builds."""
+    items = _load(os.path.join(cache, "items.json"))
+    local = _load(os.path.join(cache, "local.json"))
     rows = []
     for it in items:
         if it["ds"] not in (*FIT_DS, TEST_DS):

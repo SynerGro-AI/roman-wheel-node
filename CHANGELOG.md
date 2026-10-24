@@ -19,9 +19,25 @@ Fixes found after the 1.2.0 upload. No policy, weight or decision changes: the s
 - **`fit` input checks.** `folds` must be an integer of at least 2 (`--folds 1` was an IndexError; on the CLI it is
   now a usage error, exit 2). The "both classes in every fold" check is now really per fold. An unreadable,
   non-UTF-8 or invalid examples file is a usage error and an unwritable output file is a clean `fit failed`, not a
-  traceback.
+  traceback. A deeply nested JSON line in the examples file is a usage error too (it was an uncaught
+  `RecursionError`), and the "too few examples" message now says what is counted
+  (`need at least 50 examples for 5-fold cross-fitting; got 12`).
+- **Shadow CLI input.** A claim containing Unicode line separators (U+2028, U+0085, form feed and so on) is one claim:
+  stdin and `--claims` are split on `\n` only (`str.splitlines()` split them into several claims). Non-UTF-8 or
+  invalid JSON on stdin, in the claims file or in the corpus file (including deeply nested JSON) is a clear usage
+  error naming the file and line, exit 2, instead of a traceback.
+- **Malformed scores are labelled as such.** A source score that is present but not a number in [0, 1] gives
+  `error:malformed_score:<src>`; `error:missing_source:<src>` now means the score is really absent.
+- **CHANGELOG:** 1.2.0 is dated (it said "unreleased" after it was uploaded); a test keeps only the current version
+  undated.
 
 ### Changed
+- Tests: no test skips itself any more in a clean checkout. The two full-benchmark byte-identity tests run by default
+  (no `RWN_FULL_BENCH`); the 4.3.0 refit test (`tests/test_repo_data.py`, repo-only) reads SciFact data built by the
+  new `scripts/fetch_test_data.py` from pinned public sources and fails, printing that command, when it is missing;
+  CI and the release workflow run the fetch step. Hypothesis is imported unconditionally (it is in the `test` extra),
+  so missing it is an error, not silently fewer tests. The COVID-Fact manifest check, which needs an internal cache that
+  is never distributed, moved out of pytest to `phase5/check_manifest_from_data.py`.
 - CI: runners pinned to `ubuntu-24.04`, Python 3.14 added to the matrix, a `windows-2025` job, a pytest run with
   `-X warn_default_encoding -W error::EncodingWarning`, a ruff job, `twine check --strict`, actions pinned to SHAs.
 - Package metadata: Python 3.9-3.14 and Development Status classifiers.

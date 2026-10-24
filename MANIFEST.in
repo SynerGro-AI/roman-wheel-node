@@ -2,3 +2,5 @@
 # Research scripts (phase3/ phase4/ phase4b/ phase5/), results/, data, models and bundles stay repo-only.
 include CHANGELOG.md SAFETY.md DATA_LICENSES.md
 recursive-include tests *.py
+# Needs scripts/ and phase6/ (repo-only) plus data built by scripts/fetch_test_data.py.
+exclude tests/test_repo_data.py

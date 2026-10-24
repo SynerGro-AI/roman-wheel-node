@@ -349,10 +349,13 @@ respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(
 Policy 4.3.0 fits both profiles on SciFact train only (799 claims; CC BY 4.0 claims, ODC-By 1.0 abstracts) from the
 local models' scores, with the public `roman_wheel_node.fit` API, then evaluates once on held-out SciFact dev (300
 claims). HealthVer, Climate-FEVER and COVID-Fact are not used, and no hosted-model output is used anywhere in the fit.
-Script: `phase6/refit_policy_43.py`; report: `results/phase6/refit_43.txt` (repository). Re-running the script
-needs the local SciFact feature cache `phase3/cache/step2` (the local models' scores for SciFact train and dev), which
-is a private research cache, not in git or the sdist; rebuild it with `phase3/s2_data.py` and the local feature step
-before the published dev numbers can be reproduced. Licences and attribution:
+Script: `phase6/refit_policy_43.py`; report: `results/phase6/refit_43.txt` (repository). The inputs of the fit can be
+rebuilt from pinned public sources: `python scripts/fetch_test_data.py` downloads SciFact `data.tar.gz` from the Allen
+Institute (sha256-pinned) and combines it with `phase6/data/scifact_step2_features.json` (in git: SciFact claim ids,
+gold doc ids and the local models' rounded scores, no text) into `~/.cache/roman_wheel_node/test-data/scifact-step2`
+(or `$RWN_TEST_DATA`). `tests/test_repo_data.py` refits 4.3.0 from that data and requires the result to equal the
+shipped policy; without the data it fails and prints the command. The full research script also compares against
+other private research caches (`phase3/cache/`), which are not in git. Licences and attribution:
 [DATA_LICENSES.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/DATA_LICENSES.md).
 
 | Profile | ACCEPT (of 300) | False accepts | Precision (95% upper bound on false share) | Supported claims accepted | Accuracy, NOT_SURE = reject |

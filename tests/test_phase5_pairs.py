@@ -14,8 +14,6 @@ if not os.path.isdir(os.path.join(os.path.dirname(os.path.dirname(os.path.abspat
 sys.path.insert(0, os.path.join(ROOT, "phase5"))
 import pairs_common as C  # noqa: E402
 
-ITEMS = os.path.join(ROOT, "phase3", "cache", "phase4", "items.json")
-
 
 def _toy():
     out = []
@@ -65,15 +63,6 @@ def test_manifest_has_no_text_and_is_self_hashed(tmp_path):
     if m["groups"][k] != "A_train":
         with pytest.raises(SystemExit):
             C.load_manifest(str(p))
-
-
-@pytest.mark.skipif(not os.path.exists(ITEMS), reason="internal COVID-Fact cache not present")
-def test_manifest_reproduces_from_data():
-    items = [i for i in json.loads(Path(ITEMS).read_text(encoding="utf-8")) if i["ds"] == "covidfact"]
-    assert C.manifest_doc(items, C.build_split(items))["sha256"] == C.load_manifest()["sha256"]
-    blob = Path(C.MANIFEST).read_text(encoding="utf-8")
-    assert not any(it["claim"] in blob for it in items if len(it["claim"]) > 15)
-    assert not any(C.group_of(it["evidence"]) in blob for it in items)  # raw group keys are salted away
 
 
 def test_protocol_frozen():

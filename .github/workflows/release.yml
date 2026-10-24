@@ -50,7 +50,9 @@ jobs:
           test "v${version}" = "${TAG}" || { echo "tag ${TAG} does not match package version ${version}"; exit 1; }
       - name: Ruff
         run: ruff check .
-      - name: Tests (warnings are errors; opt-in skips are reported)
+      - name: SciFact test data (pinned by sha256)
+        run: python scripts/fetch_test_data.py
+      - name: Tests (warnings are errors; any skip is reported)
         run: python -m pytest -q -rs -W error
       - name: Build sdist and wheel
         run: python -m build
