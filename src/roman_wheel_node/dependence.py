@@ -21,7 +21,7 @@ dependence=learner)``):
   ``shrink`` pseudo-counts. With no significant edges it reduces *exactly* to ``variant="hard"`` on the
   learner's own reliabilities.
 * ``"ess_cal"``: the ESS discount applied to *calibrated confidences* instead of hard votes, for sources whose
-  scores are calibrated posteriors ``P(true | score_k)`` (e.g. isotonic-calibrated LLM judges). With the learned base
+  scores are calibrated posteriors ``P(true | score_k)`` (e.g. isotonic-calibrated model scores). With the learned base
   rate π, the log-odds is ``logit(π) + Σ_k w_k (logit(s_k) - logit(π))``: naive Bayes on calibrated posteriors, with
   each source's evidence down-weighted by its ESS weight ``w_k``. It keeps the confidence that hard votes throw away.
 * ``"stack"``: stacking. An online logistic regression on the signed votes, with an L2 pull toward the naive-Bayes

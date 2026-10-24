@@ -306,7 +306,7 @@ def _swaps(
 def check(
     claim: str, evidence: Sequence[str], quotes: Optional[Sequence[str]] = None, rule: Optional[Dict] = None
 ) -> StructCheck:
-    """Compare ``claim`` with its evidence sentences (plus optional judge quotes, used as extra sentences)."""
+    """Compare ``claim`` with its evidence sentences (plus optional quotes, used as extra sentences)."""
     rule = FROZEN if rule is None else rule
     units = [u for u in list(evidence) + list(quotes or ()) if u]
     ET = tokens(" ".join(units))

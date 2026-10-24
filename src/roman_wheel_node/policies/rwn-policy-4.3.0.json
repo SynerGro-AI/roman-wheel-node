@@ -1,0 +1,334 @@
+{
+ "data_licences": "Fitted only on SciFact train (CC BY 4.0 claims, ODC-By 1.0 abstracts) with local open-model features. No HealthVer, Climate-FEVER or COVID-Fact data, and no hosted-model (LLM API) output. See DATA_LICENSES.md.",
+ "default_profile": "local",
+ "fail_closed": "missing or erroring source, malformed score, disagreement flag, or posterior below the accept margin -> NOT_SURE (never admitted); exact-copy gate failure -> BLOCK",
+ "fit_script": "phase6/refit_policy_43.py (roman_wheel_node.fit)",
+ "fitted_with": "roman-wheel-node 1.2.0 (roman_wheel_node.fit)",
+ "format": "rwn-policy",
+ "gate": {
+  "fingerprint": "fp2",
+  "normalize": "NFC; drop U+200B-200D,2060,FEFF,00AD; curly/typographic quotes -> ' and \"; hyphen/dash/minus variants -> -; whitespace runs -> one space; strip. Not NFKC.",
+  "normalize_table_sha256": "3fb91cfbe2aee2d41e944984d7a17023c435acc4265013249cbf4527137bf466",
+  "superset_of": "fp1 (a unit passes if its raw sha256 or its fp2 fingerprint is trusted)"
+ },
+ "honesty": "No profile is certified at any level.",
+ "outcomes": [
+  "ACCEPT",
+  "NOT_SURE",
+  "BLOCK"
+ ],
+ "profiles": {
+  "local": {
+   "accept_margin": 0.9795846792847042,
+   "calibration": {
+    "folds": 5,
+    "n": 799,
+    "pool": "SciFact train, gold evidence (799 claims), local open-model features only (no hosted-model output). Claims and evidence annotations CC BY 4.0, abstracts ODC-By 1.0 (github.com/allenai/scifact LICENSE.md, a5254a1). See DATA_LICENSES.md."
+   },
+   "calibrators": {
+    "nli2": {
+     "C": [
+      [
+       0.273996,
+       0.659387,
+       0.751769,
+       0.937578,
+       0.971565,
+       0.971833,
+       0.993075,
+       0.993639,
+       0.995817,
+       0.996127,
+       0.997809,
+       0.998914,
+       0.999562
+      ],
+      [
+       0.04071246819338423,
+       0.15853658536585366,
+       0.16666666666666666,
+       0.22972972972972974,
+       0.2564102564102564,
+       0.3333333333333333,
+       0.3582089552238806,
+       0.375,
+       0.48,
+       0.5,
+       0.6363636363636364,
+       0.7272727272727273,
+       0.8484848484848485
+      ]
+     ],
+     "S": [
+      [
+       0.00107,
+       0.001596,
+       0.006468,
+       0.006821,
+       0.011639,
+       0.017182,
+       0.030573,
+       0.068282,
+       0.089218,
+       0.090884,
+       0.131421,
+       0.135126,
+       0.198562,
+       0.329603,
+       0.455551,
+       0.998768
+      ],
+      [
+       0.05555555555555555,
+       0.1,
+       0.15306122448979592,
+       0.16666666666666666,
+       0.18055555555555555,
+       0.24561403508771928,
+       0.25,
+       0.297029702970297,
+       0.32142857142857145,
+       0.3333333333333333,
+       0.37142857142857144,
+       0.4,
+       0.4411764705882353,
+       0.5121951219512195,
+       0.5945945945945946,
+       0.8168316831683168
+      ]
+     ]
+    },
+    "overlap": {
+     "S": [
+      [
+       0.05,
+       0.25,
+       0.29545454545454547,
+       0.32,
+       0.42058823529411765,
+       0.47000000000000003,
+       0.5264705882352941,
+       0.53,
+       0.692857142857143,
+       0.8,
+       0.8214285714285714,
+       0.8441176470588235,
+       0.8857142857142858,
+       0.9500000000000001
+      ],
+      [
+       0.07407407407407407,
+       0.08791208791208792,
+       0.2,
+       0.25,
+       0.27927927927927926,
+       0.32727272727272727,
+       0.3855421686746988,
+       0.4,
+       0.5622119815668203,
+       0.611764705882353,
+       0.6521739130434783,
+       0.6666666666666666,
+       0.7222222222222222,
+       0.7916666666666666
+      ]
+     ]
+    }
+   },
+   "certified": {
+    "alpha": null,
+    "note": "NOT certified at any level tested (10%, 5%, 2%, 1%); best out-of-fold upper bound on the false-accept share 21.6% (preregistration)"
+   },
+   "cutoff": 0.413,
+   "disagreement": {},
+   "hedge_width": 0.15,
+   "ltt": {
+    "K": 40,
+    "alphas": {
+     "0.01": {
+      "certified": false
+     },
+     "0.02": {
+      "certified": false
+     },
+     "0.05": {
+      "certified": false
+     },
+     "0.1": {
+      "certified": false
+     }
+    },
+    "delta": 0.05,
+    "n_tests": 2
+   },
+   "preregistration": {
+    "accepted_oof": 135,
+    "false_accepts_oof": 21,
+    "margin": 0.9795846792847042,
+    "n_pool": 799,
+    "rule": "argmin one-sided 95% CP upper bound of the false-accept share over the fixed K=40 accept-only margin path, 5-fold out-of-fold posteriors",
+    "step": 18,
+    "upper95": 0.2162215736415537
+   },
+   "prior": 0.5,
+   "reliability": {
+    "nli2": 0.7590511860174781,
+    "overlap": 0.6903870162297129
+   },
+   "sources": [
+    "nli2",
+    "overlap"
+   ],
+   "variant": "logit"
+  },
+  "local-lite": {
+   "accept_margin": 0.8178589888370968,
+   "calibration": {
+    "folds": 5,
+    "n": 799,
+    "pool": "SciFact train, gold evidence (799 claims), local open-model features only (no hosted-model output). Claims and evidence annotations CC BY 4.0, abstracts ODC-By 1.0 (github.com/allenai/scifact LICENSE.md, a5254a1). See DATA_LICENSES.md."
+   },
+   "calibrators": {
+    "nli": {
+     "C": [
+      [
+       0.038267,
+       0.276594,
+       0.340224,
+       0.801642,
+       0.895674,
+       0.984705,
+       0.995246,
+       0.996867,
+       0.998465,
+       0.999887
+      ],
+      [
+       0.1,
+       0.11363636363636363,
+       0.16666666666666666,
+       0.16744186046511628,
+       0.18421052631578946,
+       0.18888888888888888,
+       0.2857142857142857,
+       0.2962962962962963,
+       0.391304347826087,
+       0.524390243902439
+      ]
+     ],
+     "S": [
+      [
+       0.002506,
+       0.048189,
+       0.049025,
+       0.065505,
+       0.067513,
+       0.515791,
+       0.733736,
+       0.758739,
+       0.954917,
+       0.9686,
+       0.998392
+      ],
+      [
+       0.15217391304347827,
+       0.21341463414634146,
+       0.25,
+       0.3125,
+       0.3333333333333333,
+       0.3806228373702422,
+       0.45454545454545453,
+       0.5,
+       0.5102040816326531,
+       0.631578947368421,
+       0.801980198019802
+      ]
+     ]
+    },
+    "overlap": {
+     "S": [
+      [
+       0.05,
+       0.25,
+       0.29545454545454547,
+       0.32,
+       0.42058823529411765,
+       0.47000000000000003,
+       0.5264705882352941,
+       0.53,
+       0.692857142857143,
+       0.8,
+       0.8214285714285714,
+       0.8441176470588235,
+       0.8857142857142858,
+       0.9500000000000001
+      ],
+      [
+       0.07407407407407407,
+       0.08791208791208792,
+       0.2,
+       0.25,
+       0.27927927927927926,
+       0.32727272727272727,
+       0.3855421686746988,
+       0.4,
+       0.5622119815668203,
+       0.611764705882353,
+       0.6521739130434783,
+       0.6666666666666666,
+       0.7222222222222222,
+       0.7916666666666666
+      ]
+     ]
+    }
+   },
+   "certified": {
+    "alpha": null,
+    "note": "NOT certified at any level tested (10%, 5%, 2%, 1%); best out-of-fold upper bound on the false-accept share 25.1% (preregistration)"
+   },
+   "cutoff": 0.457,
+   "disagreement": {},
+   "hedge_width": 0.15,
+   "ltt": {
+    "K": 40,
+    "alphas": {
+     "0.01": {
+      "certified": false
+     },
+     "0.02": {
+      "certified": false
+     },
+     "0.05": {
+      "certified": false
+     },
+     "0.1": {
+      "certified": false
+     }
+    },
+    "delta": 0.05,
+    "n_tests": 2
+   },
+   "preregistration": {
+    "accepted_oof": 54,
+    "false_accepts_oof": 8,
+    "margin": 0.8178589888370968,
+    "n_pool": 799,
+    "rule": "argmin one-sided 95% CP upper bound of the false-accept share over the fixed K=40 accept-only margin path, 5-fold out-of-fold posteriors",
+    "step": 6,
+    "upper95": 0.2514659555422554
+   },
+   "prior": 0.5,
+   "reliability": {
+    "nli": 0.6741573033707865,
+    "overlap": 0.6903870162297129
+   },
+   "sources": [
+    "nli",
+    "overlap"
+   ],
+   "variant": "logit"
+  }
+ },
+ "sha256": "6f60f07b8354b9efded1de8187880dce4a4ebdf539dac3461b609e4a478e38a2",
+ "version": "4.3.0"
+}

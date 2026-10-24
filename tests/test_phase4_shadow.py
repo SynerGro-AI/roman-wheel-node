@@ -1,5 +1,5 @@
 """Phase 4 (SAFETY.md G6-G9): the frozen policy, shadow mode never alters agent outputs, everything fails closed,
-paid judges stay off by default, and the fresh-set certificate arithmetic."""
+no hosted-model key is ever read, and the fresh-set certificate arithmetic."""
 
 import copy
 import json
@@ -20,7 +20,7 @@ from roman_wheel_node.policy import (
     policy_sha256,
 )
 from roman_wheel_node.shadow import FrozenNode, ShadowRunner
-from roman_wheel_node.sources import BM25, XAIPanel, exact_gate, sha256
+from roman_wheel_node.sources import BM25, LocalSources, exact_gate, sha256
 
 try:
     from hypothesis import HealthCheck, given, settings
@@ -47,13 +47,13 @@ def runner(tmp_path, **kw):
 # ---- policy -------------------------------------------------------------------------------------------------------
 def test_default_policy_is_pinned_and_honest():
     p = load_policy()
-    assert p.default_profile == "local" and not p.profile().needs_judges
+    assert p.default_profile == "local" and sorted(p.profiles) == ["local", "local-lite"]
     assert p.doc["outcomes"] == [ACCEPT, NOT_SURE, BLOCK]
-    assert "Nothing is certified at 1% or 2%" in p.doc["honesty"]
-    c = p.profile("panel").certified
-    assert c["alpha"] == 0.10 and "SciFact" in c["population"] and p.profile("panel").needs_judges
-    for name in ("local", "local-lite"):
-        assert p.profile(name).certified["alpha"] is None
+    assert p.doc["honesty"] == "No profile is certified at any level."
+    for name in ("local", "local-lite"):  # honest: no certificate at any level tested, and it says so
+        c = p.profile(name).certified
+        assert c["alpha"] is None and c["note"].startswith("NOT certified at any level tested")
+        assert set(p.profile(name).sources) <= {"nli", "nli2", "overlap"}
     for prof in p.profiles.values():  # accept-only: positive margin over the learned cut-off
         assert prof.accept_margin > 0 and prof.accept_threshold() > prof.cutoff
 
@@ -189,8 +189,8 @@ def test_fail_closed_cases(tmp_path):
     assert rr.observe("c", EV).outcome in (ACCEPT, NOT_SURE)  # local profile has no disagreement rule
     rn = runner(tmp_path, trusted_hashes=None)
     assert rn.observe("c", EV).outcome == BLOCK  # no trusted store: unverifiable -> BLOCK
-    rp = runner(tmp_path, profile="panel")  # panel without judges: never ACCEPT
-    assert rp.observe("c", EV).outcome == NOT_SURE
+    with pytest.raises(PolicyError):  # no hosted-model profile ships
+        runner(tmp_path, profile="panel")
 
 
 def test_retrieval_feeds_the_gate(tmp_path):
@@ -202,7 +202,7 @@ def test_retrieval_feeds_the_gate(tmp_path):
     assert exact_gate(EV, BM25(corpus).hashes()) == 1 and exact_gate(["x"], BM25(corpus).hashes()) == 0
 
 
-# ---- judges off by default ----------------------------------------------------------------------------------------
+# ---- no hosted-model key is ever read ----------------------------------------------------------------------------
 class SpyEnv(dict):
     def __init__(self, base):
         super().__init__(base)
@@ -217,26 +217,22 @@ class SpyEnv(dict):
         return super().__getitem__(k)
 
 
-def test_judges_off_by_default_and_key_never_read(tmp_path, monkeypatch):
+def test_no_api_key_is_read(tmp_path, monkeypatch):
     spy = SpyEnv(os.environ)
     spy["XAI_API_KEY"] = "test-not-a-key"
+    spy["OPENAI_API_KEY"] = "test-not-a-key"
     monkeypatch.setattr(os, "environ", spy)
     r = ShadowRunner(str(tmp_path / "d"), sources=fake_sources(), trusted_hashes=TRUST)
-    assert r.judges is None and r.node.prof.name == "local"
+    assert r.node.prof.name == "local" and not hasattr(r, "judges")
     r.observe("c", EV)
     r.wrap(lambda: "o", extract=lambda o: [("c", EV)])()
-    assert "XAI_API_KEY" not in spy.reads
+    assert not [k for k in spy.reads if "KEY" in k or "TOKEN" in k]
     with open(r.fresh_path, encoding="utf-8") as f:
         for line in f:
-            assert "test-not-a-key" not in line and not any(k.startswith("J") for k in json.loads(line)["raw"])
-    with pytest.raises(PermissionError):
-        XAIPanel()
-    with pytest.raises(ValueError):
-        XAIPanel(enable=True)  # a spend cap is mandatory
-    assert "XAI_API_KEY" not in spy.reads
+            assert "test-not-a-key" not in line and set(json.loads(line)["raw"]) <= {"nli2", "overlap"}
 
 
-def test_cli_default_has_no_judges(tmp_path, capsys):
+def test_cli_default_is_local(tmp_path, capsys):
     from roman_wheel_node.shadow import _main
 
     f = tmp_path / "c.jsonl"
@@ -272,3 +268,13 @@ def test_prereg_label_certify_flow(tmp_path):
     assert res["skipped"]["unsure"] == 10 and s["labelled"] == 310 and s["accepted"] == 310 and s["false_accepts"] == 0
     assert s["alphas"]["0.01"]["certified"] and s["alphas"]["0.05"]["certified"]
     assert "CERTIFIED" in FR.report(res)
+
+
+def test_removed_options_accepted_only_when_off(tmp_path):
+    # The Seraphina shadow hook (seraphina/rwn_shadow.py) passes judges=None; that must keep working, while turning a
+    # removed option on must fail loudly instead of being ignored.
+    r = ShadowRunner(str(tmp_path / "a"), sources=LocalSources(), judges=None, enforce=False)
+    assert r.observe("x", ["y"]).outcome == BLOCK  # no trusted store: fails closed as before
+    for bad in ({"judges": ["J1"]}, {"cap_usd": 1.0}, {"typo_option": 0}):
+        with pytest.raises(TypeError, match="removed in 1.2.0"):
+            ShadowRunner(str(tmp_path / "b"), sources=LocalSources(), **bad)

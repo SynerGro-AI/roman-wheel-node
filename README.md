@@ -6,14 +6,13 @@
 An exact-copy gate plus learned, auditable evidence fusion that decides whether a claim
 can enter an agent's trace. Pure Python (3.9+), standard library only, zero dependencies.
 
-**Shipped policy 4.2.0, fitted only on SciFact train (commercial-use licences, see
-[DATA_LICENSES.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/DATA_LICENSES.md)).** With the paid
-6-judge panel (opt-in), the accept-only rule is certified at a **≤ 10%** false-accept share on SciFact (out-of-fold on
-the 799 train claims: 280 accepts, 17 false, one-sided Clopper-Pearson upper bound 9.0%, δ = 0.05). On held-out SciFact
-dev it accepted 108 of 300 claims (36.0%) with 7 false accepts: precision 93.5%, 81.5% of the supported claims
-accepted. The free default profile (`local`) accepted 64 of 300 dev claims at 85.9% precision and is not certified at
-any level. **Nothing is certified at 5%, 2% or 1%.** These are the only real-data numbers this release claims; see
-[Policy 4.2.0](#policy-420-the-commercial-use-refit).
+**Shipped policy 4.3.0: free, local profiles only, fitted only on SciFact train (commercial-use licences, see
+[DATA_LICENSES.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/DATA_LICENSES.md)). No xAI/Grok or other
+hosted-model output is used in any shipped weight, and the package makes no API calls.** On held-out SciFact dev the
+default profile (`local`) accepted 58 of 300 claims with 6 false accepts (precision 89.7%) and `local-lite` accepted 16
+with 1 false (93.8%). **Neither profile is certified at any error level** (10%, 5%, 2% or 1%). These are the only
+real-data numbers this release claims; see [Policy 4.3.0](#policy-430-local-only-fitted-on-scifact). To fit a policy
+on your own labelled data, see [Fit your own policy](#fit-your-own-policy).
 
 *Synthetic benchmark (simulated claim streams, not real data):* 92.2% ± 0.3% correct calls on the baseline scenario
 (20 seeds), against a 92.4% Bayes-optimal ceiling. The other scenarios have ceilings below 90%; see
@@ -143,7 +142,7 @@ Invariants (all covered by tests, including property-based tests with hypothesis
 ## Synthetic benchmark (Phase 2): `python -m roman_wheel_node.bench --seeds 20`
 
 **Everything in this section and in [Correlation-aware combining](#correlation-aware-combining-variantess-with-a-dependencelearner) is synthetic: simulated sources on
-simulated claims, not real data.** The real-data results are in [Policy 4.2.0](#policy-420-the-commercial-use-refit).
+simulated claims, not real data.** The real-data results are in [Policy 4.3.0](#policy-430-local-only-fitted-on-scifact).
 
 These are synthetic claim streams from `roman_wheel_node.bench.generator`. The generator is documented and has a CLI
 (`python -m roman_wheel_node.bench.generator --list` prints every scenario spec). Each source makes the right call with
@@ -316,56 +315,82 @@ rwn = ShadowRunner("rwn_shadow/", nli2="MoritzLaurer/DeBERTa-v3-base-mnli-fever-
 respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(out)])   # same return value
 ```
 
-* **Policy.** `src/roman_wheel_node/policies/rwn-policy-4.2.0.json`, loaded by `roman_wheel_node.policy.load_policy()`.
+* **Policy.** `src/roman_wheel_node/policies/rwn-policy-4.3.0.json`, loaded by `roman_wheel_node.policy.load_policy()`.
   The loader pins its sha256 and refuses an edited or swapped file.
   * There are three outcomes: `ACCEPT`, `NOT_SURE` and `BLOCK`. The policy is accept-only, so it never rejects on its
     posterior.
   * Anything uncertain or erroring becomes `NOT_SURE`: a missing source, a malformed score, the disagreement rule, or a
     posterior below the margin.
   * An exact-copy gate failure is `BLOCK`.
-  * It has three profiles:
-    * `local` (default, free): DeBERTa-v3-base NLI + lexical overlap.
-    * `local-lite` (free): ONNX DeBERTa-v3-small + overlap.
-    * `panel` (paid, opt-in): the six xAI judges plus both NLI models and overlap, refit on SciFact train. On SciFact
-      dev: 108 accepted, 7 false.
-* **Judges are off by default.** The paid panel runs only with `XAIPanel(enable=True, cap_usd=...)` or
-  `--enable-xai-judges --cap-usd N`. Before that, `XAI_API_KEY` is never read, and it is never printed or logged.
+  * It has two profiles, both free and local:
+    * `local` (default): DeBERTa-v3-base NLI + lexical overlap.
+    * `local-lite`: ONNX DeBERTa-v3-small + overlap.
+  * The loader accepts only the local sources `nli`, `nli2` and `overlap`. The package calls no hosted model and reads
+    no API key.
 * **Fresh-data pipeline.** `python -m roman_wheel_node.fresh prereg | label | certify`.
   * Pre-register one fixed rule before any label.
   * Label each claim SUPPORT / NOT / UNSURE.
   * Certify with one-sided Clopper-Pearson at 1/2/5% (δ = 0.05). With no search over rules, 299 / 149 / 59 error-free
     accepts certify 1% / 2% / 5%.
-* **Honesty.** The only certificate behind any shipped profile is policy 4.2.0's: false accepts ≤ 10% of accepts, on
-  SciFact, panel profile. **Nothing is certified at 5%, 2% or 1%.** The local profiles are not certified at any level.
-* **Fresh-set run: not yet done for policy 4.2.0.** The earlier fresh-set run measured the withdrawn policy 4.0.0 on
+* **Honesty.** No shipped profile is certified at any level. Treat ACCEPT as "passed a calibrated local check", not as
+  "true".
+* **Fresh-set run: not yet done for policy 4.3.0.** The earlier fresh-set run measured the withdrawn policy 4.0.0 on
   COVID-Fact and HealthVer claims, which the commercial-use licensing rule now excludes, so none of its numbers apply.
   A fresh-set run on licensed or owner-labelled data is planned.
 * **Desktop / GPU runbook:** [PHASE4_DESKTOP.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/PHASE4_DESKTOP.md), with Windows and PowerShell instructions, the
   Seraphina hook, and where the logs go.
 
-### Policy 4.2.0: the commercial-use refit
+### Policy 4.3.0: local only, fitted on SciFact
 
-Policy 4.0.0 and 4.1.0 were calibrated partly on HealthVer. Shipped files now use only data whose licence allows
-commercial use and that the owner approved, and HealthVer is excluded, so 4.0.0 and 4.1.0 no longer ship. Policy 4.2.0 refits every profile on SciFact train only (799 claims; CC BY 4.0 claims, ODC-By 1.0
-abstracts) with the same pre-registered rule family, then evaluates once on held-out SciFact dev (300 claims).
-Script: `phase6/refit_policy_42.py`; report: `results/phase6/refit_42.txt`. Licences and attribution:
+Policy 4.3.0 fits both profiles on SciFact train only (799 claims; CC BY 4.0 claims, ODC-By 1.0 abstracts) from the
+local models' scores, with the public `roman_wheel_node.fit` API, then evaluates once on held-out SciFact dev (300
+claims). HealthVer, Climate-FEVER and COVID-Fact are not used, and no hosted-model output is used anywhere in the fit.
+Script: `phase6/refit_policy_43.py`; report: `results/phase6/refit_43.txt` (repository). Licences and attribution:
 [DATA_LICENSES.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/DATA_LICENSES.md).
 
-| Profile | ACCEPT (of 300) | False accepts | Precision | Supported claims accepted | Accuracy, NOT_SURE = reject |
+| Profile | ACCEPT (of 300) | False accepts | Precision (95% upper bound on false share) | Supported claims accepted | Accuracy, NOT_SURE = reject |
 |---|---|---|---|---|---|
-| panel (opt-in, paid) | 108 (36.0%) | 7 | 93.5% | 81.5% | 90.0% |
-| local (default) | 64 (21.3%) | 9 | 85.9% | 44.4% | 74.0% |
-| local-lite | 16 (5.3%) | 1 | 93.8% | 12.1% | 63.3% |
+| local (default) | 58 (19.3%) | 6 | 89.7% (19.4%) | 41.9% | 74.0% |
+| local-lite | 16 (5.3%) | 1 | 93.8% (26.4%) | 12.1% | 63.3% |
 
-* Panel certificate: ≤ 10% false accepts among accepts (280 accepts, 17 false out-of-fold on SciFact train, one-sided
-  Clopper-Pearson upper bound 9.0%, δ = 0.05). Nothing is certified at a tighter level, and the local profiles are not
-  certified at all. The withdrawn policies' numbers are not repeated here because they came from a fit that used
-  HealthVer.
+* **No certificate.** Learn-Then-Test (δ = 0.05) on out-of-fold SciFact train posteriors certifies neither profile at
+  10%, 5%, 2% or 1%, so each profile uses its pre-registered margin (`local`: 135 out-of-fold accepts, 21 false;
+  `local-lite`: 54 accepts, 8 false).
 * The opt-in structural veto (`roman_wheel_node.structure.FROZEN`, chosen on COVID-Fact) is not part of any policy. On
-  the 4.2.0 panel's out-of-fold SciFact train accepts (280, 17 false) it would catch 0 false accepts and drop 7 correct
-  ones (`results/phase6/structural_scifact.json`).
-* The panel's xAI judge outputs were used to fit its calibration. See DATA_LICENSES.md for the open question about the
-  xAI terms.
+  the `local` profile's out-of-fold SciFact train accepts it would catch 1 false accept and drop 3 correct ones
+  (`results/phase6/structural_scifact_43.json`).
+* Earlier policies (4.0.0 to 4.2.0) were never published and are withdrawn: 4.0.0 / 4.1.0 used HealthVer, and 4.2.0's
+  paid profile used xAI judge outputs. Their numbers are not repeated here.
+
+### Fit your own policy
+
+`roman_wheel_node.fit` turns your own labelled examples into a frozen policy file, with the same method that produced
+4.3.0: per-source isotonic calibration, Beta source reliabilities and a learned cut-off, then an accept-only margin
+pre-registered on out-of-fold posteriors, and optionally a Learn-Then-Test certificate. Local sources only, no API
+calls, and the same examples in the same order give a byte-identical file.
+
+```bash
+# one example per line: {"claim": "...", "evidence": ["sentence", ...], "label": "SUPPORT" | "CONTRADICT" | "NEI" | true | false}
+python -m roman_wheel_node.fit my_labels.jsonl -o my-policy.json \
+    --profile local=nli2,overlap --nli2 MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli \
+    --data-licences "my own labels" --alphas 0.10,0.05
+```
+
+```python
+from roman_wheel_node.fit import fit_policy, write_policy
+from roman_wheel_node.policy import load_policy
+from roman_wheel_node.shadow import ShadowRunner
+from roman_wheel_node.sources import LocalSources
+
+src = LocalSources(nli2="MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli")
+doc = fit_policy("my_labels.jsonl", profiles={"local": ("nli2", "overlap")}, sources=src, alphas=(0.10,))
+sha = write_policy(doc, "my-policy.json")                       # returns the file's sha256; pin it
+rwn = ShadowRunner("rwn_shadow/", policy=load_policy("my-policy.json", expected_sha256=sha), sources=src)
+```
+
+A line may carry precomputed `"scores"` (`{"nli2": {"S": .., "C": ..}, "overlap": {"S": ..}}`) instead of being
+scored. The command prints the sha256, each profile's cut-off and margin, and whether a certificate was earned. A
+certificate only covers data exchangeable with your examples; with few examples expect none.
 
 ### Test-only smoke flags (Phase 5)
 The Phase 5 scripts have flags that exist only to smoke-test the pipeline on a CPU box. **They are test-only, and no
@@ -384,15 +409,18 @@ reported number comes from them.**
 * `src/roman_wheel_node/dependence.py`: `DependenceLearner`, `FrozenDependence`, and the `ess` / `tan` / `stack` combiners.
 * `src/roman_wheel_node/trace.py`: `ClaimTrace`, `Claim`, `Decision`, `replay`, `TamperError` (Phase 1).
 * `src/roman_wheel_node/policy.py`, `policies/`, `shadow.py`, `sources.py`, `fresh.py`: Phase 4, the frozen policy, shadow runtime, sources, and the label/certify CLI.
+* `src/roman_wheel_node/fit.py`: fit your own policy from labelled JSONL (`python -m roman_wheel_node.fit`).
+* `phase6/`: the 4.3.0 refit and its checks; `results/phase6/xai_panel_ledger.md` is a benchmark comparison of the withdrawn xAI judge panel, not used for fitting (repository only, never shipped).
 * `phase4/`: the policy export, fresh-set builders, the paid fresh-set judge runner and `run_fresh.py` (not part of the package).
 * `src/roman_wheel_node/bench/`: `generator.py` (the claim-stream generator and its CLI), `runner.py` (policies,
   confidence intervals, calibration, head-to-heads), `plots.py`, and `__main__.py` (`python -m roman_wheel_node.bench`).
 * `results/`: the committed 20-seed standard suite (frozen). `results/dependence/`: the 20-seed dependence suite.
-* `phase3/`: the Phase 3 SciFact pipeline (retrieval, NLI, xAI judges, evaluation, reports; not part of the package).
+* `phase3/`: the Phase 3 SciFact research pipeline (retrieval, NLI, xAI judges, evaluation, reports; not part of the package, and nothing shipped is fitted on its judge outputs).
 * `SAFETY.md`: guarantees by construction (with tests) vs measured guarantees.
+* `RELEASING.md`: how a release is built and published (tag on `main`, reviewed `pypi` environment).
 * `phase5/`: the Phase 5 pair-checker pipeline (split, bundle, train, evaluate; not part of the package). Its
   `--tiny-random`, `--limit` and `--smoke` flags are test-only (see [Test-only smoke flags](#test-only-smoke-flags-phase-5)).
-* `tests/`: 225 tests. In the repository 223 pass and 2 slow full-benchmark tests skip unless `RWN_FULL_BENCH=1` is set (then all 225 pass). The suite also passes under `pytest -W error`. From an unpacked sdist against the installed wheel, 184 pass and 12 skip, each with a stated reason (repo-only research folders and committed results are not shipped).
+* `tests/`: 250 tests. In the repository 248 pass and 2 slow full-benchmark tests skip unless `RWN_FULL_BENCH=1` is set (then all 250 pass). The suite also passes under `pytest -W error`. From an unpacked sdist against the installed wheel, 206 pass and 14 skip, each with a stated reason (repo-only research folders, committed results and the local SciFact feature cache are not shipped). `tests/test_no_xai_in_package.py` fails if anything xAI-derived reaches the installed package; `tests/test_fit.py` fits, loads and runs a policy from deterministic synthetic data.
 * `benchmarks/train_sim.py` and `benchmarks/results_v1.0.0.*`: the original demo and the 1.0.0 five-seed results, kept for history.
 
 ## Support development (planned)

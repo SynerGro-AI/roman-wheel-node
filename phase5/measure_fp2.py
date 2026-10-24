@@ -29,10 +29,13 @@ sys.path.insert(0, os.environ.get("RWN_P3", os.path.join(ROOT, "phase3")))
 from features import CACHE  # noqa: E402
 
 from roman_wheel_node import structure as ST  # noqa: E402
-from roman_wheel_node.fingerprint import exact_gate_v2, quote_verbatim_v2, trusted_set  # noqa: E402
+from roman_wheel_node.fingerprint import exact_gate_v2, trusted_set  # noqa: E402
 from roman_wheel_node.policy import load_policy  # noqa: E402
-from roman_wheel_node.shadow import FrozenNode, quote_verbatim  # noqa: E402
+from roman_wheel_node.shadow import FrozenNode  # noqa: E402
 from roman_wheel_node.sources import exact_gate, sha256  # noqa: E402
+
+sys.path.insert(0, HERE)
+from quote_gates import quote_verbatim, quote_verbatim_v2  # noqa: E402
 
 PANEL = ("J1", "J2", "J4", "J7", "J9", "J10")
 OUT = os.path.join(ROOT, "results", "phase5")

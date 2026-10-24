@@ -1,0 +1,180 @@
+{
+ "protocol": "Policy 4.3.0: refit the shipped profiles from local open-model features only (no xAI/Grok output anywhere).\n\nWhy: the owner's decision is that xAI/Grok judge outputs may be kept only as a repo-only performance ledger and must\nnot feed any shipped weight. Policy 4.2.0's ``panel`` profile was fitted on xAI judge outputs, and even its free\n``local`` / ``local-lite`` margins depended on them: the fit pool was restricted to claims with cached judge outputs,\nand the gate bit of every calibration row included the J1 judge's verbatim-quote check. 4.3.0 removes both.\n\nProtocol (fixed before any SciFact dev number was computed for 4.3.0):\n* Fit pool: SciFact train with gold evidence, every claim that has local features (scifact_train350 +\n  scifact_train_unused), ordered by sha256(\"fold\" + id) as in every earlier refit. Features: the cached outputs of\n  the local open models only (nli = DeBERTa-v3-small int8 ONNX, nli2 = DeBERTa-v3-base mnli-fever-anli, overlap).\n  Gate bit a = 1 for every row (gold evidence is shown verbatim; no judge quote).\n* Fitting: the public API ``roman_wheel_node.fit.fit_profile`` (isotonic calibrators, Beta reliabilities, learned\n  cut-off; accept-only margin pre-registered from 5-fold out-of-fold posteriors, K = 40). It is checked here to give\n  exactly the research pipeline's numbers (phase4/export_policy.fit, phase3/evaluate.oof_effs) on the same rows.\n* Certificate attempt: LTT fixed-sequence testing (one-sided Clopper-Pearson, delta 0.05 split over the family of\n  the 2 profiles, accept-precision risk) at alpha 10%, 5%, 2%, 1% on the out-of-fold posteriors. A profile uses the\n  margin of its tightest certified alpha; if none certifies it keeps the pre-registered margin and says so.\n* Disagreement rule: none (as the shipped local profiles of 4.0.0-4.2.0); the margin is chosen with the same rule.\n* Held-out evaluation: SciFact dev (300 claims, gold evidence, never used to fit; its numbers were reported in\n  earlier phases, so it is not pristine), through the shipped runtime (roman_wheel_node.shadow.FrozenNode), a = 1.\nOutputs: src/roman_wheel_node/policies/rwn-policy-4.3.0.json, the pin in policy.py, results/phase6/refit_43.{json,txt}\n(aggregates only).\n\n    env -u XAI_API_KEY python3 phase6/refit_policy_43.py\n",
+ "fit_pool_n": 799,
+ "fit_pool_by_ds": {
+  "scifact_train350": 350,
+  "scifact_train_unused": 449
+ },
+ "test": "scifact_dev",
+ "test_n": 300,
+ "policy_4_3_0_sha256": "6f60f07b8354b9efded1de8187880dce4a4ebdf539dac3461b609e4a478e38a2",
+ "port_check": {
+  "local": "identical (calibrators, reliabilities, cut-off, hedge width, out-of-fold posteriors and cut-offs)",
+  "local-lite": "identical (calibrators, reliabilities, cut-off, hedge width, out-of-fold posteriors and cut-offs)"
+ },
+ "previous": "rwn-policy-4.2.0 6f7bb9e3762754dc6ca6343c44f000c7caf05a819a1f63c857471856d3946c2a (git 69aa8db); its numbers: results/phase6/refit_42.json",
+ "profiles": {
+  "local": {
+   "4.3.0": {
+    "n": 300,
+    "ACCEPT": 58,
+    "NOT_SURE": 242,
+    "BLOCK": 0,
+    "accepted_true": 52,
+    "false_accepts": 6,
+    "blocked_true": 0,
+    "supported": 124,
+    "errors_or_mismatch": 0,
+    "accept_rate": 0.19333333333333333,
+    "accept_precision": 0.896551724137931,
+    "false_accept_share_upper95_cp": 0.19399900692178793,
+    "coverage_of_supported": 0.41935483870967744,
+    "decided": 58,
+    "accuracy_decided": 0.896551724137931,
+    "accuracy_all_not_sure_as_reject": 0.74
+   },
+   "4.2.0": {
+    "n": 300,
+    "ACCEPT": 64,
+    "NOT_SURE": 236,
+    "BLOCK": 0,
+    "accepted_true": 55,
+    "false_accepts": 9,
+    "blocked_true": 0,
+    "supported": 124,
+    "errors_or_mismatch": 0,
+    "accept_rate": 0.21333333333333335,
+    "accept_precision": 0.859375,
+    "false_accept_share_upper95_cp": 0.23256644607030227,
+    "coverage_of_supported": 0.4435483870967742,
+    "decided": 64,
+    "accuracy_decided": 0.859375,
+    "accuracy_all_not_sure_as_reject": 0.74
+   },
+   "params": {
+    "4.3.0": {
+     "cutoff": 0.413,
+     "margin": 0.9795846792847042,
+     "threshold": 0.6520375209085306
+    },
+    "4.2.0": {
+     "cutoff": 0.413,
+     "margin": 0.8544690855407959
+    }
+   },
+   "preregistration": {
+    "accepted_oof": 135,
+    "false_accepts_oof": 21,
+    "margin": 0.9795846792847042,
+    "n_pool": 799,
+    "rule": "argmin one-sided 95% CP upper bound of the false-accept share over the fixed K=40 accept-only margin path, 5-fold out-of-fold posteriors",
+    "step": 18,
+    "upper95": 0.2162215736415537
+   },
+   "ltt": {
+    "K": 40,
+    "alphas": {
+     "0.01": {
+      "certified": false
+     },
+     "0.02": {
+      "certified": false
+     },
+     "0.05": {
+      "certified": false
+     },
+     "0.1": {
+      "certified": false
+     }
+    },
+    "delta": 0.05,
+    "n_tests": 2
+   },
+   "certified": {
+    "alpha": null,
+    "note": "NOT certified at any level tested (10%, 5%, 2%, 1%); best out-of-fold upper bound on the false-accept share 21.6% (preregistration)"
+   }
+  },
+  "local-lite": {
+   "4.3.0": {
+    "n": 300,
+    "ACCEPT": 16,
+    "NOT_SURE": 284,
+    "BLOCK": 0,
+    "accepted_true": 15,
+    "false_accepts": 1,
+    "blocked_true": 0,
+    "supported": 124,
+    "errors_or_mismatch": 0,
+    "accept_rate": 0.05333333333333334,
+    "accept_precision": 0.9375,
+    "false_accept_share_upper95_cp": 0.26395739728856865,
+    "coverage_of_supported": 0.12096774193548387,
+    "decided": 16,
+    "accuracy_decided": 0.9375,
+    "accuracy_all_not_sure_as_reject": 0.6333333333333333
+   },
+   "4.2.0": {
+    "n": 300,
+    "ACCEPT": 16,
+    "NOT_SURE": 284,
+    "BLOCK": 0,
+    "accepted_true": 15,
+    "false_accepts": 1,
+    "blocked_true": 0,
+    "supported": 124,
+    "errors_or_mismatch": 0,
+    "accept_rate": 0.05333333333333334,
+    "accept_precision": 0.9375,
+    "false_accept_share_upper95_cp": 0.26395739728856865,
+    "coverage_of_supported": 0.12096774193548387,
+    "decided": 16,
+    "accuracy_decided": 0.9375,
+    "accuracy_all_not_sure_as_reject": 0.6333333333333333
+   },
+   "params": {
+    "4.3.0": {
+     "cutoff": 0.457,
+     "margin": 0.8178589888370968,
+     "threshold": 0.6559805764385525
+    },
+    "4.2.0": {
+     "cutoff": 0.457,
+     "margin": 0.8178589888370968
+    }
+   },
+   "preregistration": {
+    "accepted_oof": 54,
+    "false_accepts_oof": 8,
+    "margin": 0.8178589888370968,
+    "n_pool": 799,
+    "rule": "argmin one-sided 95% CP upper bound of the false-accept share over the fixed K=40 accept-only margin path, 5-fold out-of-fold posteriors",
+    "step": 6,
+    "upper95": 0.2514659555422554
+   },
+   "ltt": {
+    "K": 40,
+    "alphas": {
+     "0.01": {
+      "certified": false
+     },
+     "0.02": {
+      "certified": false
+     },
+     "0.05": {
+      "certified": false
+     },
+     "0.1": {
+      "certified": false
+     }
+    },
+    "delta": 0.05,
+    "n_tests": 2
+   },
+   "certified": {
+    "alpha": null,
+    "note": "NOT certified at any level tested (10%, 5%, 2%, 1%); best out-of-fold upper bound on the false-accept share 25.1% (preregistration)"
+   }
+  }
+ }
+}

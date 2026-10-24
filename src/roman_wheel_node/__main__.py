@@ -1,7 +1,8 @@
 """`python -m roman_wheel_node` (or the `roman-wheel-node` command): version and the six reference calls.
 
 With no arguments, or with `demo`, it prints the six original reference calls of `roman_wheel_node(a, scores)`.
-Other entry points are their own modules: `python -m roman_wheel_node.shadow`, `.fresh` and `.bench`.
+Other entry points are their own modules: `python -m roman_wheel_node.shadow`, `.fit`, `.fresh` and
+`.bench`.
 """
 
 import argparse
@@ -25,7 +26,8 @@ def build_parser():
         prog="roman-wheel-node",
         description="Roman Wheel Node: exact-copy gate plus learned, auditable evidence fusion.",
         epilog="Shadow mode: python -m roman_wheel_node.shadow --help. Fresh-set labelling and certification: "
-        "python -m roman_wheel_node.fresh --help. Synthetic benchmark: python -m roman_wheel_node.bench --help.",
+        "python -m roman_wheel_node.fresh --help. Fit your own policy: python -m roman_wheel_node.fit --help. "
+        "Synthetic benchmark: python -m roman_wheel_node.bench --help.",
     )
     p.add_argument("--version", action="version", version=f"roman-wheel-node {__version__}")
     p.add_argument(

@@ -1,4 +1,4 @@
-"""Versioned text fingerprints for the exact-copy gate (fp2: policy 4.2.0, the shipped default).
+"""Versioned text fingerprints for the exact-copy gate (fp2 is the shipped default).
 
 Fingerprint versions:
 
@@ -21,8 +21,7 @@ Fingerprint versions:
   the fingerprint, so a fp1 hash can never be mistaken for a fp2 hash and a later fp3 cannot collide with either.
 
 The fp2 gate is a strict superset of the fp1 gate. A unit passes if its fp1 hash or its fp2 fingerprint is trusted,
-so anything fp1 admits, fp2 also admits. ``quote_verbatim_v2`` is the matching superset of the Phase 3 judge-quote
-gate.
+so anything fp1 admits, fp2 also admits.
 """
 
 from __future__ import annotations
@@ -40,7 +39,6 @@ __all__ = [
     "fingerprint",
     "trusted_set",
     "exact_gate_v2",
-    "quote_verbatim_v2",
     "NORMALIZE_V2_TABLE_SHA256",
 ]
 
@@ -103,19 +101,3 @@ def exact_gate_v2(evidence: Sequence[str], trusted: Optional[Iterable[str]]) -> 
         return 0
     hs = trusted if isinstance(trusted, (set, frozenset)) else set(trusted)
     return int(all(isinstance(e, str) and _ok(e, hs) for e in evidence))
-
-
-def quote_verbatim_v2(q: str, units: Sequence[str], trusted: Set[str]) -> bool:
-    """fp2 judge-quote gate: every sentence piece of the quote occurs in a trusted unit after ``normalize_v2``.
-
-    Same shape as the Phase 3 rule (>= 20 characters, split on sentence ends, the containing unit must be trusted).
-    Elisions ("..."), paraphrase, and dropped or added words still fail, because only formatting is normalized.
-    """
-    if not isinstance(q, str) or len(q) < 20:
-        return False
-    nu = [(normalize_v2(u), u) for u in units if isinstance(u, str)]
-    for piece in [x for x in re.split(r"(?<=[.!?])\s+", normalize_v2(q)) if x]:
-        hit = [u for n, u in nu if piece in n]
-        if not hit or not _ok(hit[0], trusted):
-            return False
-    return True

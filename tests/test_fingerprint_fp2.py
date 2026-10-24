@@ -1,4 +1,4 @@
-"""Task B: the fp2 (NFC-normalized, versioned) exact-copy fingerprint and the shipped fp2 policy (4.2.0)."""
+"""Task B: the fp2 (NFC-normalized, versioned) exact-copy fingerprint and the shipped fp2 policy (4.3.0)."""
 
 import json
 import os
@@ -11,7 +11,7 @@ from hypothesis import strategies as st
 
 from roman_wheel_node import fingerprint as FP
 from roman_wheel_node.policy import DEFAULT_POLICY_PATH, DEFAULT_POLICY_SHA256, PolicyError, load_policy, policy_sha256
-from roman_wheel_node.shadow import ShadowRunner, quote_verbatim
+from roman_wheel_node.shadow import ShadowRunner
 from roman_wheel_node.sources import exact_gate, sha256
 
 S = "Vitamin D reduced infections by 12% in adults."
@@ -46,17 +46,6 @@ def test_gate_v2_superset_and_formatting_only():
     assert FP.exact_gate_v2([S], {sha256(S)}) == 1  # fp1-only store
 
 
-def test_quote_v2():
-    unit = "If the risk is confirmed,  then the crisis will shift to heart failure, they wrote."
-    hs = FP.trusted_set([unit])
-    q = "If the risk is confirmed, then the crisis will shift to heart failure, they wrote."
-    assert not quote_verbatim(q, [unit], hs) and FP.quote_verbatim_v2(q, [unit], hs)
-    assert not FP.quote_verbatim_v2("If the risk is confirmed ... heart failure, they wrote.", [unit], hs)  # elision
-    assert not FP.quote_verbatim_v2("If the risk is denied, then the crisis will shift.", [unit], hs)
-    assert not FP.quote_verbatim_v2("short", [unit], hs)
-    assert not FP.quote_verbatim_v2(q, [unit], set())  # untrusted unit
-
-
 txt = st.text(alphabet=st.characters(min_codepoint=32, max_codepoint=0x2100), max_size=60)
 
 
@@ -75,27 +64,18 @@ def test_v2_never_blocks_what_v1_admits(ev, extra):
         assert FP.exact_gate_v2(ev, FP.trusted_set(store)) == 1
 
 
-@settings(max_examples=300, deadline=None)
-@given(st.text(alphabet="abcde .!?", min_size=20, max_size=60), st.text(alphabet="abcde .!?XY", max_size=40))
-def test_quote_v2_superset_on_ascii(q, pad):
-    unit = pad + q + pad
-    hs = FP.trusted_set([unit])
-    if quote_verbatim(q, [unit], {sha256(unit)}):
-        assert FP.quote_verbatim_v2(q, [unit], hs)
-
-
-def test_policy_420_pinned_fp2_and_only_policy_shipped():
+def test_policy_430_pinned_fp2_and_only_policy_shipped():
     p = load_policy()
-    assert p.sha256 == DEFAULT_POLICY_SHA256 == "6f7bb9e3762754dc6ca6343c44f000c7caf05a819a1f63c857471856d3946c2a"
-    assert p.version == "4.2.0" and p.fingerprint == "fp2"
+    assert p.sha256 == DEFAULT_POLICY_SHA256 == "6f60f07b8354b9efded1de8187880dce4a4ebdf539dac3461b609e4a478e38a2"
+    assert p.version == "4.3.0" and p.fingerprint == "fp2"
     assert p.doc["gate"]["normalize_table_sha256"] == FP.NORMALIZE_V2_TABLE_SHA256
     assert "SciFact train" in p.doc["data_licences"] and "No HealthVer" in p.doc["data_licences"]
     for prof in p.profiles.values():  # every profile was fitted on SciFact train only
         assert prof.raw["calibration"]["pool"].startswith("SciFact train")
-    assert sorted(os.listdir(os.path.dirname(DEFAULT_POLICY_PATH))) == ["rwn-policy-4.2.0.json"]
+    assert sorted(os.listdir(os.path.dirname(DEFAULT_POLICY_PATH))) == ["rwn-policy-4.3.0.json"]
 
 
-def test_policy_420_tamper_refused(tmp_path):
+def test_policy_430_tamper_refused(tmp_path):
     doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text())
     doc["gate"]["normalize_table_sha256"] = "0" * 64
     doc["sha256"] = policy_sha256(doc)

@@ -1,7 +1,7 @@
-"""Shadow-mode runtime (Phase 4): run the frozen policy on an agent's claims WITHOUT changing what the agent does.
+"""Shadow-mode runtime: run the frozen policy on an agent's claims WITHOUT changing what the agent does.
 
     from roman_wheel_node.shadow import ShadowRunner
-    rwn = ShadowRunner("rwn_shadow/")                       # judges OFF, free local sources, shadow mode
+    rwn = ShadowRunner("rwn_shadow/")                       # free local sources, shadow mode
     answer = rwn.wrap(agent_fn, extract=my_claims)(prompt)   # answer is the agent's own object, unchanged
 
 * **Shadow (default).** Every claim is decided by the frozen policy through a hash-chained :class:`ClaimTrace`, and a
@@ -12,8 +12,9 @@
 * **Enforce (opt-in, ``enforce=True``).** The output is released only if every extracted claim is ACCEPTed; otherwise
   ``on_withhold(output, verdicts)`` is returned (default: None). Fail closed: an error inside the node withholds.
 * **Sources.** Default: the exact-copy gate + free local sources (overlap, ONNX NLI if available, nli2 if torch is
-  installed) and BM25 retrieval over a trusted corpus when the agent gives no evidence. The paid xAI panel is used only
-  if you pass ``judges=XAIPanel(enable=True, cap_usd=...)`` and select ``profile="panel"``.
+  installed) and BM25 retrieval over a trusted corpus when the agent gives no evidence. Nothing is sent to any
+  third-party API. To decide with weights fitted on your own labelled data, pass ``policy=load_policy(path, sha)``
+  for a file written by :mod:`roman_wheel_node.fit`.
 """
 
 from __future__ import annotations
@@ -28,12 +29,12 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 from .core import roman_wheel_node
-from .fingerprint import exact_gate_v2, quote_verbatim_v2, trusted_set
+from .fingerprint import exact_gate_v2, trusted_set
 from .policy import ACCEPT, BLOCK, NOT_SURE, Policy, Profile, load_policy
 from .sources import BM25, exact_gate, sha256
 from .trace import ClaimTrace
 
-__all__ = ["FrozenNode", "ShadowRunner", "Verdict", "evidence_text", "quote_verbatim"]
+__all__ = ["FrozenNode", "ShadowRunner", "Verdict"]
 
 
 @dataclass(frozen=True)
@@ -49,25 +50,6 @@ class Verdict:
     @property
     def admitted(self) -> bool:
         return self.outcome == ACCEPT
-
-
-def evidence_text(sents: Sequence[str], title: str = "Evidence") -> str:
-    """The judges' evidence layout (same as Phase 3d ``doc_text``)."""
-    return f"[doc E1] {title}\n" + "\n".join(f"  [E1.{i}] {s}" for i, s in enumerate(sents))
-
-
-def quote_verbatim(q: str, units: Sequence[str], hashes: set) -> bool:
-    """Phase 3 judge-quote gate: every sentence piece of the quote occurs byte-for-byte in a trusted unit (>= 20
-    chars)."""
-    import re
-
-    if len(q or "") < 20:
-        return False
-    for piece in [x for x in re.split(r"(?<=[.!?])\s+", q.strip()) if x]:
-        hit = [u for u in units if piece in u]
-        if not hit or sha256(hit[0]) not in hashes:
-            return False
-    return True
 
 
 class FrozenNode:
@@ -160,11 +142,11 @@ class ShadowRunner:
             built from ``nli_dir`` / ``nli2``; with neither, only ``overlap`` is available, so profiles fail closed).
         corpus: trusted ``{doc_id: [sentence, ...]}``; gives the exact-copy gate its hash set and BM25 retrieval.
         trusted_hashes: extra sha256 set for the gate (e.g. evidence the agent quoted from a verified store).
-            Under an fp2 policy (4.2.0) entries may also be ``fingerprint.fp2`` values.
+            Under an fp2 policy (the shipped default) entries may also be ``fingerprint.fp2`` values.
         trusted_units: extra trusted sentences (hashed with the policy's fingerprint version).
-        judges: an opt-in :class:`~roman_wheel_node.sources.XAIPanel` (paid). None (default) = no judges.
         enforce: False (default) = shadow; True = release outputs only when every claim is ACCEPTed.
         on_withhold: enforce-mode replacement, ``(output, verdicts) -> object`` (default returns None).
+        Other keyword options are accepted only as None / False (options removed in 1.2.0, switched off).
     """
 
     def __init__(
@@ -175,7 +157,6 @@ class ShadowRunner:
         sources: Optional[Callable] = None,
         corpus: Optional[Mapping[str, Sequence[str]]] = None,
         trusted_hashes: Optional[Iterable[str]] = None,
-        judges: Optional[Callable] = None,
         enforce: bool = False,
         on_withhold: Optional[Callable] = None,
         nli_dir: Optional[str] = None,
@@ -186,17 +167,21 @@ class ShadowRunner:
         hmac_key: Optional[bytes] = None,
         clock: Callable[[], float] = time.time,
         trusted_units: Optional[Iterable[str]] = None,
+        **removed: object,
     ) -> None:
+        # Options removed in 1.2.0 are still accepted when switched off (None / False), so callers written for the
+        # pre-release API keep working; any other value would silently change behaviour, so it is refused.
+        bad = sorted(k for k, v in removed.items() if v is not None and v is not False)
+        if bad:
+            raise TypeError(f"ShadowRunner: unsupported option(s) {bad} (removed in 1.2.0; only None/False accepted)")
         os.makedirs(log_dir, exist_ok=True)
         self.log_dir, self.enforce, self.clock = log_dir, bool(enforce), clock
         self.node = FrozenNode(os.path.join(log_dir, "audit.jsonl"), policy, profile, hmac_key)
-        if self.node.prof.needs_judges and judges is None:
-            pass  # allowed: every claim fails closed to NOT_SURE (no judge scores)
         if sources is None:
             from .sources import LocalSources
 
             sources = LocalSources(nli_dir=nli_dir, nli2=nli2, hf_cache=hf_cache, device=device)
-        self.sources, self.judges = sources, judges
+        self.sources = sources
         self.bm25 = BM25(corpus) if corpus else None
         self.fingerprint = self.node.policy.fingerprint
         hs = set(trusted_hashes or ())
@@ -240,19 +225,6 @@ class ShadowRunner:
             raw.update(self.sources(claim, sents))
         except Exception as e:
             self._error("sources", e)
-        quotes: Dict[str, str] = {}
-        if self.judges is not None and sents:
-            try:
-                jr, quotes = self.judges(claim, evidence_text(sents))
-                raw.update(jr)
-            except Exception as e:  # budget / billing / network: this claim fails closed
-                self._error("judges", e)
-        gq = self.node.prof.gate_judge_quote
-        if gq and a == 1 and gq in raw:  # Phase 3d gate: a committing judge must quote verbatim
-            commits = max(("S", "C", "N"), key=lambda x: raw[gq].get(x, 0.0)) != "N"
-            qv = quote_verbatim_v2 if fp2 else quote_verbatim
-            if commits and not qv(quotes.get(gq, ""), sents, self.hashes or set()):
-                a = 0
         v = self.node.decide(claim, raw, a)
         rec = {
             "id": f"{v.seq}:{v.record_hash[:16]}",
@@ -329,7 +301,7 @@ class ShadowRunner:
         self.errors += 1
         try:
             msg = f"{type(e).__name__}: {e}"
-            if "XAI_API_KEY" in msg or "Bearer" in msg:
+            if any(t in msg for t in ("API_KEY", "TOKEN", "Bearer", "Authorization")):  # never log a credential
                 msg = type(e).__name__
             with open(os.path.join(self.log_dir, "errors.jsonl"), "a") as f:
                 f.write(json.dumps({"ts": time.time(), "where": where, "error": msg[:300]}) + "\n")
@@ -346,13 +318,15 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     )
     ap.add_argument("claims", help="input JSONL; '-' for stdin")
     ap.add_argument("--log-dir", default="rwn_shadow")
-    ap.add_argument("--profile", default=None, help="local (default), local-lite, or panel (needs --enable-xai-judges)")
+    ap.add_argument("--profile", default=None, help="profile of the policy (bundled: local (default) or local-lite)")
     ap.add_argument(
         "--policy",
-        default="4.2.0",
-        choices=["4.2.0"],
-        help="frozen policy (only 4.2.0 ships: fp2 NFC-normalized gate, fitted on SciFact train only)",
+        default="4.3.0",
+        choices=["4.3.0"],
+        help="bundled frozen policy (only 4.3.0 ships: local open models, fitted on SciFact train only)",
     )
+    ap.add_argument("--policy-file", default=None, help="your own policy file (from python -m roman_wheel_node.fit)")
+    ap.add_argument("--policy-sha256", default=None, help="expected sha256 of --policy-file (recommended)")
     ap.add_argument("--corpus", default=None, help="trusted corpus JSONL {doc_id, sentences:[..]} (gate + retrieval)")
     ap.add_argument(
         "--trust-given-evidence",
@@ -363,15 +337,8 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--nli2", default=os.environ.get("RWN_NLI2"))
     ap.add_argument("--hf-cache", default=os.environ.get("RWN_HF_CACHE"))
     ap.add_argument("--device", default=os.environ.get("RWN_DEVICE", "cpu"), help="cpu (default) or cuda (GPU)")
-    ap.add_argument("--enable-xai-judges", action="store_true", help="PAID: run the frozen xAI panel (needs --cap-usd)")
-    ap.add_argument("--cap-usd", type=float, default=None)
     ap.add_argument("--enforce", action="store_true", help="print only ACCEPTed claims (default: shadow, echo all)")
     args = ap.parse_args(argv)
-    judges = None
-    if args.enable_xai_judges:
-        from .sources import XAIPanel
-
-        judges = XAIPanel(enable=True, cap_usd=args.cap_usd)
     corpus = None
     if args.corpus:
         corpus = {}
@@ -386,7 +353,7 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
         with open(args.claims) as f:
             items = [json.loads(line) for line in f if line.strip()]
     trusted = {sha256(s) for it in items for s in it.get("evidence") or []} if args.trust_given_evidence else None
-    pol = load_policy()
+    pol = load_policy(args.policy_file, args.policy_sha256)
     if trusted is not None and pol.fingerprint == "fp2":
         from .fingerprint import trusted_set
 
@@ -397,7 +364,6 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
         profile=args.profile,
         corpus=corpus,
         trusted_hashes=trusted,
-        judges=judges,
         enforce=args.enforce,
         nli_dir=args.nli_dir,
         nli2=args.nli2,

@@ -120,7 +120,15 @@ def evaluate(policy, rows, profile):
     return out
 
 
+HISTORICAL_43 = (
+    "superseded: policy 4.2.0 no longer ships (its panel profile was fitted on xAI judge outputs and its local margins "
+    "used the J1 quote gate). Shipped policy: 4.3.0 (phase6/refit_policy_43.py). This run's aggregates are kept as a "
+    "benchmark ledger only (results/phase6/xai_panel_ledger.md); reproduce it from git commit 69aa8db."
+)
+
+
 def main() -> None:
+    sys.exit(HISTORICAL_43)
     rows, skipped = S2.build_rows()
     F = S3E.features(rows)
     pool = [r for r in rows if r["ds"] in FIT_DS]

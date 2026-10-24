@@ -1,8 +1,9 @@
-"""Frozen, hash-pinned deployable policy (Phase 4).
+"""Frozen, hash-pinned deployable policy.
 
 A policy file is JSON with everything a frozen node needs: per-source isotonic calibrators, Beta reliabilities, the
-learned cut-off, the accept-only margin and the disagreement rule, per *profile*. It is produced once from calibration
-data (``phase6/refit_policy_42.py``) and never learns at run time.
+learned cut-off, the accept-only margin and the disagreement rule, per *profile*. It is produced once from labelled
+calibration data (the shipped one by ``phase6/refit_policy_43.py``; your own with :mod:`roman_wheel_node.fit`) and
+never learns at run time.
 
 Outcomes are exactly three:
 
@@ -13,10 +14,12 @@ Outcomes are exactly three:
   profile, or anything unexpected. The policy never rejects on its posterior (accept-only), and it **fails closed**:
   NOT_SURE is never admitted.
 
-Honesty: the shipped policy is 4.2.0, fitted only on SciFact train (claims CC BY 4.0, abstracts ODC-By 1.0; see
-DATA_LICENSES.md). Its only certificate is the judge-panel profile ``panel``: ``accept_precision`` risk, SciFact
-population, alpha 10%, delta 0.05 (phase6/refit_policy_42.py). Nothing is certified at 5%, 2% or 1%, and the free
-local profiles are not certified at any level. See SAFETY.md.
+Only the free local sources (``nli``, ``nli2``, ``overlap``) can appear in a profile: the loader refuses any other
+source, so no policy can make the node depend on a third-party API.
+
+Honesty: the shipped policy is 4.3.0, fitted only on SciFact train with local open models (claims CC BY 4.0,
+abstracts ODC-By 1.0; see DATA_LICENSES.md). No output of any hosted model (LLM API) was used to fit it.
+Its certificate status is written in each profile's ``certified`` field; see SAFETY.md.
 """
 
 from __future__ import annotations
@@ -38,6 +41,7 @@ __all__ = [
     "DEFAULT_POLICY_SHA256",
     "PINNED",
     "OUTCOMES",
+    "LOCAL_SOURCES",
     "ACCEPT",
     "NOT_SURE",
     "BLOCK",
@@ -45,11 +49,28 @@ __all__ = [
 
 ACCEPT, NOT_SURE, BLOCK = "ACCEPT", "NOT_SURE", "BLOCK"
 OUTCOMES = (ACCEPT, NOT_SURE, BLOCK)
-DEFAULT_POLICY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "rwn-policy-4.2.0.json")
+DEFAULT_POLICY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "rwn-policy-4.3.0.json")
 # sha256 of the canonical policy body (every key except "sha256"); pinned here so a swapped or edited file is refused
-DEFAULT_POLICY_SHA256 = "6f7bb9e3762754dc6ca6343c44f000c7caf05a819a1f63c857471856d3946c2a"
+DEFAULT_POLICY_SHA256 = "6f60f07b8354b9efded1de8187880dce4a4ebdf539dac3461b609e4a478e38a2"
 PINNED = {os.path.abspath(DEFAULT_POLICY_PATH): DEFAULT_POLICY_SHA256}
 FINGERPRINTS = ("fp1", "fp2")
+LOCAL_SOURCES = ("nli", "nli2", "overlap")  # the only sources a policy may use (free, local, open models)
+DISAGREEMENT_RULES = ("nli2_contradiction",)
+PROFILE_KEYS = (
+    "sources",
+    "variant",
+    "prior",
+    "reliability",
+    "cutoff",
+    "hedge_width",
+    "accept_margin",
+    "calibrators",
+    "disagreement",
+    "certified",
+    "calibration",
+    "preregistration",
+    "ltt",
+)  # anything else is refused
 EPS = 0.01  # calibrated scores are clamped to [EPS, 1 - EPS] (as in Phase 3)
 
 
@@ -105,8 +126,6 @@ class Profile:
     calibrators: Mapping[str, Mapping[str, Sequence[Sequence[float]]]]
     disagreement: Mapping[str, bool]
     certified: Mapping
-    needs_judges: bool
-    gate_judge_quote: Optional[str]
     raw: Mapping = field(repr=False, default_factory=dict)
 
     # ---- pure functions of (profile, raw source outputs) -------------------------------------
@@ -126,12 +145,8 @@ class Profile:
         return 1.0 / (1.0 + math.exp(-z)) if z < 700 else 1.0
 
     def disagrees(self, raw: Mapping[str, Mapping[str, float]], eff: float) -> bool:
-        """Phase 3 pre-registered disagreement rule (only the parts this profile's sources allow)."""
+        """Disagreement rule: the node leans "supported" but nli2's calibrated P(CONTRADICT) > 0.5."""
         flag = False
-        if self.disagreement.get("judge_split"):
-            js = [s for s in self.sources if s.startswith("J")]
-            v = [_iso(self.calibrators[s]["S"], float(raw[s]["S"])) > 0.5 for s in js]
-            flag = flag or (sum(v) >= 2 and (len(v) - sum(v)) >= 2)
         if self.disagreement.get("nli2_contradiction") and "nli2" in self.sources:
             flag = flag or (eff >= self.cutoff and _iso(self.calibrators["nli2"]["C"], float(raw["nli2"]["C"])) > 0.5)
         return bool(flag)
@@ -147,7 +162,7 @@ class Policy:
     default_profile: str
     profiles: Mapping[str, Profile]
     doc: Mapping = field(repr=False, default_factory=dict)
-    fingerprint: str = "fp1"  # exact-copy gate fingerprint: fp1 = raw sha256, fp2 = normalized (4.2.0)
+    fingerprint: str = "fp1"  # exact-copy gate fingerprint: fp1 = raw sha256, fp2 = normalized
 
     def profile(self, name: Optional[str] = None) -> Profile:
         n = name or self.default_profile
@@ -164,6 +179,19 @@ def _profile(name: str, d: Mapping) -> Profile:
     if d["variant"] not in ("hard", "soft", "logit"):
         raise PolicyError(f"profile {name}: variant {d['variant']!r} not supported by the frozen loader")
     srcs = tuple(d["sources"])
+    bad = [s for s in srcs if s not in LOCAL_SOURCES]
+    if not srcs or bad:
+        raise PolicyError(f"profile {name}: sources must be a non-empty subset of {LOCAL_SOURCES}; refused {bad}")
+    unknown = sorted(set(d) - set(PROFILE_KEYS))
+    if unknown:
+        raise PolicyError(f"profile {name}: unsupported key(s) {unknown}")
+    rules = [k for k, v in (d.get("disagreement") or {}).items() if v]
+    if set(rules) - set(DISAGREEMENT_RULES):
+        raise PolicyError(
+            f"profile {name}: unsupported disagreement rule(s) {sorted(set(rules) - set(DISAGREEMENT_RULES))}"
+        )
+    if "nli2_contradiction" in rules and ("nli2" not in srcs or "C" not in d["calibrators"].get("nli2", {})):
+        raise PolicyError(f"profile {name}: nli2_contradiction needs source nli2 with a C calibrator")
     for s in srcs:
         if s not in d["reliability"] or s not in d["calibrators"] or "S" not in d["calibrators"][s]:
             raise PolicyError(f"profile {name}: source {s} lacks a reliability or calibrator")
@@ -181,8 +209,6 @@ def _profile(name: str, d: Mapping) -> Profile:
         calibrators=d["calibrators"],
         disagreement=dict(d.get("disagreement") or {}),
         certified=dict(d.get("certified") or {}),
-        needs_judges=bool(d.get("needs_judges")),
-        gate_judge_quote=d.get("gate_judge_quote"),
         raw=d,
     )
 
@@ -210,8 +236,6 @@ def load_policy(path: Optional[str] = None, expected_sha256: Optional[str] = Non
     profs = {n: _profile(n, d) for n, d in doc["profiles"].items()}
     if doc.get("default_profile") not in profs:
         raise PolicyError("default_profile missing")
-    if profs[doc["default_profile"]].needs_judges:
-        raise PolicyError("the default profile must not need paid judges")
     fpv = (doc.get("gate") or {}).get("fingerprint", "fp1")
     if fpv not in FINGERPRINTS:
         raise PolicyError(f"unknown gate fingerprint {fpv!r}; have {FINGERPRINTS}")

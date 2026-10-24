@@ -1,0 +1,65 @@
+{
+ "population": "SciFact train out-of-fold (n=799), policy 4.3.0 profile local margin 0.9796",
+ "accepts": 135,
+ "false_accepts": 21,
+ "bar": {
+  "min_false_accepts_caught": 3,
+  "min_caught_per_correct_lost": 3
+ },
+ "fields": {
+  "identifier_mutation": {
+   "false_accepts_caught": 1,
+   "correct_accepts_lost": 0,
+   "meets_bar": false
+  },
+  "fragment": {
+   "false_accepts_caught": 0,
+   "correct_accepts_lost": 0,
+   "meets_bar": false
+  },
+  "near_copy_swap": {
+   "false_accepts_caught": 0,
+   "correct_accepts_lost": 3,
+   "meets_bar": false
+  },
+  "numbers_missing": {
+   "false_accepts_caught": 1,
+   "correct_accepts_lost": 0,
+   "meets_bar": false
+  },
+  "negation_inserted": {
+   "false_accepts_caught": 0,
+   "correct_accepts_lost": 0,
+   "meets_bar": false
+  },
+  "negation_dropped": {
+   "false_accepts_caught": 14,
+   "correct_accepts_lost": 60,
+   "meets_bar": false
+  },
+  "direction_conflict": {
+   "false_accepts_caught": 2,
+   "correct_accepts_lost": 1,
+   "meets_bar": false
+  },
+  "absolutes_unbacked": {
+   "false_accepts_caught": 1,
+   "correct_accepts_lost": 1,
+   "meets_bar": false
+  }
+ },
+ "fields_meeting_bar": [],
+ "current_frozen_veto_fields": [
+  "identifier_mutation",
+  "fragment",
+  "near_copy_swap"
+ ],
+ "frozen_rule_effect": {
+  "false_accepts_caught": 1,
+  "correct_accepts_lost": 3,
+  "veto_reasons": {
+   "identifier_mutation": 1,
+   "near_copy_swap": 3
+  }
+ }
+}

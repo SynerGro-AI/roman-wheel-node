@@ -1,4 +1,4 @@
-"""Evidence sources for the deployable node (Phase 4). Free and local by default; paid judges are opt-in.
+"""Evidence sources for the deployable node. All free, local and open: nothing is sent to a third-party API.
 
 * :func:`exact_gate`      - the exact-copy gate: a = 1 iff there is evidence and every evidence unit is byte-identical
   (sha256) to a unit of the trusted corpus. No trusted corpus -> a = 0 (BLOCK): unverifiable evidence never enters.
@@ -7,8 +7,6 @@
   onnxruntime-gpu's CUDAExecutionProvider when available): ``overlap`` (always), ``nli`` (DeBERTa-v3-small int8 ONNX;
   needs onnxruntime + tokenizers and the model directory) and ``nli2`` (DeBERTa-v3-base mnli-fever-anli; needs torch +
   transformers). A source that is not available is simply absent, so a profile that needs it fails closed to NOT_SURE.
-* :class:`XAIPanel`       - the frozen Phase 3d judge panel, OFF unless constructed with ``enable=True`` and a spend
-  cap. It never reads ``XAI_API_KEY`` before that, and never prints or logs it.
 All raw outputs are ``{source: {"S": P(support)[, "C": P(contradiction)]}}``: max over evidence sentences (as in Phase
 3).
 """
@@ -21,7 +19,7 @@ import os
 import re
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-__all__ = ["sha256", "split_sentences", "exact_gate", "BM25", "LocalSources", "XAIPanel", "OverlapScorer"]
+__all__ = ["sha256", "split_sentences", "exact_gate", "BM25", "LocalSources", "OverlapScorer"]
 
 _TOK = re.compile(r"[a-z0-9]+")
 _STOP = frozenset("a an the of in on and or to is are was were be by for with as that this from at it its".split())
@@ -221,51 +219,3 @@ class _OnnxNLI:
             p /= p.sum(axis=1, keepdims=True)
             out.extend({lab: float(round(row[k], 6)) for k, lab in enumerate(self.labels)} for row in p)
         return out
-
-
-class XAIPanel:
-    """The frozen Phase 3d xAI judge panel (J1 J2 J4 J7 J9 J10), PAID and OFF by default.
-
-    Construction without ``enable=True`` raises; ``XAI_API_KEY`` is read only inside the judge call (by the Phase 3
-    client, which never logs or caches it). ``cap_usd`` is a hard cap over ``ledger_path`` (append-only spend ledger,
-    shared across processes); a billing/credit/auth error raises and the shadow runner turns it into NOT_SURE.
-    It needs a repository checkout (``repo_root`` with phase3/), because the prompts, few-shot examples and caches live
-    there; outside a checkout use your own judge callables with the same output shape.
-    """
-
-    PANEL = ("J1", "J2", "J4", "J7", "J9", "J10")
-
-    def __init__(
-        self,
-        *,
-        enable: bool = False,
-        cap_usd: Optional[float] = None,
-        repo_root: Optional[str] = None,
-        ledger_path: Optional[str] = None,
-    ) -> None:
-        if not enable:
-            raise PermissionError("xAI judges are off by default: pass enable=True and a cap_usd to opt in (paid)")
-        if cap_usd is None or not cap_usd > 0:
-            raise ValueError("cap_usd (a hard spend cap in USD) is required to enable paid judges")
-        import sys
-
-        root = repo_root or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        p3 = os.path.join(root, "phase3")
-        if not os.path.isdir(p3):
-            raise FileNotFoundError("XAIPanel needs a roman-wheel-node checkout with phase3/ (repo_root=...)")
-        if p3 not in sys.path:
-            sys.path.insert(0, p3)
-        from factcheck.interfaces import SpendLedger  # type: ignore
-        from features import CACHE  # type: ignore
-        from judges import make_judges  # type: ignore
-
-        self.spend = SpendLedger(ledger_path or os.path.join(CACHE, "spend.jsonl"), float(cap_usd))
-        self.judges = {n: j for n, j in make_judges(self.spend).items() if n in self.PANEL}
-
-    def __call__(self, claim: str, evidence_text: str) -> Tuple[Dict[str, Dict[str, float]], Dict[str, str]]:
-        raw, quotes = {}, {}
-        for n, j in self.judges.items():
-            p, q = j.judge(claim, evidence_text)
-            raw[n] = {"S": p["SUPPORT"], "C": p["CONTRADICT"], "N": p["NEI"]}
-            quotes[n] = q or ""
-        return raw, quotes

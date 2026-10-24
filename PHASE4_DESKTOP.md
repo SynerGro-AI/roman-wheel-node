@@ -4,7 +4,7 @@ This runbook adds the Roman Wheel Node in **shadow mode** to a Seraphina checkou
 one), runs it on the GPU, and collects fresh claims for a later 1% / 2% certificate.
 
 - **Shadow mode never changes what the agent returns.**
-- **Paid xAI judges are off by default.** Nothing below spends money.
+- **Everything runs locally.** The package makes no paid or hosted-model API calls; nothing below spends money.
 
 ## 1. Install (PowerShell)
 
@@ -45,7 +45,7 @@ Then wrap the agent's response function at the one place where it returns text. 
 
 ```python
 from seraphina.rwn_shadow import ShadowHook
-hook = ShadowHook()                          # judges OFF, local profile, shadow
+hook = ShadowHook()                          # local profile, shadow
 respond = hook.wrap(respond)                 # returns exactly what respond() returned
 ```
 
@@ -116,9 +116,11 @@ own stream.
 
 ## 7. What is and isn't certified
 
-The free local profiles are **not certified at any level**. The only certificate is policy 4.2.0's: on SciFact, with
-the paid 6-judge panel (`profile="panel"`), false accepts are at most 10% of accepts. Nothing is certified at 5%, 2% or
-1%. The Phase 4 fresh-set results in `results/phase4/` measured the withdrawn policy 4.0.0.
+The shipped profiles (`local`, `local-lite`, policy 4.3.0) are **not certified at any level**. On held-out SciFact dev,
+`local` accepted 58 of 300 claims with 6 false accepts (89.7% precision). The Phase 4 fresh-set results in
+`results/phase4/` measured the withdrawn policy 4.0.0 and do not apply.
 
-To run the paid panel, opt in explicitly: `--enable-xai-judges --cap-usd N` with `XAI_API_KEY` set. The key is read only
-then, and it is never printed or logged.
+To fit a policy on claims you have labelled yourself (for example the fresh claims collected here), use
+`python -m roman_wheel_node.fit labels.jsonl -o my-policy.json --nli2 MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli`
+and load it with `ShadowRunner(..., policy=load_policy("my-policy.json", expected_sha256=...))`. See the README,
+"Fit your own policy".
