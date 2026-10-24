@@ -6,7 +6,19 @@
 An exact-copy gate plus learned, auditable evidence fusion that decides whether a claim
 can enter an agent's trace. Pure Python (3.9+), standard library only, zero dependencies.
 
-**92.2% ± 0.3% correct calls on the baseline benchmark (20 seeds), against a 92.4% Bayes-optimal ceiling.** The other scenarios have ceilings below 90%; see [Benchmark](#benchmark-phase-2-python--m-roman_wheel_nodebench---seeds-20).
+**Real data (SciFact, Phase 3e): certified at a ≤ 5% false-accept bound with 19.0% coverage.** With the 6-judge panel,
+the accept-only rule accepted 152 of 799 SciFact calibration claims with 0 false accepts (one-sided Clopper-Pearson
+upper bound 4.3%, δ = 0.05). On held-out SciFact dev the frozen rule accepted 63 of 300 claims (21%) with 1 false
+accept. At full coverage the node scores **89.7%** [86.0, 93.0] on SciFact dev (300 claims, cited abstracts).
+On fresh claims it was never tuned on (Phase 4: COVID-Fact and HealthVer, 3,829 labelled), the same frozen panel rule
+reaches **73.5% precision** [69.7, 77.1] **at 14.6% coverage**. That is not certified at any level. **Nothing is
+certified at 1% or 2% anywhere.** Sources and caveats: [Phase 3](#phase-3-real-claims-scifact-and-safety),
+[Phase 4](#phase-4-shadow-mode-deployment-and-fresh-set-certification), `results/phase3/step3e.txt`,
+`results/phase3/RESULTS.md` and `results/phase4/SUMMARY.md`.
+
+*Synthetic benchmark (simulated claim streams, not real data):* 92.2% ± 0.3% correct calls on the baseline scenario
+(20 seeds), against a 92.4% Bayes-optimal ceiling. The other scenarios have ceilings below 90%; see
+[Synthetic benchmark](#synthetic-benchmark-phase-2-python--m-roman_wheel_nodebench---seeds-20).
 
 ## Install
 
@@ -128,7 +140,10 @@ Invariants (all covered by tests, including property-based tests with hypothesis
   Such tampering is caught by `verify()` and by the parent identity checks. Without `hmac_key`, someone who rewrites
   the *whole* log consistently can't be detected unless you anchor `trace.head()` somewhere else.
 
-## Benchmark (Phase 2): `python -m roman_wheel_node.bench --seeds 20`
+## Synthetic benchmark (Phase 2): `python -m roman_wheel_node.bench --seeds 20`
+
+**Everything in this section and in [Correlation-aware combining](#correlation-aware-combining-variantess-with-a-dependencelearner) is synthetic: simulated sources on
+simulated claims, not real data.** The real-data results are in Phase 3 and Phase 4.
 
 These are synthetic claim streams from `roman_wheel_node.bench.generator`. The generator is documented and has a CLI
 (`python -m roman_wheel_node.bench.generator --list` prints every scenario spec). Each source makes the right call with
@@ -244,7 +259,7 @@ give_feedback(scores, truth, dependence=dep)                # once the truth is 
 # ClaimTrace(..., mode="bayes", variant="ess", dependence=dep) logs the exact model snapshot, so replay() is exact
 ```
 
-### Dependence benchmark: `python -m roman_wheel_node.bench --suite dependence --seeds 20`
+### Synthetic dependence benchmark: `python -m roman_wheel_node.bench --suite dependence --seeds 20`
 This covers the six standard scenarios (definitions unchanged) plus three new dependence scenarios, each with an oracle
 that knows the true joint model:
 - `partial_corr`: four sources repeat a *hidden* shared call half the time.
@@ -342,6 +357,18 @@ respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(
 * **Desktop / GPU runbook:** [PHASE4_DESKTOP.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/PHASE4_DESKTOP.md), with Windows and PowerShell instructions, the
   Seraphina hook, and where the logs go.
 
+### Test-only smoke flags (Phase 5)
+The Phase 5 scripts have flags that exist only to smoke-test the pipeline on a CPU box. **They are test-only, and no
+reported number comes from them.**
+* `phase5/train_pair_checker.py --tiny-random` trains a tiny, randomly initialised DeBERTa-v2 instead of the real base
+  model. `--limit N` trains on only the first N items. Either flag marks the model `smoke` in its metadata, and a smoke
+  model's training record is never written to `results/`.
+* `phase5/eval_pair_checker.py --smoke` replaces the held-out set B with a stand-in made from two disjoint halves of
+  A_dev (B is never read). It writes only to `phase5/runs/smoke/`, never to `results/`, and labels its output
+  "SMOKE ... numbers mean nothing".
+* Without `--smoke`, `eval_pair_checker.py` refuses a smoke model and exits, so a tiny-random model can't produce a real
+  result.
+
 ## Layout
 * `src/roman_wheel_node/core.py`: the node, `LiveWeights` and `ThresholdLearner`. The public API is re-exported from `roman_wheel_node`.
 * `src/roman_wheel_node/dependence.py`: `DependenceLearner`, `FrozenDependence`, and the `ess` / `tan` / `stack` combiners.
@@ -353,7 +380,10 @@ respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(
 * `results/`: the committed 20-seed standard suite (frozen). `results/dependence/`: the 20-seed dependence suite.
 * `phase3/`: the Phase 3 SciFact pipeline (retrieval, NLI, xAI judges, evaluation, reports; not part of the package).
 * `SAFETY.md`: guarantees by construction (with tests) vs measured guarantees.
-* `tests/`: 190 tests (`PYTHONPATH=src python -m pytest -q`: 188 pass; two full-benchmark byte checks run only with `RWN_FULL_BENCH=1`).
+* `phase5/`: the Phase 5 pair-checker pipeline (split, bundle, train, evaluate; not part of the package). Its
+  `--tiny-random`, `--limit` and `--smoke` flags are test-only (see [Test-only smoke flags](#test-only-smoke-flags-phase-5)).
+* `tests/`: 221 tests (`PYTHONPATH=src python -m pytest -q`: 218 pass. Two full-benchmark byte checks run only with
+  `RWN_FULL_BENCH=1`, and one Phase 5 test runs only where the internal COVID-Fact cache is present).
 * `benchmarks/train_sim.py` and `benchmarks/results_v1.0.0.*`: the original demo and the 1.0.0 five-seed results, kept for history.
 
 ## Support development
