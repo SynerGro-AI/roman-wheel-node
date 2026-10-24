@@ -1,0 +1,32 @@
+{
+ "note": "Aggregate counts only. Per-claim audit is local (phase3/cache/step3e, gitignored) because it contains HealthVer text (internal, unlicensed).",
+ "set": "Phase 3d node (bayes-hard [judges], pooled calibration), out-of-fold, top-confidence tier z>=11.93: 184 decided, 27 errors; the top-139 by stable sort holds 22",
+ "classes": [
+  "label_noise: gold label likely wrong given the shown evidence",
+  "ambiguous: reasonable annotators could differ",
+  "node_error: gold right, panel over-inferred",
+  "retrieval_miss: n/a (gold evidence)"
+ ],
+ "top139_22": {
+  "node_error": 9,
+  "ambiguous": 6,
+  "label_noise": 7
+ },
+ "tier_27": {
+  "node_error": 10,
+  "ambiguous": 7,
+  "label_noise": 10
+ },
+ "tier_27_by_dataset": {
+  "healthver|node_error": 6,
+  "scifact|node_error": 4,
+  "healthver|ambiguous": 5,
+  "scifact|ambiguous": 2,
+  "healthver|label_noise": 8,
+  "scifact|label_noise": 2
+ },
+ "all_27_were_false_accepts": true,
+ "j11_cached_on": 4,
+ "j11_said_not_support": 4,
+ "unanimous_6of6_support": 8
+}

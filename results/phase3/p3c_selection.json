@@ -1,0 +1,84 @@
+{
+ "conditions": {
+  "gold": {
+   "J11": {
+    "config": "bayes-ess [all]",
+    "cv_all_configs": {
+     "bayes-ess [all]": 0.9142857142857143,
+     "bayes-ess [judges]": 0.9028571428571428,
+     "bayes-ess_cal [all]": 0.9057142857142857,
+     "bayes-ess_cal [judges]": 0.9085714285714286,
+     "bayes-hard [all]": 0.9028571428571428,
+     "bayes-hard [judges]": 0.9057142857142857,
+     "bayes-logit [all]": 0.9114285714285715,
+     "bayes-logit [judges]": 0.9085714285714286,
+     "bayes-soft [all]": 0.9114285714285715,
+     "bayes-soft [judges]": 0.9057142857142857
+    },
+    "cv_no_veto": 0.9142857142857143,
+    "cv_veto": 0.7542857142857143,
+    "proof_rate_by_label": {
+     "CONTRADICT": {
+      "n": 75,
+      "proof_rate": 0.013333333333333334
+     },
+     "NEI": {
+      "n": 130,
+      "proof_rate": 0.015384615384615385
+     },
+     "SUPPORT": {
+      "n": 145,
+      "proof_rate": 0.4206896551724138
+     }
+    }
+   },
+   "without_verifier": {
+    "config": "bayes-logit [all]",
+    "cv": 0.9114285714285715
+   }
+  },
+  "rv3": {
+   "J11": {
+    "config": "bayes-ess [all]",
+    "cv_all_configs": {
+     "bayes-ess [all]": 0.8914285714285715,
+     "bayes-ess [judges]": 0.8742857142857143,
+     "bayes-ess_cal [all]": 0.8914285714285715,
+     "bayes-ess_cal [judges]": 0.8514285714285714,
+     "bayes-hard [all]": 0.8685714285714285,
+     "bayes-hard [judges]": 0.8685714285714285,
+     "bayes-logit [all]": 0.8657142857142858,
+     "bayes-logit [judges]": 0.8628571428571429,
+     "bayes-soft [all]": 0.8685714285714285,
+     "bayes-soft [judges]": 0.8628571428571429
+    },
+    "cv_no_veto": 0.8914285714285715,
+    "cv_veto": 0.7971428571428572,
+    "proof_rate_by_label": {
+     "CONTRADICT": {
+      "n": 75,
+      "proof_rate": 0.02666666666666667
+     },
+     "NEI": {
+      "n": 130,
+      "proof_rate": 0.038461538461538464
+     },
+     "SUPPORT": {
+      "n": 145,
+      "proof_rate": 0.5517241379310345
+     }
+    }
+   },
+   "without_verifier": {
+    "config": "bayes-ess [all]",
+    "cv": 0.8885714285714286
+   }
+  }
+ },
+ "protocol": "Phase 3c, TRAIN ONLY: choose the strict verifier (J11 prompt V vs J12 prompt W) and whether to use it as a hard\nACCEPT veto, by 5-fold CV on the 350 training claims. Dev rows are never read for selection.\nWrites results/phase3/p3c_selection.json, which evaluate.py reads.\nJ12 (prompt W) was dropped after 47 calls for budget (measured $0.010/call), so in practice only J11 is available.\nRule (fixed before running): verifier = higher best train-CV accuracy on rv3 (the realistic condition; ties -> gold,\nthen J11, the cheaper one). Veto per condition = on iff it raises train-CV accuracy of the CV-selected node config.",
+ "verifier": "J11",
+ "veto": {
+  "gold": false,
+  "rv3": false
+ }
+}

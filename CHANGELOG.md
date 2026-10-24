@@ -1,5 +1,57 @@
 # Changelog
 
+## Unreleased: Phase 3e, zero-cost fixes on the cached judge outputs
+- `phase3/s3e_rules.py`: accept and reject filters (unanimity, NLI entailment, J11 proof), asymmetric accept/reject margins,
+  fixed-sequence LTT with label-free skipping of steps too small to pass, a Bonferroni family certificate, and optional
+  BLOCK-separate and accept-precision risks. `phase3/s3e_eval.py` makes no API calls and refuses to run with
+  XAI_API_KEY set. `tests/test_phase3e_rules.py` adds 12 tests (175 passed, 2 skipped).
+- Audit of the 22 (27) most confident calibration errors: 7 (10) label noise, 6 (7) ambiguous, 9 (10) node errors and
+  0 retrieval misses. Aggregates are in `results/phase3/step3e_audit.json`; per-claim notes are local only.
+- **1% and 2% are still not certifiable.** SciFact is limited by sample size: zero errors would need ≥ 402 decided
+  claims and the pool has 328 SUPPORT. HealthVer is limited by label noise: the unanimous panel disagrees with 12.5% of
+  its gold labels.
+- Newly certified on SciFact: accept precision ≤ 5% (dev: 63 accepted, 1 unsupported) and, with BLOCK reported
+  separately, ≤ 10% selective error at 91% coverage.
+- Per-dataset calibration: SciFact dev 89.7% (pooled was 87.3%); false accepts 29 → 10 of 176.
+- API spend unchanged at $216.60 of $220.
+
+## Unreleased: Phase 3d (step 2), larger calibration pool and out-of-sample tests
+- `phase3/s2_data.py`, `s2_features.py`, `s2_judges.py` (6-judge panel, hard ledger cap, stops on xAI billing errors),
+  `s2_eval.py` (calibration-only CV selection, LTT at 1/2/5/10%, plus an LTT over the whole candidate family).
+- Calibration pool 2,798 claims (SciFact train 799 + HealthVer train 1,999). Tests: HealthVer test 1,515 of 1,823
+  (internal, aggregates only), Climate-FEVER 1,500 (transfer), SciFact dev 300.
+- Full-coverage node: HealthVer 78.6%, Climate-FEVER 78.8%, SciFact 87.3%. Better than J1 on HealthVer/Climate-FEVER, but
+  it has more false accepts (8.2% / 1.7% / 9.7% of unsupported claims).
+- LTT: **≤ 1% and ≤ 2% certify nothing (0% coverage, 0 accepts)**. Only 10% is certifiable, and only with the family
+  supplement (4.5% calibration coverage).
+- Fix: `evaluate.cp_upper` now works in log space (`math.comb` overflowed float for n in the thousands).
+- API spend $216.60 of $220.
+
+## Unreleased: Phase 3c step 1, strict proof verifier
+- J11: a strict proof verifier (prompt V: quote first, no extrapolation; the quote must pass the byte-exact gate),
+  usable as a node source, a hard ACCEPT veto (`node_run(veto=...)`), or ACCEPT-only-with-proof → NOT_SURE.
+  `phase3/p3c_select.py` chooses on train CV only; `judges.py --split`.
+- Result: it is too strict for SciFact. As a veto it cuts false accepts (rv3 12 → 4) but costs about 9 accuracy points,
+  so it is off by CV. As a source it adds +0.3 CV points; rv3 dev stays at 87.3%. Spend $93.63 of $100.
+- `phase3/STEP2_PLAN.md`: scoping for a larger certification set (datasets, licences, costs, CP sample sizes).
+
+## Unreleased: Phase 3 (SciFact) and SAFETY.md
+### Added
+- `SAFETY.md`: guarantees by construction (fail-closed, NOT_SURE never accepted, zero-propagation, non-bypassable gate,
+  hash-chained audit), each mapped to its tests, and measured guarantees with Clopper-Pearson bounds and caveats.
+- `ClaimTrace(not_sure_band=...)` and `submit(..., not_sure=True)`: a distinct NOT_SURE outcome. It is never admitted,
+  invisible like a block, logged and replayed. A gate failure stays BLOCK. `ThresholdLearner.band()` for selective mode.
+- `tests/test_fail_closed.py` (hypothesis property and fuzz tests of the fail-closed guarantee), NOT_SURE tests, and a
+  byte-exact quote-gate test. Tests: 147 → 164 (162 pass, 2 opt-in skips).
+- Phase 3 pipeline: SciFact loader, BM25, ONNX/torch NLI, xAI judges J1–J10 with a hard-capped spend ledger, rv3
+  retrieval (RRF of BM25/MedCPT/bge + MedCPT cross-encoder), exact band search, LTT (Bonferroni) NOT_SURE,
+  risk-coverage chart, label-review list.
+### Results (held-out SciFact dev, n = 300)
+- gold evidence: node 91.3% [88.0, 94.3]; false accepts 19 → 6 of 176 (p = 0.0002).
+- rv3 retrieved evidence: node 87.3% [83.3, 91.0] (ties best judges; < 90%); false accepts 29 → 12 (p < 0.0001).
+- Selective, gold: 0/56 errors at 18.7% coverage (upper 5.21%). LTT ≤ 1%: not certifiable with 350 train claims, so it abstains.
+- API spend $80.82 of $100.
+
 ## Unreleased (proposed 1.2.0, on top of 1.1.0): correlation-aware combining
 ### Added
 - `roman_wheel_node.dependence.DependenceLearner`: an append-only, replayable ledger of each source's correctness per claim,

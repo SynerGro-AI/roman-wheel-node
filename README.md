@@ -282,6 +282,26 @@ The standard suite (`results/`) is frozen and still byte-identical. The dependen
 is byte-reproducible too (`--suite dependence --check results/dependence`). The dependence code uses
 `math.fsum`, because Python 3.12 changed the builtin float `sum()`, which made one near-threshold edge differ on 3.9 before the fix.
 
+## Phase 3: real claims (SciFact) and safety
+**Safety guarantees and their limits: see [SAFETY.md](SAFETY.md).** It separates what is guaranteed by construction
+(fail-closed, NOT_SURE never accepted, zero-propagation, non-bypassable gate, hash-chained audit, each mapped to its
+tests) from what is only measured on data.
+
+Held-out SciFact dev (300 claims; everything learned on 350 train claims), binary "supported vs not":
+
+| Evidence | Node accuracy [95% CI] | Best single judge | False accepts, unwrapped J1 → node (of 176) |
+|---|---|---|---|
+| gold abstracts | **91.3%** [88.0, 94.3] | J4 90.0% | 19 → 6, p = 0.0002 |
+| rv3 retrieval (RRF + MedCPT cross-encoder, top 5) | **87.3%** [83.3, 91.0] | J4 85.7% (calibrated J9 88.7%) | 29 → 12, p < 0.0001 |
+
+On retrieved evidence the node ties the best judges. It does not reach 90%. Its gain there is the false-accept rate,
+which falls by 59%. Selective mode on gold evidence decides 56/300 claims with 0 errors (95% upper bound 5.21%). A
+risk-controlled ≤ 1% NOT_SURE band cannot be certified with 350 calibration claims, so the node abstains (fails closed).
+Phase 3c added a strict proof verifier (J11). As a hard veto it cuts rv3 false accepts from 12 to 4 but costs about 9
+accuracy points, so train CV leaves it off. As a source it leaves rv3 at 87.3%. See SAFETY.md §b5.
+Details: [results/phase3/RESULTS.md](results/phase3/RESULTS.md), `results/phase3/scifact.txt`, and the charts in `results/phase3/`
+(`scifact_accuracy.png`, `scifact_false_accept.png`, `scifact_correlation.png`, `risk_coverage.png`).
+
 ## Layout
 * `src/roman_wheel_node/core.py`: the node, `LiveWeights` and `ThresholdLearner`. The public API is re-exported from `roman_wheel_node`.
 * `src/roman_wheel_node/dependence.py`: `DependenceLearner`, `FrozenDependence`, and the `ess` / `tan` / `stack` combiners.
@@ -289,10 +309,11 @@ is byte-reproducible too (`--suite dependence --check results/dependence`). The 
 * `src/roman_wheel_node/bench/`: `generator.py` (the claim-stream generator and its CLI), `runner.py` (policies,
   confidence intervals, calibration, head-to-heads), `plots.py`, and `__main__.py` (`python -m roman_wheel_node.bench`).
 * `results/`: the committed 20-seed standard suite (frozen). `results/dependence/`: the 20-seed dependence suite.
-* `phase3/`: the Phase 3 fact-verification plan (`PLAN.md`) and interface scaffolding (not part of the package).
-* `tests/`: 147 tests (`python -m pytest -q`; two full-benchmark byte checks run only with `RWN_FULL_BENCH=1`).
+* `phase3/`: the Phase 3 SciFact pipeline (retrieval, NLI, xAI judges, evaluation, reports; not part of the package).
+* `SAFETY.md`: guarantees by construction (with tests) vs measured guarantees.
+* `tests/`: 165 tests (`PYTHONPATH=src python -m pytest -q`: 163 pass; two full-benchmark byte checks run only with `RWN_FULL_BENCH=1`).
 * `benchmarks/train_sim.py` and `benchmarks/results_v1.0.0.*`: the original demo and the 1.0.0 five-seed results, kept for history.
 
 ## Next steps
-* Phase 3: evaluate on a real agent with real claims (see the PR description).
+* A larger calibration set (and reviewed labels) so a ≤ 1% decided-error band can actually be certified.
 * Learned score calibration per source: histogram P(truth | score bin) from the ledger, replacing the fixed soft/hard models.

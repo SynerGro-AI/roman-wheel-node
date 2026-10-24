@@ -20,6 +20,10 @@ dependence=learner)``):
   is then conditioned on its tree parent: ``P(c_k | c_parent)``, shrunk toward the marginal reliability with
   ``shrink`` pseudo-counts. With no significant edges it reduces *exactly* to ``variant="hard"`` on the
   learner's own reliabilities.
+* ``"ess_cal"``: the ESS discount applied to *calibrated confidences* instead of hard votes, for sources whose
+  scores are calibrated posteriors ``P(true | score_k)`` (e.g. isotonic-calibrated LLM judges). With the learned base
+  rate π, the log-odds is ``logit(π) + Σ_k w_k (logit(s_k) - logit(π))``: naive Bayes on calibrated posteriors, with
+  each source's evidence down-weighted by its ESS weight ``w_k``. It keeps the confidence that hard votes throw away.
 * ``"stack"``: stacking. An online logistic regression on the signed votes, with an L2 pull toward the naive-Bayes
   weights ``logit(r_k)``. A constant learning rate gives exponential forgetting.
 
@@ -38,7 +42,7 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 __all__ = ["DependenceLearner", "FrozenDependence", "DEP_VARIANTS", "votes_of", "llr_from_model"]
 
-DEP_VARIANTS = ("tan", "ess", "stack")
+DEP_VARIANTS = ("tan", "ess", "stack", "ess_cal")
 _P_MIN, _P_MAX = 0.01, 0.99
 G_THRESHOLD = 6.635          # chi-square(1) 0.99 quantile
 
@@ -60,9 +64,15 @@ def votes_of(scores: Mapping[str, float]) -> Dict[str, int]:
     return out
 
 
-def llr_from_model(model: dict, votes: Mapping[str, int]) -> float:
-    """Log-likelihood ratio of 'true' vs 'false' for these votes under a model snapshot."""
+def llr_from_model(model: dict, votes: Mapping[str, int], scores: Optional[Mapping[str, float]] = None) -> float:
+    """Log-likelihood ratio of 'true' vs 'false' for these votes (or, for ``ess_cal``, scores) under a model snapshot."""
     v = model["variant"]
+    if v == "ess_cal":
+        if scores is None:
+            raise ValueError("variant 'ess_cal' needs the scores")
+        lp = _logit(model["prior"])
+        return lp + math.fsum(model["w"][k] * (_logit(_clip(float(scores[k]))) - lp)
+                              for k in sorted(model["w"]) if votes.get(k, 0))
     if v == "stack":
         return model["bias"] + math.fsum(model["w"][k] * votes[k] for k in sorted(model["w"]) if votes.get(k, 0))
     if v == "ess":
@@ -100,7 +110,7 @@ class FrozenDependence:
         return self._model
 
     def llr(self, scores: Mapping[str, float], variant: str) -> float:
-        return llr_from_model(self.model((), variant), votes_of(scores))
+        return llr_from_model(self.model((), variant), votes_of(scores), scores)
 
 
 class DependenceLearner:
@@ -128,6 +138,7 @@ class DependenceLearner:
         self._sw: Dict[str, float] = {}                 # stacking weights
         self._sb = 0.0
         self.n = 0
+        self._truth = [0.0, 0.0]                        # decayed [false, true] counts (base rate for ess_cal)
         self._cache: Dict[Tuple[Tuple[str, ...], str], dict] = {}
         if os.path.exists(self.path):
             with open(self.path) as f:
@@ -161,6 +172,7 @@ class DependenceLearner:
         # counts (decayed by the growth trick)
         corr = {k: (1 if (votes[k] > 0) == bool(y) else 0) for k in live}
         w = self._w
+        self._truth[y] += w
         for k in live:
             self._single.setdefault(k, [0.0, 0.0])[corr[k]] += w
         for i, a in enumerate(live):
@@ -171,6 +183,7 @@ class DependenceLearner:
         self.n += 1
         if self._w > 1e150:
             s = 1.0 / self._w
+            self._truth = [self._truth[0] * s, self._truth[1] * s]
             for v in self._single.values():
                 v[0] *= s; v[1] *= s
             for t in self._pair.values():
@@ -190,6 +203,11 @@ class DependenceLearner:
             return 0.5
         s = self._scale()
         return (wr[1] * s + 1.0) / ((wr[0] + wr[1]) * s + 2.0)
+
+    def base_rate(self) -> float:
+        """Decayed Beta(1,1)-smoothed P(truth) over the ledger."""
+        s = self._scale() if self.n else 1.0
+        return (self._truth[1] * s + 1.0) / ((self._truth[0] + self._truth[1]) * s + 2.0)
 
     def pair_table(self, a: str, b: str) -> List[List[float]]:
         """Decayed joint counts [c_a][c_b] of correctness for sources a, b."""
@@ -233,11 +251,15 @@ class DependenceLearner:
                     mi, g, phi = self.dependence(a, b)
                     if g > self.g_threshold:
                         edges.append((mi, a, b, phi))
-            if variant == "ess":
+            if variant in ("ess", "ess_cal"):
                 excess = {k: 0.0 for k in ks}
                 for _, a, b, phi in edges:
                     excess[a] += max(0.0, phi); excess[b] += max(0.0, phi)
-                m = {"variant": "ess", "r": r, "w": {k: 1.0 / (1.0 + excess[k]) for k in ks}}
+                if variant == "ess":
+                    m = {"variant": "ess", "r": r, "w": {k: 1.0 / (1.0 + excess[k]) for k in ks}}
+                else:
+                    m = {"variant": "ess_cal", "prior": _clip(self.base_rate()),
+                         "w": {k: 1.0 / (1.0 + excess[k]) for k in ks}}
             elif variant == "tan":
                 m = {"variant": "tan", "factors": self._forest(ks, r, edges)}
             else:
@@ -281,4 +303,4 @@ class DependenceLearner:
     def llr(self, scores: Mapping[str, float], variant: str = "ess") -> float:
         """Log-likelihood ratio for a claim's scores (abstaining sources ignored)."""
         votes = votes_of(scores)
-        return llr_from_model(self.model([k for k, v in votes.items() if v], variant), votes)
+        return llr_from_model(self.model([k for k, v in votes.items() if v], variant), votes, scores)
