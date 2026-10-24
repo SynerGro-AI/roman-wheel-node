@@ -4,8 +4,8 @@ This trains a small NLI cross-encoder on COVID-Fact true/fake claim pairs. It th
 accept-only veto on the frozen rule, against the held-out half B.
 
 **Windows only (win_amd64).** The GPU setup (`phase5\setup_gpu.ps1` with `phase5\torch-cu132.lock`) supports only
-64-bit Windows on an AMD64/x64 CPU, with 64-bit Python 3.13 or 3.14 from python.org. It refuses to run anywhere
-else (exit 7) before any pip call.
+64-bit Windows on an AMD64/x64 CPU, with 64-bit Python 3.13 or 3.14 from python.org. `phase5\torch-cu132.lock` is only
+complete for win_amd64, so the script refuses to run anywhere else (exit 7) before any pip call.
 
 - **No xAI calls, no spend.** Everything runs on the local GPU.
 - **Internal data.** The bundle holds COVID-Fact and HealthVer text. It stays on your machines. Never commit, upload
@@ -60,7 +60,7 @@ then runs `phase5\check_gpu.py`. Check the code with `$LASTEXITCODE` right after
 | Code | From | Meaning | What to do |
 |---|---|---|---|
 | 0 | setup_gpu.ps1 | GPU ready | Go on to step 2. |
-| 1 | setup_gpu.ps1 | `phase5\torch-cu132.lock` or `phase5\torch-cu132.constraints.txt` is missing, the lock's sha256 does not match, or a pip step failed (uninstall, hash-locked torch install, or the constrained repo install) | Restore the files with `git checkout -- phase5/torch-cu132.lock phase5/torch-cu132.constraints.txt`, then rerun. For a pip failure, read the pip error above the `FAILED` line: a hash error means a download did not match the lock, so do not edit the lock and report it. A `ResolutionImpossible` on the repo install means a dependency wanted a different torch, so report it rather than loosening the constraint. |
+| 1 | setup_gpu.ps1 | `phase5\torch-cu132.lock` or `phase5\torch-cu132.constraints.txt` is missing, either file's sha256 does not match, the constraints file is not exactly `torch==2.14.1+cu132`, or a pip step failed (uninstall, hash-locked torch install, or the constrained repo install) | Restore the files with `git checkout -- phase5/torch-cu132.lock phase5/torch-cu132.constraints.txt`, then rerun. For a pip failure, read the pip error above the `FAILED` line: a hash error means a download did not match the lock, so do not edit the lock and report it. A `ResolutionImpossible` on the repo install means a dependency wanted a different torch, so report it rather than loosening the constraint. |
 | 2 | check_gpu.py | torch is not importable | Rerun `.\phase5\setup_gpu.ps1` inside the activated `C:\venvs\rwn5` venv. |
 | 3 | check_gpu.py | Wrong torch build: not exactly 2.14.1+cu132 (CUDA 13.2), e.g. a CPU or older CUDA build replaced it | Rerun `.\phase5\setup_gpu.ps1`. Do not install torch any other way. |
 | 4 | check_gpu.py | CUDA not available | Update the NVIDIA driver until `nvidia-smi` lists the GPU and shows CUDA 13.2 or newer, reboot, then rerun. |
@@ -68,6 +68,7 @@ then runs `phase5\check_gpu.py`. Check the code with `$LASTEXITCODE` right after
 | 6 | check_gpu.py | The fixed-tensor GPU matmul self-test differs from the CPU result | Do not train. Rerun once; if it still fails, report the output (driver or hardware problem). |
 | 7 | setup_gpu.ps1 | Not Windows on AMD64, or Python is not a 64-bit Windows build (`win-amd64`) | Use 64-bit Windows with 64-bit Python 3.13 or 3.14 from python.org. |
 | 8 | setup_gpu.ps1 | Python is not 3.13 or 3.14 | Recreate the venv with `py -3.13 -m venv C:\venvs\rwn5`, activate it, then rerun. |
+| 9 | setup_gpu.ps1 or check_gpu.py | Unexpected Python error in the platform/version check or the GPU check (not a pip failure); the full traceback is printed with `unexpected error, paste the traceback` | Do not retry blindly. Copy the whole traceback and report it. |
 
 > **Known limit:** the editable repo install (`pip install -e ".[test,local-nli2]"`, which pulls transformers,
 > sentencepiece, protobuf and the test tools) is not hash-locked. Only torch and its dependencies are, through

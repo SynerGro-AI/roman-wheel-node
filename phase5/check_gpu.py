@@ -5,9 +5,11 @@ sm_120-capable GPU. The matmul self-test uses a fixed deterministic tensor and c
 GPU result with the same product computed on the CPU, so it is reproducible run to run.
 
 Exit codes: 0 ok, 2 torch missing, 3 wrong torch build, 4 CUDA not available,
-5 no kernels for this GPU, 6 GPU matmul differs from CPU.
+5 no kernels for this GPU, 6 GPU matmul differs from CPU,
+9 unexpected error (full traceback printed).
 """
 import sys
+import traceback
 
 EXPECTED_TORCH = "2.14.1+cu132"
 EXPECTED_CUDA = "13.2"
@@ -51,5 +53,16 @@ def main():
     return 0
 
 
+def run():
+    try:
+        return main()
+    except SystemExit:
+        raise
+    except Exception:  # noqa: BLE001 - deliberate catch-all: print the traceback, exit 9
+        traceback.print_exc()
+        print("FAIL: unexpected error, paste the traceback", file=sys.stderr)
+        return 9
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run())
