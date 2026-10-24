@@ -3,6 +3,8 @@ import hashlib, json, os, sys
 
 import pytest
 
+if not os.path.isdir(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "phase3")):
+    pytest.skip("phase3/ research scripts are repo-only (not in the sdist/wheel)", allow_module_level=True)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "phase3"))
 from factcheck.interfaces import (BM25Retriever, BudgetExceeded, OverlapScorer, Passage, SpendLedger,  # noqa: E402
                                   XAIJudge, exact_copy_gate, parse_judge, usage_cost_usd)

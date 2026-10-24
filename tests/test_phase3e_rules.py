@@ -1,6 +1,9 @@
 """Phase 3e selective rules: fixed-sequence LTT, accept filters, BLOCK accounting (offline, no network, no key)."""
 import os, random, subprocess, sys
 
+import pytest  # noqa: E402
+if not os.path.isdir(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "phase3")):
+    pytest.skip("phase3/ research scripts are repo-only (not in the sdist/wheel)", allow_module_level=True)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "phase3"))
 import s3e_rules as R  # noqa: E402
 

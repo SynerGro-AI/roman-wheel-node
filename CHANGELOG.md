@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased: release prep (packaging and sponsorship placeholders)
+- README: a "Support development" section (sponsorships go to SynerGro AI Corp; links are placeholders) and absolute
+  GitHub links so images and docs render on PyPI. `.github/FUNDING.yml` added as a fully commented-out template.
+- Packaging: `MANIFEST.in` ships `tests/_v2_reference.py`, `CHANGELOG.md` and `SAFETY.md` in the sdist, so the test
+  suite runs from an unpacked sdist against the installed wheel. Tests that need the repo-only `phase3/` or `phase5/`
+  research scripts now skip cleanly when those folders are absent. Extra classifiers and Source/Changelog URLs.
+
 ## Unreleased: Phase 5, pair checker (GPU run pending) and the fp2 exact-copy fingerprint
 - **Policy 4.1.0 (`policies/rwn-policy-4.1.0.json`, sha 2156f584)** keeps 4.0.0's profiles. It adds a versioned
   `rwn-fp2` exact-copy fingerprint to the gate: NFC, invisible-character removal, quote/dash normalization and

@@ -7,6 +7,8 @@ import sys
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if not os.path.isdir(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "phase5")):
+    pytest.skip("phase5/ research scripts are repo-only (not in the sdist/wheel)", allow_module_level=True)
 sys.path.insert(0, os.path.join(ROOT, "phase5"))
 import pairs_common as C  # noqa: E402
 

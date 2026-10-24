@@ -1,7 +1,7 @@
 # Roman Wheel Node
 
 [![CI](https://github.com/SynerGro-AI/roman-wheel-node/actions/workflows/ci.yml/badge.svg)](https://github.com/SynerGro-AI/roman-wheel-node/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/LICENSE)
 
 An exact-copy gate plus learned, auditable evidence fusion that decides whether a claim
 can enter an agent's trace. Pure Python (3.9+), standard library only, zero dependencies.
@@ -156,7 +156,7 @@ bad majority and all-noisy. It is 2.7 points short on drift, because it takes ti
 On cold start it is 5.2 points short of the ceiling (4.6 short of the oracle on the same streams): 50 claims are not enough to learn from. On copycats it is 11.4 points short
 (7.5 with the learned threshold), because the independence assumption counts the leader four times.
 
-![accuracy](results/bench_accuracy.png)
+![accuracy](https://raw.githubusercontent.com/SynerGro-AI/roman-wheel-node/main/results/bench_accuracy.png)
 
 ### Product vs geomean, head to head on identical streams
 The difference is geomean accuracy minus product accuracy in points, paired per seed, with geomean/tie/product wins over 20 seeds.
@@ -179,7 +179,7 @@ reliabilities settle. Even so, geomean is equal or better in 5 of 6 scenarios, a
 (+11.9 points), where the threshold has too little data. Keep `geomean` (or `bayes`) as the default. `product` stays
 available only for backward compatibility.
 
-![product vs geomean](results/bench_product_vs_geomean.png)
+![product vs geomean](https://raw.githubusercontent.com/SynerGro-AI/roman-wheel-node/main/results/bench_product_vs_geomean.png)
 
 ### Calibration
 - **Learned reliability error:** mean over sources of |r − true accuracy|, averaged over the run / at the last claim.
@@ -202,8 +202,8 @@ Reading the calibration table:
 - **Cold start:** the ECE figures are inflated by small-sample binning. 50 claims per run gives noisy bins; even the oracle shows 0.074.
 - **geomean:** its eff is a score, not a probability (ECE 0.09–0.20).
 
-![calibration](results/bench_calibration.png)
-![reliability tracking](results/bench_reliability_tracking.png)
+![calibration](https://raw.githubusercontent.com/SynerGro-AI/roman-wheel-node/main/results/bench_calibration.png)
+![reliability tracking](https://raw.githubusercontent.com/SynerGro-AI/roman-wheel-node/main/results/bench_reliability_tracking.png)
 
 ### Reproduce
 ```bash
@@ -274,16 +274,16 @@ column is (ess wins / ties / hard wins) over 20 seeds. ECE is the expected calib
 - **Remaining limits:** dependence must be learned, so a cluster costs a few hundred claims before it is discounted
   (cold start can't benefit). Pairwise φ approximates higher-order structure. The combiners use hard votes only.
 
-![dependence accuracy](results/dependence/dep_accuracy.png)
-![paired](results/dependence/dep_paired.png)
-![calibration](results/dependence/dep_calibration.png)
+![dependence accuracy](https://raw.githubusercontent.com/SynerGro-AI/roman-wheel-node/main/results/dependence/dep_accuracy.png)
+![paired](https://raw.githubusercontent.com/SynerGro-AI/roman-wheel-node/main/results/dependence/dep_paired.png)
+![calibration](https://raw.githubusercontent.com/SynerGro-AI/roman-wheel-node/main/results/dependence/dep_calibration.png)
 
 The standard suite (`results/`) is frozen and still byte-identical. The dependence suite (`results/dependence/`)
 is byte-reproducible too (`--suite dependence --check results/dependence`). The dependence code uses
 `math.fsum`, because Python 3.12 changed the builtin float `sum()`, which made one near-threshold edge differ on 3.9 before the fix.
 
 ## Phase 3: real claims (SciFact) and safety
-**Safety guarantees and their limits: see [SAFETY.md](SAFETY.md).** It separates what is guaranteed by construction
+**Safety guarantees and their limits: see [SAFETY.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/SAFETY.md).** It separates what is guaranteed by construction
 (fail-closed, NOT_SURE never accepted, zero-propagation, non-bypassable gate, hash-chained audit, each mapped to its
 tests) from what is only measured on data.
 
@@ -299,7 +299,7 @@ which falls by 59%. Selective mode on gold evidence decides 56/300 claims with 0
 risk-controlled ≤ 1% NOT_SURE band cannot be certified with 350 calibration claims, so the node abstains (fails closed).
 Phase 3c added a strict proof verifier (J11). As a hard veto it cuts rv3 false accepts from 12 to 4 but costs about 9
 accuracy points, so train CV leaves it off. As a source it leaves rv3 at 87.3%. See SAFETY.md §b5.
-Details: [results/phase3/RESULTS.md](results/phase3/RESULTS.md), `results/phase3/scifact.txt`, and the charts in `results/phase3/`
+Details: [results/phase3/RESULTS.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/results/phase3/RESULTS.md), `results/phase3/scifact.txt`, and the charts in `results/phase3/`
 (`scifact_accuracy.png`, `scifact_false_accept.png`, `scifact_correlation.png`, `risk_coverage.png`).
 
 ## Phase 4: shadow-mode deployment and fresh-set certification
@@ -336,10 +336,10 @@ respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(
 * **Fresh-set run on the box:**
   * Sets: COVID-Fact, HealthVer dev, and the HealthVer test pairs left unjudged in 3d. All are internal, and only
     aggregates are committed.
-  * Results are in [results/phase4/SUMMARY.md](results/phase4/SUMMARY.md). The free local profile accepts 10% of 6,311
+  * Results are in [results/phase4/SUMMARY.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/results/phase4/SUMMARY.md). The free local profile accepts 10% of 6,311
     fresh claims at 67.8% precision. COVID-Fact's one-word counterfactual claims fool it, so it is far from any
     certificate.
-* **Desktop / GPU runbook:** [PHASE4_DESKTOP.md](PHASE4_DESKTOP.md), with Windows and PowerShell instructions, the
+* **Desktop / GPU runbook:** [PHASE4_DESKTOP.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/PHASE4_DESKTOP.md), with Windows and PowerShell instructions, the
   Seraphina hook, and where the logs go.
 
 ## Layout
@@ -355,6 +355,18 @@ respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(
 * `SAFETY.md`: guarantees by construction (with tests) vs measured guarantees.
 * `tests/`: 190 tests (`PYTHONPATH=src python -m pytest -q`: 188 pass; two full-benchmark byte checks run only with `RWN_FULL_BENCH=1`).
 * `benchmarks/train_sim.py` and `benchmarks/results_v1.0.0.*`: the original demo and the 1.0.0 five-seed results, kept for history.
+
+## Support development
+
+Roman Wheel Node is built in the open by **SynerGro AI Corp**, a for-profit company. If the project is useful to you
+or your team, you can sponsor its development. Sponsorships go to SynerGro AI Corp and fund maintenance, benchmarks
+and new releases.
+
+* **GitHub Sponsors:** `<GITHUB_SPONSORS_LINK_TBD>` (placeholder; the owner will add the link once the account exists)
+* **Ko-fi or another sponsor page:** `<SPONSOR_PAGE_LINK_TBD>` (placeholder)
+* **Commercial support or a custom integration:** `<CONTACT_EMAIL_TBD>` (placeholder)
+
+Once the links are live, the commented template in `.github/FUNDING.yml` turns on GitHub's **Sponsor** button.
 
 ## Next steps
 * A larger calibration set (and reviewed labels) so a ≤ 1% decided-error band can actually be certified.
