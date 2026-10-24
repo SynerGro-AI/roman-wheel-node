@@ -135,15 +135,15 @@ Node vs best single judge (chosen on train accuracy), paired on dev:
   node: train-CV selected = bayes-logit [all]  vs J4 (train 90.3%): 91.3% vs 90.0%  diff +1.3 pts [-1.0, +3.7]  node-only-right 9, judge-only-right 5, McNemar p=0.424
 Error analysis of the selected node (dev errors): {'contradict_accepted': 2, 'nei_accepted': 4, 'panel_unanimous_vs_gold': 7, 'retrieval_miss': 0, 'support_rejected_gate': 1, 'support_rejected_panel_consensus': 16, 'support_rejected_split_panel': 3}
 Label-noise candidates (every judge confidently disagrees with gold, gold evidence): 9
-  dev:1368     gold=SUPPORT    panel=NEI        Vitamin D deficiency effects the term of delivery.
-  dev:1385     gold=SUPPORT    panel=CONTRADICT cSMAC formation enhances weak ligand signalling.
-  dev:593      gold=SUPPORT    panel=CONTRADICT Incidence of heart failure decreased by 10% in women since 1979.
-  dev:783      gold=NEI        panel=CONTRADICT Mice without IFN-γ or its receptor are resistant to EAM induced with α-MyHC/CFA.
-  dev:808      gold=SUPPORT    panel=CONTRADICT Most termination events in Okazaki fragments are sequence specific.
-  dev:907      gold=NEI        panel=SUPPORT    PGE 2 promotes intestinal tumor growth by altering the expression of tumor suppressing and DNA repair genes.
-  train:1214   gold=NEI        panel=CONTRADICT The deregulated and prolonged activation of monocytes improves inflammatory disease outcomes.
-  train:1386   gold=CONTRADICT panel=SUPPORT    cSMAC formation represses weak ligand signalling.
-  train:44     gold=SUPPORT    panel=NEI        A mutation in HNF4A leads to an increased risk of developing diabetes by the age of 14 years.
+  dev:1368     gold=SUPPORT    panel=NEI  (SciFact dev claim id 1368; cited docs 2425364)
+  dev:1385     gold=SUPPORT    panel=CONTRADICT  (SciFact dev claim id 1385; cited docs 306006)
+  dev:593      gold=SUPPORT    panel=CONTRADICT  (SciFact dev claim id 593; cited docs 19675911)
+  dev:783      gold=NEI        panel=CONTRADICT  (SciFact dev claim id 783; cited docs 40632104)
+  dev:808      gold=SUPPORT    panel=CONTRADICT  (SciFact dev claim id 808; cited docs 36606083)
+  dev:907      gold=NEI        panel=SUPPORT  (SciFact dev claim id 907; cited docs 6923961)
+  train:1214   gold=NEI        panel=CONTRADICT  (SciFact train claim id 1214; cited docs 6493422,14407673)
+  train:1386   gold=CONTRADICT panel=SUPPORT  (SciFact train claim id 1386; cited docs 306006)
+  train:44     gold=SUPPORT    panel=NEI  (SciFact train claim id 44; cited docs 56893404)
 Selective mode (abstain band picked on TRAIN out-of-fold posteriors, applied to dev unchanged):
   bayes-ess_cal  target 0.97: band [0.039, 0.848) train-OOF cov 78.0% -> dev coverage 77.7% (233 decided), errors 12, acc 94.8%, error-rate 95% upper (Clopper-Pearson) 8.21%, false accepts 5/100 accepted
   bayes-ess_cal  target 0.98: band [0.000, 0.848) train-OOF cov 33.7% -> dev coverage 33.3% (100 decided), errors 5, acc 95.0%, error-rate 95% upper (Clopper-Pearson) 10.23%, false accepts 5/100 accepted
