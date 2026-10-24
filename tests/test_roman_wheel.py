@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 import random
+import re
 
 import pytest
 
@@ -296,5 +297,12 @@ def test_audit_log(tmp_path):
 
 def test_package_metadata():
     import roman_wheel_node as pkg
+    from roman_wheel_node import _version, core
 
-    assert pkg.__version__ == "1.2.0" and callable(pkg.roman_wheel_node)
+    assert pkg.__version__ == core.__version__ == _version.__version__ and callable(pkg.roman_wheel_node)
+    pyproject = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pyproject.toml")
+    if os.path.exists(pyproject):  # repo / sdist: the version is read from _version.py, never duplicated
+        with open(pyproject, encoding="utf-8") as f:
+            text = f.read()
+        assert 'dynamic = ["version"]' in text and "roman_wheel_node._version.__version__" in text
+        assert not re.search(r'(?m)^version\s*=\s*"', text)  # no static version string

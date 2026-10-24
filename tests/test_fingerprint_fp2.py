@@ -3,6 +3,7 @@
 import json
 import os
 import unicodedata
+from pathlib import Path
 
 import pytest
 from hypothesis import given, settings
@@ -95,20 +96,20 @@ def test_policy_420_pinned_fp2_and_only_policy_shipped():
 
 
 def test_policy_420_tamper_refused(tmp_path):
-    doc = json.load(open(DEFAULT_POLICY_PATH))
+    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text())
     doc["gate"]["normalize_table_sha256"] = "0" * 64
     doc["sha256"] = policy_sha256(doc)
     p = tmp_path / "x.json"
     p.write_text(json.dumps(doc))
     with pytest.raises(PolicyError):
         load_policy(str(p))
-    doc = json.load(open(DEFAULT_POLICY_PATH))
+    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text())
     doc["gate"]["fingerprint"] = "fp7"
     doc["sha256"] = policy_sha256(doc)
     p.write_text(json.dumps(doc))
     with pytest.raises(PolicyError):
         load_policy(str(p))
-    doc = json.load(open(DEFAULT_POLICY_PATH))
+    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text())
     doc["profiles"]["local"]["cutoff"] = 0.5  # edited body, old hash
     p.write_text(json.dumps(doc))
     with pytest.raises(PolicyError):
@@ -120,7 +121,7 @@ def test_shadow_runner_fp2_vs_fp1(tmp_path):
         return {"nli2": {"S": 0.999, "C": 0.0}, "overlap": {"S": 1.0}}
 
     messy = ["Vitamin  D reduced infections by 12%\u00a0in adults."]
-    doc = {k: v for k, v in json.load(open(DEFAULT_POLICY_PATH)).items() if k not in ("sha256", "gate")}
+    doc = {k: v for k, v in json.loads(Path(DEFAULT_POLICY_PATH).read_text()).items() if k not in ("sha256", "gate")}
     doc["sha256"] = policy_sha256(doc)  # the same profiles with the fp1 (raw sha256) gate
     p_fp1 = tmp_path / "fp1.json"
     p_fp1.write_text(json.dumps(doc))

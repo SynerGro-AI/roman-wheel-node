@@ -116,9 +116,9 @@ own stream.
 
 ## 7. What is and isn't certified
 
-The free local profiles are **not certified at any level**. The only certificate is Phase 3e's: on SciFact, with the
-paid 6-judge panel (`profile="panel"`), false accepts are at most 5% of accepts. Nothing is certified at 1% or 2%. The
-Phase 4 fresh-set results are in `results/phase4/`.
+The free local profiles are **not certified at any level**. The only certificate is policy 4.2.0's: on SciFact, with
+the paid 6-judge panel (`profile="panel"`), false accepts are at most 10% of accepts. Nothing is certified at 5%, 2% or
+1%. The Phase 4 fresh-set results in `results/phase4/` measured the withdrawn policy 4.0.0.
 
 To run the paid panel, opt in explicitly: `--enable-xai-judges --cap-usd N` with `XAI_API_KEY` set. The key is read only
 then, and it is never printed or logged.

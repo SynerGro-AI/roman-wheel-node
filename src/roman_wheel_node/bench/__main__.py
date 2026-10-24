@@ -33,10 +33,17 @@ def main(argv=None) -> int:
     a.out = a.out or ("results" if a.suite == "standard" else os.path.join("results", "dependence"))
     js, txt = to_json(res), to_text(res)
     if a.check:
+
+        def same(path: str, body: str) -> bool:
+            if not os.path.exists(path):
+                return False
+            with open(path) as f:
+                return f.read() == body
+
         bad = [
             n
             for n, body in (("benchmark.json", js), ("benchmark.txt", txt))
-            if not os.path.exists(os.path.join(a.check, n)) or open(os.path.join(a.check, n)).read() != body
+            if not same(os.path.join(a.check, n), body)
         ]
         print("IDENTICAL" if not bad else f"DIFFERENT: {', '.join(bad)}")
         return 1 if bad else 0

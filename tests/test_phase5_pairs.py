@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -68,15 +69,15 @@ def test_manifest_has_no_text_and_is_self_hashed(tmp_path):
 
 @pytest.mark.skipif(not os.path.exists(ITEMS), reason="internal COVID-Fact cache not present")
 def test_manifest_reproduces_from_data():
-    items = [i for i in json.load(open(ITEMS, encoding="utf-8")) if i["ds"] == "covidfact"]
+    items = [i for i in json.loads(Path(ITEMS).read_text(encoding="utf-8")) if i["ds"] == "covidfact"]
     assert C.manifest_doc(items, C.build_split(items))["sha256"] == C.load_manifest()["sha256"]
-    blob = open(C.MANIFEST, encoding="utf-8").read()
+    blob = Path(C.MANIFEST).read_text(encoding="utf-8")
     assert not any(it["claim"] in blob for it in items if len(it["claim"]) > 15)
     assert not any(C.group_of(it["evidence"]) in blob for it in items)  # raw group keys are salted away
 
 
 def test_protocol_frozen():
-    p = json.load(open(C.PROTOCOL))
+    p = json.loads(Path(C.PROTOCOL).read_text())
     assert p["sha256"] == C.canon_sha({k: v for k, v in p.items() if k != "sha256"})
     assert p["split_manifest_sha256"] == C.load_manifest()["sha256"]
     assert [t["retention"] for t in p["tau_sequence"]] == [0.80, 0.90, 0.95]

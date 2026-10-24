@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -102,7 +103,7 @@ def test_cli_byte_identical(tmp_path):
 @pytest.mark.skipif(not os.path.exists(COMMITTED), reason="committed results not present")
 @pytest.mark.parametrize("key,seeds", [("cold_start", range(20)), ("baseline", [0]), ("copycats", [7])])
 def test_committed_results_reproduce(key, seeds):
-    res = json.load(open(COMMITTED))
+    res = json.loads(Path(COMMITTED).read_text())
     assert res["config"]["seeds"] >= 20
     pol = res["scenarios"][key]["policies"]
     for s in seeds:
@@ -162,7 +163,7 @@ def test_dependence_oracle_is_a_proper_posterior(key):
 @pytest.mark.skipif(not os.path.exists(COMMITTED_DEP), reason="committed dependence results not present")
 @pytest.mark.parametrize("key,seeds", [("copycats", [3]), ("cold_start", range(20)), ("leader_switch", [0])])
 def test_committed_dependence_results_reproduce(key, seeds):
-    res = json.load(open(COMMITTED_DEP))
+    res = json.loads(Path(COMMITTED_DEP).read_text())
     assert res["config"]["seeds"] >= 20 and res["config"]["suite"] == "dependence"
     pol = res["scenarios"][key]["policies"]
     for s in seeds:

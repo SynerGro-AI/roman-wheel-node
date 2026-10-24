@@ -141,7 +141,8 @@ def stats(rows: Sequence[Tuple[str, bool]], alphas: Sequence[float] = ALPHAS, de
 def certify(
     log_dir: str, by: Optional[str] = None, alphas: Optional[Sequence[float]] = None, delta: Optional[float] = None
 ) -> dict:
-    pre = json.load(open(os.path.join(log_dir, "prereg.json")))
+    with open(os.path.join(log_dir, "prereg.json")) as f:
+        pre = json.load(f)
     alphas = tuple(alphas or pre.get("alphas", ALPHAS))
     delta = float(delta or pre.get("delta", 0.05))
     labels = _labels(log_dir)
@@ -295,7 +296,8 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
         return 0
     res = certify(a.log_dir, by=a.by)
     if a.json:
-        json.dump(res, open(a.json, "w"), indent=1)
+        with open(a.json, "w") as f:
+            json.dump(res, f, indent=1)
     print(report(res))
     return 0
 

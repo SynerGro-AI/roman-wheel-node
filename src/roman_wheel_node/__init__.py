@@ -3,6 +3,7 @@
 See :mod:`roman_wheel_node.core` for the full documentation.
 """
 
+from ._version import __version__
 from .core import (
     BAYES_VARIANTS,
     LiveWeights,
@@ -18,7 +19,6 @@ from .dependence import DependenceLearner, FrozenDependence
 from .policy import Policy, PolicyError, load_policy
 from .trace import Claim, ClaimTrace, Decision, TamperError, replay
 
-__version__ = "1.2.0"
 __all__ = [
     "roman_wheel_node",
     "LiveWeights",

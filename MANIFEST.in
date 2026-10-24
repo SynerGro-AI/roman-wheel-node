@@ -1,5 +1,5 @@
 # sdist extras beyond setuptools defaults (package code, README, LICENSE, pyproject, tests/test*.py).
 # Research scripts (phase3/ phase4/ phase4b/ phase5/), results/, data, models and bundles stay repo-only.
-include CHANGELOG.md SAFETY.md
+include CHANGELOG.md SAFETY.md DATA_LICENSES.md
 recursive-include tests *.py
 global-exclude *.py[cod] __pycache__ *.jsonl

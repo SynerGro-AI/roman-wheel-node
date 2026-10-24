@@ -3,6 +3,7 @@
 import json
 import math
 import random
+from pathlib import Path
 
 import pytest
 
@@ -113,9 +114,9 @@ def test_ledger_append_only_and_replay_identical(tmp_path):
     p = str(tmp_path / "d.jsonl")
     dl = DependenceLearner(p)
     feed(dl, "two_clusters", 400)
-    first = open(p).read()
+    first = Path(p).read_text()
     feed(dl, "two_clusters", 200, seed=9)
-    assert open(p).read().startswith(first) and len(open(p).read().splitlines()) == 600
+    assert Path(p).read_text().startswith(first) and len(Path(p).read_text().splitlines()) == 600
     dl2 = DependenceLearner(p)
     ks = ["a0", "a1", "a2", "b0", "b1", "b2", "solo"]
     for v in DEP:
@@ -179,7 +180,7 @@ def test_trace_logs_and_replays_dependence_model(tmp_path, variant):
         dl.record(c.scores, c.truth)
     rep = t.verify()
     assert rep.n_records == 150 and rep.n_admitted == len(t)
-    rec = json.loads(open(t._log_path).read().splitlines()[-1])
+    rec = json.loads(Path(t._log_path).read_text().splitlines()[-1])
     assert rec["dependence_model"]["variant"] == variant
 
 
@@ -190,17 +191,17 @@ def test_trace_tampered_dependence_model_detected(tmp_path):
     feed(dl, "copycats", 500)
     t = ClaimTrace(str(tmp_path / "audit.jsonl"), mode="bayes", variant="ess", dependence=dl, clock=Clock())
     t.submit("x", {"lead": 0.9, "c1": 0.9, "c2": 0.9, "c3": 0.9, "solo": 0.1}, a=1)
-    r = json.loads(open(t._log_path).read())
+    r = json.loads(Path(t._log_path).read_text())
     r.pop("hash")
     r["dependence_model"]["w"] = {k: 1.0 for k in r["dependence_model"]["w"]}  # undo the discount
     r["hash"] = _chain_hash(r["prev"], r, None)
-    open(t._log_path, "w").write(_canon(r).decode() + "\n")
+    Path(t._log_path).write_text(_canon(r).decode() + "\n")
     with pytest.raises(TamperError):
         replay(t._log_path)
     r.pop("hash")
     r.pop("dependence_model")
     r["hash"] = _chain_hash(r["prev"], r, None)
-    open(t._log_path, "w").write(_canon(r).decode() + "\n")
+    Path(t._log_path).write_text(_canon(r).decode() + "\n")
     with pytest.raises(TamperError):
         replay(t._log_path)
 

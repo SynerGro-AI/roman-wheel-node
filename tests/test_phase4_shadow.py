@@ -5,6 +5,7 @@ import copy
 import json
 import os
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -58,7 +59,7 @@ def test_default_policy_is_pinned_and_honest():
 
 
 def test_tampered_policy_refused(tmp_path):
-    doc = json.load(open(DEFAULT_POLICY_PATH))
+    doc = json.loads(Path(DEFAULT_POLICY_PATH).read_text())
     doc["profiles"]["local"]["accept_margin"] = 0.01
     bad = tmp_path / "p.json"
     bad.write_text(json.dumps(doc))
@@ -134,8 +135,7 @@ if HAVE_HYP:
         )
         assert got is out and repr(out) == before  # same object, untouched
         assert sum(r.counts.values()) == len(claims) + 1
-        for line in open(r.fresh_path):  # fail closed: ACCEPT only with a passed gate and full sources
-            rec = json.loads(line)
+        for rec in FR.load_jsonl(r.fresh_path):  # fail closed: ACCEPT only with a passed gate and full sources
             if rec["outcome"] == ACCEPT:
                 assert rec["a"] == 1 and not boom and {"nli2", "overlap"} <= set(rec["raw"])
             if rec["a"] != 1:
@@ -147,7 +147,7 @@ if HAVE_HYP:
     def test_enforce_releases_only_accepts(tmp_path, nli2, ov, contra):
         r = runner(tmp_path, sources=fake_sources(nli2, ov, contra), enforce=True, on_withhold=lambda o, v: "WITHHELD")
         res = r.wrap(lambda: "answer", extract=lambda o: [("claim", EV)])()
-        v = json.loads(open(r.fresh_path).read().splitlines()[-1])["outcome"]
+        v = json.loads(Path(r.fresh_path).read_text().splitlines()[-1])["outcome"]
         assert res == ("answer" if v == ACCEPT else "WITHHELD")
 
 
@@ -197,7 +197,7 @@ def test_retrieval_feeds_the_gate(tmp_path):
     corpus = {"d1": EV, "d2": ["Unrelated sentence about climate models and sea level."]}
     r = runner(tmp_path, corpus=corpus, trusted_hashes=None)
     v = r.observe("vitamin D reduced respiratory infection")
-    rec = json.loads(open(r.fresh_path).read().splitlines()[-1])
+    rec = json.loads(Path(r.fresh_path).read_text().splitlines()[-1])
     assert rec["retrieved"] and rec["evidence"] == EV and rec["a"] == 1 and v.outcome == ACCEPT
     assert exact_gate(EV, BM25(corpus).hashes()) == 1 and exact_gate(["x"], BM25(corpus).hashes()) == 0
 
@@ -226,8 +226,9 @@ def test_judges_off_by_default_and_key_never_read(tmp_path, monkeypatch):
     r.observe("c", EV)
     r.wrap(lambda: "o", extract=lambda o: [("c", EV)])()
     assert "XAI_API_KEY" not in spy.reads
-    for line in open(r.fresh_path):
-        assert "test-not-a-key" not in line and not any(k.startswith("J") for k in json.loads(line)["raw"])
+    with open(r.fresh_path, encoding="utf-8") as f:
+        for line in f:
+            assert "test-not-a-key" not in line and not any(k.startswith("J") for k in json.loads(line)["raw"])
     with pytest.raises(PermissionError):
         XAIPanel()
     with pytest.raises(ValueError):

@@ -6,15 +6,14 @@
 An exact-copy gate plus learned, auditable evidence fusion that decides whether a claim
 can enter an agent's trace. Pure Python (3.9+), standard library only, zero dependencies.
 
-**Real data (SciFact, Phase 3e): certified at a ≤ 5% false-accept bound with 19.0% coverage.** With the 6-judge panel,
-the accept-only rule accepted 152 of 799 SciFact calibration claims with 0 false accepts (one-sided Clopper-Pearson
-upper bound 4.3%, δ = 0.05). On held-out SciFact dev the frozen rule accepted 63 of 300 claims (21%) with 1 false
-accept. At full coverage the node scores **89.7%** [86.0, 93.0] on SciFact dev (300 claims, cited abstracts).
-On fresh claims it was never tuned on (Phase 4: COVID-Fact and HealthVer, 3,829 labelled), the same frozen panel rule
-reaches **73.5% precision** [69.7, 77.1] **at 14.6% coverage**. That is not certified at any level. **Nothing is
-certified at 1% or 2% anywhere.** Sources and caveats: [Phase 3](#phase-3-real-claims-scifact-and-safety),
-[Phase 4](#phase-4-shadow-mode-deployment-and-fresh-set-certification), `results/phase3/step3e.txt`,
-`results/phase3/RESULTS.md` and `results/phase4/SUMMARY.md`.
+**Shipped policy 4.2.0, fitted only on SciFact train (commercial-use licences, see
+[DATA_LICENSES.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/DATA_LICENSES.md)).** With the paid
+6-judge panel (opt-in), the accept-only rule is certified at a **≤ 10%** false-accept share on SciFact (out-of-fold on
+the 799 train claims: 280 accepts, 17 false, one-sided Clopper-Pearson upper bound 9.0%, δ = 0.05). On held-out SciFact
+dev it accepted 108 of 300 claims (36.0%) with 7 false accepts: precision 93.5%, 81.5% of the supported claims
+accepted. The free default profile (`local`) accepted 64 of 300 dev claims at 85.9% precision and is not certified at
+any level. **Nothing is certified at 5%, 2% or 1%.** These are the only real-data numbers this release claims; see
+[Policy 4.2.0](#policy-420-the-commercial-use-refit).
 
 *Synthetic benchmark (simulated claim streams, not real data):* 92.2% ± 0.3% correct calls on the baseline scenario
 (20 seeds), against a 92.4% Bayes-optimal ceiling. The other scenarios have ceilings below 90%; see
@@ -22,11 +21,12 @@ certified at 1% or 2% anywhere.** Sources and caveats: [Phase 3](#phase-3-real-c
 
 ## Install
 
-Not on PyPI yet. Install from GitHub:
-
 ```bash
-pip install "git+https://github.com/SynerGro-AI/roman-wheel-node@v1.0.0"
-# or, for development
+pip install roman-wheel-node
+roman-wheel-node --version          # or: python -m roman_wheel_node --version
+# optional extras for the shadow-mode sources: local-nli (ONNX), local-nli2 (DeBERTa-v3-base, torch)
+pip install "roman-wheel-node[local-nli2]"
+# for development
 git clone https://github.com/SynerGro-AI/roman-wheel-node && cd roman-wheel-node
 pip install -e ".[test,bench]" && python -m pytest -q
 ```
@@ -143,7 +143,7 @@ Invariants (all covered by tests, including property-based tests with hypothesis
 ## Synthetic benchmark (Phase 2): `python -m roman_wheel_node.bench --seeds 20`
 
 **Everything in this section and in [Correlation-aware combining](#correlation-aware-combining-variantess-with-a-dependencelearner) is synthetic: simulated sources on
-simulated claims, not real data.** The real-data results are in Phase 3 and Phase 4.
+simulated claims, not real data.** The real-data results are in [Policy 4.2.0](#policy-420-the-commercial-use-refit).
 
 These are synthetic claim streams from `roman_wheel_node.bench.generator`. The generator is documented and has a CLI
 (`python -m roman_wheel_node.bench.generator --list` prints every scenario spec). Each source makes the right call with
@@ -302,20 +302,8 @@ is byte-reproducible too (`--suite dependence --check results/dependence`). The 
 (fail-closed, NOT_SURE never accepted, zero-propagation, non-bypassable gate, hash-chained audit, each mapped to its
 tests) from what is only measured on data.
 
-Held-out SciFact dev (300 claims; everything learned on 350 train claims), binary "supported vs not":
-
-| Evidence | Node accuracy [95% CI] | Best single judge | False accepts, unwrapped J1 → node (of 176) |
-|---|---|---|---|
-| gold abstracts | **91.3%** [88.0, 94.3] | J4 90.0% | 19 → 6, p = 0.0002 |
-| rv3 retrieval (RRF + MedCPT cross-encoder, top 5) | **87.3%** [83.3, 91.0] | J4 85.7% (calibrated J9 88.7%) | 29 → 12, p < 0.0001 |
-
-On retrieved evidence the node ties the best judges. It does not reach 90%. Its gain there is the false-accept rate,
-which falls by 59%. Selective mode on gold evidence decides 56/300 claims with 0 errors (95% upper bound 5.21%). A
-risk-controlled ≤ 1% NOT_SURE band cannot be certified with 350 calibration claims, so the node abstains (fails closed).
-Phase 3c added a strict proof verifier (J11). As a hard veto it cuts rv3 false accepts from 12 to 4 but costs about 9
-accuracy points, so train CV leaves it off. As a source it leaves rv3 at 87.3%. See SAFETY.md §b5.
-Details: [results/phase3/RESULTS.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/results/phase3/RESULTS.md), `results/phase3/scifact.txt`, and the charts in `results/phase3/`
-(`scifact_accuracy.png`, `scifact_false_accept.png`, `scifact_correlation.png`, `risk_coverage.png`).
+The Phase 3 research runs (SciFact-only fits made before the policy 4.x line) do not describe the shipped policy, so
+their numbers are not repeated here. The repository keeps them as a research record in `results/phase3/`.
 
 ## Phase 4: shadow-mode deployment and fresh-set certification
 **This is shadow mode: the node watches an agent's claims and changes nothing.** A frozen, hash-pinned policy decides
@@ -328,7 +316,7 @@ rwn = ShadowRunner("rwn_shadow/", nli2="MoritzLaurer/DeBERTa-v3-base-mnli-fever-
 respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(out)])   # same return value
 ```
 
-* **Policy.** `src/roman_wheel_node/policies/rwn-policy-4.0.0.json`, loaded by `roman_wheel_node.policy.load_policy()`.
+* **Policy.** `src/roman_wheel_node/policies/rwn-policy-4.2.0.json`, loaded by `roman_wheel_node.policy.load_policy()`.
   The loader pins its sha256 and refuses an edited or swapped file.
   * There are three outcomes: `ACCEPT`, `NOT_SURE` and `BLOCK`. The policy is accept-only, so it never rejects on its
     posterior.
@@ -338,7 +326,8 @@ respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(
   * It has three profiles:
     * `local` (default, free): DeBERTa-v3-base NLI + lexical overlap.
     * `local-lite` (free): ONNX DeBERTa-v3-small + overlap.
-    * `panel` (paid, opt-in): the Phase 3e certified configuration. It reproduces 3e exactly: 63 accepted and 1 false on SciFact dev, and 36 accepted and 0 false on Climate-FEVER.
+    * `panel` (paid, opt-in): the six xAI judges plus both NLI models and overlap, refit on SciFact train. On SciFact
+      dev: 108 accepted, 7 false.
 * **Judges are off by default.** The paid panel runs only with `XAIPanel(enable=True, cap_usd=...)` or
   `--enable-xai-judges --cap-usd N`. Before that, `XAI_API_KEY` is never read, and it is never printed or logged.
 * **Fresh-data pipeline.** `python -m roman_wheel_node.fresh prereg | label | certify`.
@@ -346,16 +335,37 @@ respond = rwn.wrap(respond, extract=lambda out: [(c, ev) for c, ev in my_claims(
   * Label each claim SUPPORT / NOT / UNSURE.
   * Certify with one-sided Clopper-Pearson at 1/2/5% (δ = 0.05). With no search over rules, 299 / 149 / 59 error-free
     accepts certify 1% / 2% / 5%.
-* **Honesty.** The only certificate behind any profile is Phase 3e's: false accepts ≤ 5% of accepts, on SciFact, panel
-  profile. **Nothing is certified at 1% or 2%.** The local profiles are not certified at any level.
-* **Fresh-set run on the box:**
-  * Sets: COVID-Fact, HealthVer dev, and the HealthVer test pairs left unjudged in 3d. All are internal, and only
-    aggregates are committed.
-  * Results are in [results/phase4/SUMMARY.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/results/phase4/SUMMARY.md). The free local profile accepts 10% of 6,311
-    fresh claims at 67.8% precision. COVID-Fact's one-word counterfactual claims fool it, so it is far from any
-    certificate.
+* **Honesty.** The only certificate behind any shipped profile is policy 4.2.0's: false accepts ≤ 10% of accepts, on
+  SciFact, panel profile. **Nothing is certified at 5%, 2% or 1%.** The local profiles are not certified at any level.
+* **Fresh-set run: not yet done for policy 4.2.0.** The earlier fresh-set run measured the withdrawn policy 4.0.0 on
+  COVID-Fact and HealthVer claims, which the commercial-use licensing rule now excludes, so none of its numbers apply.
+  A fresh-set run on licensed or owner-labelled data is planned.
 * **Desktop / GPU runbook:** [PHASE4_DESKTOP.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/PHASE4_DESKTOP.md), with Windows and PowerShell instructions, the
   Seraphina hook, and where the logs go.
+
+### Policy 4.2.0: the commercial-use refit
+
+Policy 4.0.0 and 4.1.0 were calibrated partly on HealthVer. Shipped files now use only data whose licence allows
+commercial use and that the owner approved, and HealthVer is excluded, so 4.0.0 and 4.1.0 no longer ship. Policy 4.2.0 refits every profile on SciFact train only (799 claims; CC BY 4.0 claims, ODC-By 1.0
+abstracts) with the same pre-registered rule family, then evaluates once on held-out SciFact dev (300 claims).
+Script: `phase6/refit_policy_42.py`; report: `results/phase6/refit_42.txt`. Licences and attribution:
+[DATA_LICENSES.md](https://github.com/SynerGro-AI/roman-wheel-node/blob/main/DATA_LICENSES.md).
+
+| Profile | ACCEPT (of 300) | False accepts | Precision | Supported claims accepted | Accuracy, NOT_SURE = reject |
+|---|---|---|---|---|---|
+| panel (opt-in, paid) | 108 (36.0%) | 7 | 93.5% | 81.5% | 90.0% |
+| local (default) | 64 (21.3%) | 9 | 85.9% | 44.4% | 74.0% |
+| local-lite | 16 (5.3%) | 1 | 93.8% | 12.1% | 63.3% |
+
+* Panel certificate: ≤ 10% false accepts among accepts (280 accepts, 17 false out-of-fold on SciFact train, one-sided
+  Clopper-Pearson upper bound 9.0%, δ = 0.05). Nothing is certified at a tighter level, and the local profiles are not
+  certified at all. The withdrawn policies' numbers are not repeated here because they came from a fit that used
+  HealthVer.
+* The opt-in structural veto (`roman_wheel_node.structure.FROZEN`, chosen on COVID-Fact) is not part of any policy. On
+  the 4.2.0 panel's out-of-fold SciFact train accepts (280, 17 false) it would catch 0 false accepts and drop 7 correct
+  ones (`results/phase6/structural_scifact.json`).
+* The panel's xAI judge outputs were used to fit its calibration. See DATA_LICENSES.md for the open question about the
+  xAI terms.
 
 ### Test-only smoke flags (Phase 5)
 The Phase 5 scripts have flags that exist only to smoke-test the pipeline on a CPU box. **They are test-only, and no
@@ -382,21 +392,17 @@ reported number comes from them.**
 * `SAFETY.md`: guarantees by construction (with tests) vs measured guarantees.
 * `phase5/`: the Phase 5 pair-checker pipeline (split, bundle, train, evaluate; not part of the package). Its
   `--tiny-random`, `--limit` and `--smoke` flags are test-only (see [Test-only smoke flags](#test-only-smoke-flags-phase-5)).
-* `tests/`: 221 tests (`PYTHONPATH=src python -m pytest -q`: 218 pass. Two full-benchmark byte checks run only with
-  `RWN_FULL_BENCH=1`, and one Phase 5 test runs only where the internal COVID-Fact cache is present).
+* `tests/`: 225 tests. In the repository 223 pass and 2 slow full-benchmark tests skip unless `RWN_FULL_BENCH=1` is set (then all 225 pass). The suite also passes under `pytest -W error`. From an unpacked sdist against the installed wheel, 184 pass and 12 skip, each with a stated reason (repo-only research folders and committed results are not shipped).
 * `benchmarks/train_sim.py` and `benchmarks/results_v1.0.0.*`: the original demo and the 1.0.0 five-seed results, kept for history.
 
-## Support development
+## Support development (planned)
 
-Roman Wheel Node is built in the open by **SynerGro AI Corp**, a for-profit company. If the project is useful to you
-or your team, you can sponsor its development. Sponsorships go to SynerGro AI Corp and fund maintenance, benchmarks
-and new releases.
+Roman Wheel Node is built in the open by **SynerGro AI Corp**, a for-profit company. Sponsorship is planned: once a
+sponsor account is set up, sponsorships will go to SynerGro AI Corp and fund maintenance, benchmarks and new releases.
+There is no sponsor account yet, so there is nothing to pay into today.
 
-* **GitHub Sponsors:** `<GITHUB_SPONSORS_LINK_TBD>` (placeholder; the owner will add the link once the account exists)
-* **Ko-fi or another sponsor page:** `<SPONSOR_PAGE_LINK_TBD>` (placeholder)
-* **Commercial support or a custom integration:** `<CONTACT_EMAIL_TBD>` (placeholder)
-
-Once the links are live, the commented template in `.github/FUNDING.yml` turns on GitHub's **Sponsor** button.
+For commercial support or a custom integration, open an issue at
+[github.com/SynerGro-AI/roman-wheel-node/issues](https://github.com/SynerGro-AI/roman-wheel-node/issues).
 
 ## Next steps
 * A larger calibration set (and reviewed labels) so a ≤ 1% decided-error band can actually be certified.

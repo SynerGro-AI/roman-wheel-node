@@ -375,12 +375,16 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     corpus = None
     if args.corpus:
         corpus = {}
-        for line in open(args.corpus):
-            if line.strip():
-                d = json.loads(line)
-                corpus[str(d["doc_id"])] = list(d["sentences"])
-    src = sys.stdin if args.claims == "-" else open(args.claims)
-    items = [json.loads(line) for line in src if line.strip()]
+        with open(args.corpus) as f:
+            for line in f:
+                if line.strip():
+                    d = json.loads(line)
+                    corpus[str(d["doc_id"])] = list(d["sentences"])
+    if args.claims == "-":
+        items = [json.loads(line) for line in sys.stdin if line.strip()]
+    else:
+        with open(args.claims) as f:
+            items = [json.loads(line) for line in f if line.strip()]
     trusted = {sha256(s) for it in items for s in it.get("evidence") or []} if args.trust_given_evidence else None
     pol = load_policy()
     if trusted is not None and pol.fingerprint == "fp2":

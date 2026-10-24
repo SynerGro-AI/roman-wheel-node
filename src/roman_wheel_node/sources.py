@@ -176,7 +176,8 @@ class _OnnxNLI:
         from tokenizers import Tokenizer
 
         self.np = np
-        cfg = json.load(open(os.path.join(model_dir, "config.json")))
+        with open(os.path.join(model_dir, "config.json")) as f:
+            cfg = json.load(f)
         self.labels = [cfg["id2label"][str(i)] for i in range(len(cfg["id2label"]))]
         self.tok = Tokenizer.from_file(os.path.join(model_dir, "tokenizer.json"))
         self.tok.enable_truncation(max_length=max_len)

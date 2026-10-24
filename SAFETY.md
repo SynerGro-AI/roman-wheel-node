@@ -4,8 +4,8 @@ The project's north star is "100% safe AI". This file keeps two kinds of stateme
 
 * **(a) Guarantees by construction.** Properties of the code path, each enforced by named tests. They hold for every
   input under the stated threat model, and they say nothing about whether a claim is *true*.
-* **(b) Measured guarantees.** Error rates on real claims (SciFact). These are statistical estimates with
-  confidence bounds on one dataset. They are not proofs and they do not transfer automatically to other domains.
+* **(b) Measured guarantees.** Error rates of the shipped policy 4.2.0 on real claims (SciFact). These are statistical
+  estimates with confidence bounds on one dataset. They are not proofs and they do not transfer automatically to other domains.
 
 Nothing here claims "100% correct". The strongest honest statement is: **the gate fails closed by construction, and
 on held-out data its decided-claim error rate is bounded as in (b).**
@@ -36,180 +36,41 @@ Limits of (a):
   `ClaimTrace.head()` externally.
 * (a) guarantees that nothing *unverified* is emitted. "Verified" means it passed the gate and the learned posterior
   cutoff. It does **not** mean "true": the judges, NLI and retrieval can all be wrong together. That is what (b) measures.
-* The SciFact evaluation decides every held-out claim through a real `ClaimTrace` and calls `verify()` on its log
-  (`phase3/evaluate.py:node_run`), so the measured numbers below come from the guarded path, not from a re-implementation.
+* The policy 4.2.0 evaluation decides every held-out claim through `roman_wheel_node.shadow.FrozenNode`, the shipped
+  shadow decision path with its trace (`phase6/refit_policy_42.py:evaluate`), so the measured numbers below come from the
+  guarded path, not from a re-implementation.
 
-## (b) Measured guarantees (SciFact, held-out dev)
+## (b) Measured guarantees (shipped policy 4.2.0, SciFact, held-out dev)
 
-Setup: SciFact dev, n = 300 held-out claims (124 SUPPORT, 64 CONTRADICT, 112 NEI). The binary task is "supported vs not",
-so 176 claims are unsupported. Every reliability, dependence estimate, calibration, cutoff and abstain band was learned
-on 350 SciFact **train** claims (5-fold CV for selection). Dev was used once, for reporting. CIs are 95% bootstrap
-(10,000 resamples), "upper" is the one-sided 95% Clopper-Pearson bound, and paired tests are exact McNemar.
-Source for b1–b4: the Phase 3b run (commit f70cc79), kept as `results/phase3/scifact_p3b.txt`. `results/phase3/scifact.txt` / `scifact.json`
-now hold the Phase 3c re-run with the strict verifier J11 added (section b5). Chart: `results/phase3/risk_coverage.png` (3c run).
+Setup: SciFact dev, n = 300 held-out claims. The binary task is "supported vs not". "Upper" is the one-sided 95%
+Clopper-Pearson bound.
 
-### b1. Decide-everything mode (no abstention)
+Script: `phase6/refit_policy_42.py`. Report: `results/phase6/refit_42.txt`. Licences: `DATA_LICENSES.md`.
 
-| Evidence condition | Node (train-CV selected) | Best single judge | False accepts, J1 unwrapped → node (of 176) |
-|---|---|---|---|
-| gold abstracts | **91.3%** [88.0, 94.3] (bayes-logit) | J4 unwrapped 90.0% (+1.3 pts, p = 0.42) | 19 → 6 (3.4%), p = 0.0002 |
-| rv3 retrieval: RRF(BM25, MedCPT, bge) → MedCPT cross-encoder, top 5 | **87.3%** [83.3, 91.0] (bayes-ess) | J4 85.7%; calibrated J9 88.7%, J10 88.0% | **29 → 12** (16.5% → 6.8%), **p < 0.0001** |
-| retrieved5 (BM25 top 20 → MiniLM, top 5) | 87.3% [83.3, 91.0] | J4 / J9 87.0% | 27 → 19, p = 0.057 (not significant) |
+* **Data.** Every profile is refit on SciFact train only (799 claims; CC BY 4.0 claims, ODC-By 1.0 abstracts), with
+  the same pre-registered rule family as the research policies. HealthVer, Climate-FEVER and COVID-Fact are not used.
+  Held-out SciFact dev (300 claims) was evaluated once.
+* **Certificate (panel only, δ = 0.05, out-of-fold on SciFact train, one fixed-sequence test).** Accept precision
+  ≤ 10%: 280 accepts, 17 false, upper bound 9.0%. **Not certified at 5%, 2% or 1%.**
+* **Held-out SciFact dev.**
+  * `panel`: 108 ACCEPTs (36.0%), 7 false, precision 93.5% (upper bound on the false-accept share 11.8%), 81.5% of
+    supported claims accepted. With NOT_SURE counted as a rejection, 90.0% of dev claims are handled correctly.
+  * `local` (default, free): 64 ACCEPTs, 9 false, precision 85.9%.
+  * `local-lite`: 16 ACCEPTs, 1 false, precision 93.8%.
+  * No source errors or replay mismatches in any profile.
+* **Structural veto.** `structure.FROZEN` stays opt-in and outside the policy. On the 4.2.0 panel's out-of-fold SciFact
+  accepts it catches 0 false accepts and loses 7 correct ones.
+* **Net:** the guarantees in (a) are unchanged. The measured bound for the shipped policy is ≤ 10% false accepts among
+  panel ACCEPTs, on SciFact only. The free profiles are not certified at any level.
 
-Honest reading:
+### Research record (not a property of this package)
 
-* **On realistic retrieved evidence the node does not reach 90%.** It ties the best single judges (differences are
-  within ±2 points, McNemar p > 0.3). Its measurable gain is **safety**: it accepts 59% fewer unsupported claims than
-  the unwrapped judge (17 claims only J1 accepted, 0 only the node accepted), and it is 4.3 points more accurate than J1
-  (p = 0.029).
-* Better retrieval did not translate into accuracy. Dev recall@5 of a gold abstract rose from .883 (BM25) to .936
-  (MiniLM) to **.963** (rv3), yet node accuracy stayed at 87.3%. Only 4 of the 38 rv3 errors are retrieval misses. The
-  rest are judgement errors: 12 supported claims rejected by panel consensus, 10 NEI claims accepted, and 17 errors where
-  the whole panel unanimously disagrees with gold (see label noise below).
+Earlier research phases (3 to 3e) and the policy 4.0.0 fresh-set run (Phase 4) measured fits that are not
+shipped, and some of them were calibrated on HealthVer, which the commercial-use licensing rule now excludes. Their
+numbers are therefore not repeated here and must not be read as properties of 1.2.0. The repository keeps them as a
+research record (`results/phase3/`, `results/phase4/`). Lessons from that work that do not depend on any one fit:
 
-### b2. Selective mode ("not sure"): abstain band picked on train out-of-fold posteriors, applied to dev unchanged
-
-| Condition / policy | Train target | Dev coverage | Dev errors / decided | Dev error rate, 95% upper bound |
-|---|---|---|---|---|
-| gold, bayes-ess_cal | 1.00 (zero errors) | 18.7% | **0 / 56** | **5.21%** |
-| gold, bayes-ess_cal | 0.99 | 31.7% | 3 / 95 | 7.96% |
-| gold, bayes-ess_cal | 0.98 | 33.3% | 5 / 100 | 10.23% |
-| gold, bayes-ess_cal | 0.97 | 77.7% | 12 / 233 (94.8% acc.) | 8.21% |
-| rv3, bayes-ess_cal | 0.97 | 20.0% | 3 / 60 (95.0%) | 12.42% |
-| rv3 and retrieved5, any policy | ≥ 0.98 | no train-certified band: abstain on everything | – | – |
-
-* **Zero held-out errors is achievable only at low coverage, and only with gold evidence.** 56 of 300 decided with 0
-  errors still leaves a 95% upper bound of 5.21% (rule of three, ≈ 3/56). "0 errors" is not "100% safe".
-* With retrieved evidence, no band reaching ≥ 98% on train exists, so the node fails closed (everything NOT_SURE).
-
-### b3. Risk-controlled NOT_SURE (Learn-Then-Test, Bonferroni over 20 margins, δ = 0.05)
-
-The claim to certify is: decided-claim error ≤ α with 95% confidence, calibrated on train OOF only. Disagreement
-(judges split 2+/2+, or NLI contradicts an accept) also forces NOT_SURE.
-
-* **α = 1% (and 0.5%, 2%, 5%): nothing can be certified.** Coverage collapses to about 0. The only decided dev claims
-  are 2 exact-copy-gate BLOCKs, and nothing is accepted, in every condition. This is a sample-size limit, not a tuning
-  failure. With 350 training claims and confident errors already among the 25 most confident, certifying ≤ 1% would need
-  roughly 300 or more decided errorless calibration claims (≈ 3/α, more after Bonferroni). Abstaining is the correct
-  fail-closed result.
-* α = 10% is certifiable on gold only (bayes-ess_cal): train OOF 12/271 errors (upper 9.15%), dev coverage 81.0%,
-  15 errors / 243 decided (upper 9.35%), 4 false accepts of 90 accepted. It is not certifiable on retrieved evidence.
-
-### b4. Dataset caveats, including label noise
-
-* **Label noise caps measurable accuracy.** `phase3/label_review.md` lists 9 dev and 8 train claims where every judge
-  unanimously and confidently (p ≥ 0.8) contradicts the gold label on gold evidence. Excluding the 9 dev claims
-  (sensitivity only, never a headline, and the test set was not relabelled), accuracy is 93.5% (gold node), 89.3% (rv3
-  node), 89.7% (rv3 bayes-ess_cal) and 87.6% (J4 on rv3). If those labels are wrong, ~3% of dev is unreachable for any
-  honest system. That and the confident-error tail are why 99% is not supportable on SciFact at this sample size.
-* One dataset (biomedical abstracts, 300 dev claims). Shifts in domain, claim style or retrieval corpus will change all
-  of (b). Re-calibrate before relying on these numbers elsewhere.
-* The judges are LLMs behind a paid API. Their behaviour can change across model versions. All responses are cached so
-  this run is reproducible, but a re-run against live models is not guaranteed to match.
-* 1 judge call (dev:971, J5, gold) timed out repeatedly and is treated as an abstaining (uniform) vote.
-* The binary task merges CONTRADICT and NEI. The 3-way accuracy is lower (rv3: node 79.7% [75.0, 84.0], best judge J10 81.7%).
-
-### b5. Phase 3c: strict proof verifier (J11), aimed at NEI claims accepted as supported
-
-J11 (grok-4.20 reasoning, prompt V) must copy one evidence sentence and answer PROVEN only when that quote directly
-entails the claim, with the same population, outcome and direction and no hedge. A PROVEN verdict also needs the quote
-to pass the byte-exact gate. Prompt and use were chosen on train CV only (`phase3/p3c_select.py`,
-`results/phase3/p3c_selection.json`). A second prompt (W) was dropped after 47 calls for budget.
-
-* **J11 is very strict.** On train it gives a verified proof for only 42% (gold) / 55% (rv3) of SUPPORT claims, but for
-  just 1.5% / 3.8% of NEI claims. SciFact labels paraphrased or generalised findings as SUPPORT, so strict entailment
-  under-accepts.
-* **As a hard ACCEPT veto it fails the accuracy test.** Train CV: gold .911 → .754, rv3 .889 → .797, so the veto is
-  OFF in the headline policy. Dev confirms it: with the veto, false accepts are rv3 4/176 (2.3%, against 12) and gold
-  1/176 (0.6%), but accuracy falls to 78.7% / 77.3%.
-* **As an extra source it changes little.** Train CV +0.3 pts. On dev, rv3 node 87.3% [83.3, 91.0] (unchanged), false
-  accepts 29 → 12 (unchanged), and still 10 NEI claims accepted. Gold: train CV now selects bayes-ess with J11, at
-  90.3% [87.0, 93.7] and 19 → 8 false accepts (p = 0.0034). Before J11, bayes-logit scored 91.3%, and bayes-ess_cal
-  still scores 91.3% [88.0, 94.3].
-* **"ACCEPT only with proof, otherwise NOT_SURE"** (fail-closed; node rejects stay REJECT): on rv3 dev, coverage 86.0%,
-  4 false accepts among 68 accepted (upper 12.96%), and 30 errors among 258 decided (mostly supported claims the node
-  rejected). On gold dev, 1 false accept among 58 accepted (upper 7.92%).
-* **Selective bands with J11 (3c run):** on gold, the selected node at target 0.99/1.00 decides 47/300 (15.7%) with 0
-  errors (upper 6.18%), and ess_cal at target 1.00 decides 63 with 1 error (upper 7.31%). On rv3, no band reaches 98% or
-  higher at usable coverage (ess_cal decides 12 claims with 0 errors, upper 22.1%). LTT at α ≤ 5% still certifies nothing.
-
-Net: a strict verifier makes accepted claims cleaner (the false-accept rate falls about 5×) at the cost of rejecting
-about half of the true supports. It does not raise accuracy on SciFact, and it does not change the certification
-picture. That still needs the larger, cleaner test set scoped in `phase3/STEP2_PLAN.md`.
-
-**Bottom line.** By construction (a), nothing unverified and nothing NOT_SURE is ever emitted as verified. Measured (b),
-when the node does decide on held-out data its error rate is bounded at about 5% (gold evidence, 19% coverage) to
-about 9–12% (broader coverage). It cannot yet certify ≤ 1%. Getting there needs a much larger calibration set and cleaner labels.
-
-### b6. Phase 3d: larger calibration pool (2,798 claims) and three out-of-sample test sets
-
-Full details: `results/phase3/RESULTS.md` (last section), `results/phase3/step2.txt`. Calibration was SciFact train plus
-HealthVer train, and every choice was fit on that pool only. HealthVer is internal (aggregates only).
-
-* **α = 1% and 2%: still nothing certifiable, with 8× more calibration data.** Coverage is 0%, and no test claim is
-  accepted, so there are 0 false accepts. That is the fail-closed outcome. The reason is now the confident-error tail, not
-  only sample size: about 16% of the most confident calibration decisions disagree with gold. Most are accepts of claims
-  that HealthVer labels NEI or CONTRADICT.
-* α = 10% can be certified only through the family supplement (Bonferroni over 10 configurations × 20 margins), with 4.5%
-  calibration coverage. On test: HealthVer 4/106 errors (upper 8.4%), SciFact 2/65 (upper 9.4%). Climate-FEVER has no
-  calibration data and exceeds the bound (15/142, 10.6%). This is a measured example of why certificates do not transfer
-  across sources.
-* Decide-everything accuracy: HealthVer 78.6%, Climate-FEVER 78.8%, SciFact 87.3%. False accepts of unsupported claims are
-  8.2% / 1.7% / 9.7%, higher than the best single judge's. The full-coverage node is not a safety mode; NOT_SURE is.
-* Net: 99% accuracy on decided claims is **not** demonstrated on any real dataset. The supported safety statement is
-  structural: an uncertain claim becomes NOT_SURE and is never accepted (section a). The measured bound is ≤ 10% on
-  exchangeable claims, at small coverage.
-
-### b7. Phase 3e: audit, stricter accept rules and per-dataset calibration (no new API calls)
-
-Full details: `results/phase3/RESULTS.md` (Phase 3e) and `results/phase3/step3e.txt`.
-
-* **Audit of the confident errors** (22 in the Phase 3d top 139; 27 in the whole tied tier, all false accepts): 7 (10)
-  label noise, 6 (7) ambiguous, 9 (10) real node errors, 0 retrieval misses. The node errors are over-inference, for
-  example from a recommendation to a risk finding, from one gene to a general rule, or from "most" to "not all".
-* **α = 1% and 2%: still not certifiable**, under any of three risk definitions and either calibration scheme, so the
-  node stays fail-closed (NOT_SURE).
-  * SciFact is limited by sample size. Even zero errors would need at least 402 decided claims at 2% and 808 at 1% for
-    this family, against 799 calibration claims, of which only 328 are SUPPORT.
-  * HealthVer is limited by label noise: a unanimous 6/6 panel disagrees with gold on 12.5% of claims.
-* **What is now certified (δ = 0.05, calibration out-of-fold, SciFact population only):**
-  * Accept precision ≤ 5% (accept-only mode, 19% calibration coverage, 0/152 errors). On SciFact dev: 63 accepted,
-    1 unsupported.
-  * Selective error ≤ 10% with BLOCK reported separately (91% coverage). On SciFact dev: 92.6% accuracy at 94.3%
-    coverage.
-  * Nothing is certified for HealthVer. Climate-FEVER is transfer and not covered.
-* **Per-dataset calibration** brings SciFact full-coverage accuracy back to 89.7% (Phase 3d pooled: 87.3%) and cuts
-  false accepts from 29 to 10 of 176.
-* **Caveats:** the rule family was designed after looking at calibration errors; the two extra risk definitions were
-  added post hoc (δ ≤ 0.15 jointly); the certificates are out-of-fold.
-* **Net:** no claim of 99% or 100% accuracy is supported on real data. The structural guarantee in (a) is unchanged: an
-  uncertain claim is never accepted.
-
-### b8. Phase 4: fresh never-tuned-on sets, frozen pre-registered rules (shadow mode, end to end)
-
-Full table: `results/phase4/SUMMARY.md`. Per-profile reports: `results/phase4/fresh_*.txt`.
-
-* **Fresh sets.** None of these was used to select or tune any rule:
-  * COVID-Fact: 4,086 pairs, 32% SUPPORT. Its refuted claims are one-word counterfactual edits of the supported ones.
-  * HealthVer dev: 1,917 pairs.
-  * The 308 HealthVer test pairs Phase 3d did not judge.
-  * Both datasets are internal and unlicensed. Only aggregates are committed.
-  * Labels are dataset gold, collapsed to SUPPORT vs not.
-* **Rules.** Each profile's rule was frozen in `rwn-policy-4.0.0` and pre-registered in `prereg.json` before any label
-  was imported. There was no search, and the run was one pass through the real `ShadowRunner` / `ClaimTrace` path. The
-  logs verify.
-* **Free local profile (`local`).** On all 6,311 fresh pairs: 633 ACCEPTs (10.0% coverage), 204 of them unsupported.
-  Precision is 67.8% [64.0, 71.4], and the upper bound on the false-accept share is 35.4%. **Not certified at 1%, 2%
-  or 5%.**
-  * Almost all of its false accepts are COVID-Fact counterfactuals: precision there is 66.8%. Small NLI models can't
-    see a one-word swap.
-  * On HealthVer dev it accepts only 1.1%, at 95.2% precision.
-  * The free sources are much weaker than the judge panel, as expected.
-* **Judge panel (`panel`, frozen Phase 3e rule):** see `results/phase4/SUMMARY.md`. The paid run was capped at $315
-  of the user's $320 total.
-* **Non-determinism finding.** The int8 ONNX DeBERTa-v3-small model (`nli`) gives different outputs for the same
-  input on the box's CPU (onnxruntime 1.31, avx512-vnni kernels). The default `local` profile therefore leaves it out.
-  `local-lite` and the certified `panel` configuration keep it, as frozen in Phase 3. The audit log records the scores
-  actually used, so replay stays exact. A full-precision ONNX export, or the GPU, removes the issue.
-* **Net:** the fresh data does not support any 1% or 2% claim. What the free profile collects is the material for
-  one: 299 error-free accepts certify 1%, but only for a rule whose precision is actually near 100%.
+* Certifying a tight error level needs many decided claims. With zero errors, a one-sided Clopper-Pearson bound at
+  δ = 0.05 needs 59 accepts for 5%, 149 for 2% and 299 for 1%, and a search over rules needs more.
+* Label noise in a benchmark puts a floor under the measurable error, whatever the system does.
+* A certificate earned on one dataset does not transfer to another; it has to be re-earned on the target data.

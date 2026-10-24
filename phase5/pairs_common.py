@@ -145,7 +145,8 @@ def manifest_doc(items: Sequence[Mapping], roles: Mapping[str, str]) -> dict:
 
 
 def load_manifest(path: str = MANIFEST) -> dict:
-    m = json.load(open(path, encoding="utf-8"))
+    with open(path, encoding="utf-8") as f:
+        m = json.load(f)
     if m.get("sha256") != canon_sha({k: v for k, v in m.items() if k != "sha256"}):
         raise SystemExit("split manifest does not match its own sha256 (edited?)")
     return m
