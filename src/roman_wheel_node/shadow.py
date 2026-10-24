@@ -154,7 +154,7 @@ def _missing_sources(prof: Profile, raw: Mapping[str, Any]) -> List[str]:
 
 def _malformed_scores(prof: Profile, raw: Mapping[str, Any]) -> List[str]:
     """Sources the profile needs that are present in ``raw`` but give no score ``Profile.calibrate`` accepts
-    (an entry that is not ``{"S": ...}``, or an S that is not a number in [0, 1])."""
+    (an entry that is not ``{"S": ...}``, or an S that ``float()`` cannot turn into a finite value in [0, 1])."""
 
     def ok(v: Any) -> bool:
         try:
