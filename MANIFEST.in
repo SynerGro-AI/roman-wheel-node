@@ -6,3 +6,5 @@ recursive-include tests *.py
 exclude tests/test_repo_data.py
 # Byte-compares against results/ (repo-only).
 exclude tests/test_repo_bench.py
+# Runs phase5/check_manifest_from_data.py (repo-only) against results/.
+exclude tests/test_repo_manifest_check.py

@@ -3,8 +3,11 @@
     python phase5/check_manifest_from_data.py [--items phase3/cache/phase4/items.json]
 
 COVID-Fact has no stated licence, so its text is never committed, published or fetched by any script in this repo,
-and this check is not part of the pytest suite (it cannot run on a clean checkout). Exit 0 = reproduces and no claim
-text or raw group key leaks into the manifest; 1 = mismatch or leak; 2 = cache missing.
+and the real check is not part of the pytest suite (it cannot run on a clean checkout; tests/test_repo_manifest_check.py
+only checks the exit codes on a missing, broken or invented cache). Exit codes:
+  0 = reproduces and no claim text or raw group key leaks into the manifest; prints "manifest reproduces from data"
+  1 = mismatch or leak; prints each problem on stderr, then "FAILED"
+  2 = cache missing, unreadable or malformed (not a list of item objects with the keys the split reads)
 """
 
 import argparse
@@ -27,7 +30,19 @@ def main() -> int:
     if not os.path.isfile(a.items):
         print(f"missing {a.items}: the internal COVID-Fact cache (licence unclear, never distributed)", file=sys.stderr)
         return 2
-    items = [i for i in json.loads(Path(a.items).read_text(encoding="utf-8")) if i["ds"] == "covidfact"]
+    try:
+        data = json.loads(Path(a.items).read_text(encoding="utf-8"))
+    except (OSError, ValueError, RecursionError) as e:  # ValueError covers bad UTF-8 and bad JSON
+        print(f"cannot read {a.items}: {type(e).__name__}: {str(e)[:200]}", file=sys.stderr)
+        return 2
+    keys = ("claim", "label3", "evidence", "units")  # what build_split / manifest_doc read from a COVID-Fact item
+    if not isinstance(data, list) or not all(isinstance(i, dict) and "ds" in i for i in data):
+        print(f"{a.items}: expected a JSON list of item objects, each with a 'ds' key", file=sys.stderr)
+        return 2
+    items = [i for i in data if i["ds"] == "covidfact"]
+    if not all(k in i for i in items for k in keys):
+        print(f"{a.items}: every covidfact item needs the keys {', '.join(keys)}", file=sys.stderr)
+        return 2
     problems = []
     if C.manifest_doc(items, C.build_split(items))["sha256"] != C.load_manifest()["sha256"]:
         problems.append("manifest sha256 does not reproduce")
