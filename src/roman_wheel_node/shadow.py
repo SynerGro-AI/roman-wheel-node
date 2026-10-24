@@ -112,18 +112,9 @@ class FrozenNode:
             except Exception as e:  # missing source, bad score, anything: fail closed
                 d = self.trace.submit(claim if isinstance(claim, str) else repr(claim), {}, a=a, not_sure=True)
                 out = BLOCK if a != 1 else NOT_SURE
-                return Verdict(out, None, f"error:{type(e).__name__}", "", self.trace.head(), d.seq)
-
-
-def _stderr(line: str) -> None:
-    """Best-effort report on stderr (the last place an error can go; it must not raise into the agent)."""
-    try:
-        print(line, file=sys.stderr, flush=True)
-    except Exception:  # stderr itself is closed or unencodable: retry with ASCII escapes, then give up
-        try:
-            print(line.encode("ascii", "backslashreplace").decode("ascii"), file=sys.stderr, flush=True)
-        except Exception:
-            return
+                miss = _missing_sources(self.prof, raw) if isinstance(raw, Mapping) else []
+                why = f"error:missing_source:{','.join(miss)}" if miss else f"error:{type(e).__name__}"
+                return Verdict(out, None, why, "", self.trace.head(), d.seq)
 
 
 def _jsonable(x: Any) -> Any:
@@ -137,6 +128,22 @@ def _jsonable(x: Any) -> Any:
     if isinstance(x, (list, tuple)):
         return [_jsonable(v) for v in x]
     return repr(x)
+
+
+def _stderr(line: str) -> None:
+    """Best-effort report on stderr (the last place an error can go; it must not raise into the agent)."""
+    try:
+        print(line, file=sys.stderr, flush=True)
+    except Exception:  # stderr itself is closed or unencodable: retry with ASCII escapes, then give up
+        try:
+            print(line.encode("ascii", "backslashreplace").decode("ascii"), file=sys.stderr, flush=True)
+        except Exception:
+            return
+
+
+def _missing_sources(prof: Profile, raw: Mapping[str, Any]) -> List[str]:
+    """Sources the profile needs that gave no usable score in ``raw``."""
+    return [s for s in prof.sources if not (isinstance(raw.get(s), Mapping) and "S" in raw[s])]
 
 
 def _read_text_lines(stream: Any) -> List[str]:
@@ -211,6 +218,7 @@ class ShadowRunner:
 
             sources = LocalSources(nli_dir=nli_dir, nli2=nli2, hf_cache=hf_cache, device=device)
         self.sources = sources
+        self._warn_missing_sources()
         self.bm25 = BM25(corpus) if corpus else None
         self.fingerprint = self.node.policy.fingerprint
         hs = set(trusted_hashes or ())
@@ -325,6 +333,22 @@ class ShadowRunner:
 
     def verify(self):
         return self.node.trace.verify()
+
+    def _warn_missing_sources(self) -> None:
+        """Say once, on stderr, which source the profile needs but did not load (and why), instead of leaving every
+        claim to fail closed with no visible cause."""
+        avail = getattr(self.sources, "available", None)
+        if avail is None:
+            return
+        miss = [s for s in self.node.prof.sources if s not in avail]
+        if not miss:
+            return
+        errs = getattr(self.sources, "errors", {}) or {}
+        why = "; ".join(errs.get(s, f"{s}: not configured (pass {'nli_dir' if s == 'nli' else s}=...)") for s in miss)
+        _stderr(
+            f"roman-wheel-node: profile {self.node.prof.name!r} needs source(s) {miss} that are not available: {why}. "
+            f"Every claim will fail closed (NOT_SURE, reason error:missing_source:{','.join(miss)})."
+        )
 
     def _error(self, where: str, e: BaseException) -> None:
         self.errors += 1
