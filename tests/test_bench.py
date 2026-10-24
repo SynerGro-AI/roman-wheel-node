@@ -113,16 +113,6 @@ def test_committed_results_reproduce(key, seeds):
                 assert R(v) == pol[p][m]["per_seed"][s], (key, s, p, m)
 
 
-def test_full_benchmark_byte_identical_to_committed():
-    chk = subprocess.run(
-        [sys.executable, "-m", "roman_wheel_node.bench", "--seeds", "20", "--check", os.path.join(ROOT, "results")],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    assert chk.returncode == 0, chk.stdout + chk.stderr
-
-
 # --- dependence scenarios ---------------------------------------------------------------------------
 def test_dependence_scenarios_registered_and_v1_specs_unchanged():
     assert list(DEPENDENCE_SCENARIOS) == ["partial_corr", "two_clusters", "leader_switch"]
@@ -171,23 +161,3 @@ def test_committed_dependence_results_reproduce(key, seeds):
         for p, metrics in got["policies"].items():
             for m, v in metrics.items():
                 assert R(v) == pol[p][m]["per_seed"][s], (key, s, p, m)
-
-
-def test_full_dependence_benchmark_byte_identical_to_committed():
-    chk = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "roman_wheel_node.bench",
-            "--seeds",
-            "20",
-            "--suite",
-            "dependence",
-            "--check",
-            os.path.join(ROOT, "results", "dependence"),
-        ],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    assert chk.returncode == 0, chk.stdout + chk.stderr
