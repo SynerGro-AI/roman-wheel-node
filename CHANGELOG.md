@@ -49,6 +49,19 @@ Fixes found after the 1.2.0 upload. No policy, weight or decision changes: the s
   counts are re-measured.
 - Tests use fixed deterministic data instead of seeded random generators in `tests/test_fit.py`.
 
+### Known issues (planned for 1.2.2, target 2026-11-06)
+These predate 1.2.1 and are not fixed in it. None changes a decision: each is a crash or a wrong exit code on bad
+input, never an ACCEPT.
+- `--trust-given-evidence` with an `evidence` value that is not a list, or a list with non-text items, gives a
+  traceback instead of a usage error (`shadow.py` main, `sources.py` exact-copy hashing).
+- A corpus line whose `sentences` list holds non-text items gives a traceback (`sources.py` BM25 tokenising).
+- A missing, binary or deeply nested `--policy-file` gives a `PolicyError` or `RecursionError` traceback instead of
+  exit 2 (`policy.py` `load_policy`).
+- CR-only line endings (`\r` with no `\n`) are a usage error (exit 2) on stdin, which is read as one line, but a
+  claims file opened in text mode treats each `\r` as a line break and runs (exit 0); the two should agree.
+- `tests/test_test_deps.py` catches `import hypothesis` inside `try`, but not `importlib.import_module("hypothesis")`
+  or `__import__("hypothesis")` inside `try`.
+
 ### Release provenance
 - 1.2.0 on PyPI was a manual `twine` upload from PR commit `13725f7` (same tree as merge `9dcdb4f`) before the merge,
   with no tag and no attestations. 1.2.1 is the first release to go through `release.yml` from a `v1.2.1` tag.
