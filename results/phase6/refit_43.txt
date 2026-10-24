@@ -1,0 +1,24 @@
+Policy 4.3.0 (local open-model features only; SciFact train n=799; no hosted-model output)
+held-out: scifact_dev n=300; policy 4.3.0 sha256 6f60f07b8354b9efded1de8187880dce4a4ebdf539dac3461b609e4a478e38a2
+port check vs research pipeline: local: identical (calibrators, reliabilities, cut-off, hedge width, out-of-fold posteriors and cut-offs); local-lite: identical (calibrators, reliabilities, cut-off, hedge width, out-of-fold posteriors and cut-offs)
+
+[local]
+  4.3.0: ACCEPT 58 (rate 19.3%), false accepts 6, precision 89.7% (FA upper95 19.4%), coverage of supported 41.9%, BLOCK 0, NOT_SURE 242, handled correctly (NOT_SURE=reject) 74.0%
+  4.2.0 (withdrawn; margin depended on a hosted-model quote check): ACCEPT 64 (rate 21.3%), false accepts 9, precision 85.9% (FA upper95 23.3%), coverage of supported 44.4%, BLOCK 0, NOT_SURE 236, handled correctly (NOT_SURE=reject) 74.0%
+  params: 4.3.0 cutoff 0.413 margin 0.980 threshold 0.6520; 4.2.0 cutoff 0.413 margin 0.854
+  preregistration (out-of-fold, train): step 18, 135 accepted / 21 false, upper95 21.6%
+  LTT alpha 1% (delta 0.05/2): not certified
+  LTT alpha 2% (delta 0.05/2): not certified
+  LTT alpha 5% (delta 0.05/2): not certified
+  LTT alpha 10% (delta 0.05/2): not certified
+  certified: NOT certified at any level tested (10%, 5%, 2%, 1%); best out-of-fold upper bound on the false-accept share 21.6% (preregistration)
+[local-lite]
+  4.3.0: ACCEPT 16 (rate 5.3%), false accepts 1, precision 93.8% (FA upper95 26.4%), coverage of supported 12.1%, BLOCK 0, NOT_SURE 284, handled correctly (NOT_SURE=reject) 63.3%
+  4.2.0 (withdrawn; margin depended on a hosted-model quote check): ACCEPT 16 (rate 5.3%), false accepts 1, precision 93.8% (FA upper95 26.4%), coverage of supported 12.1%, BLOCK 0, NOT_SURE 284, handled correctly (NOT_SURE=reject) 63.3%
+  params: 4.3.0 cutoff 0.457 margin 0.818 threshold 0.6560; 4.2.0 cutoff 0.457 margin 0.818
+  preregistration (out-of-fold, train): step 6, 54 accepted / 8 false, upper95 25.1%
+  LTT alpha 1% (delta 0.05/2): not certified
+  LTT alpha 2% (delta 0.05/2): not certified
+  LTT alpha 5% (delta 0.05/2): not certified
+  LTT alpha 10% (delta 0.05/2): not certified
+  certified: NOT certified at any level tested (10%, 5%, 2%, 1%); best out-of-fold upper bound on the false-accept share 25.1% (preregistration)

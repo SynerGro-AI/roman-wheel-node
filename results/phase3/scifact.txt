@@ -1,0 +1,549 @@
+SciFact dev (n=300: {'CONTRADICT': 64, 'NEI': 112, 'SUPPORT': 124}), learned on 350 train claims only.
+Judges: {'J1': {'conditions': ['retrieved', 'gold', 'retrieved5', 'rv3'], 'model': 'grok-4.20-0309-non-reasoning', 'note': 'fact-checker, 3-way + verbatim quote (exact-copy gate; unwrapped baseline)', 'samples': 1, 'style': 'A', 'temperature': 0.0}, 'J10': {'conditions': ['rv3'], 'model': 'grok-4.20-0309-reasoning', 'note': 'primary-abstract / NEI-focused', 'samples': 1, 'style': 'H', 'temperature': 0.0}, 'J11': {'conditions': ['gold', 'rv3'], 'model': 'grok-4.20-0309-reasoning', 'note': 'Phase 3c strict proof verifier (quote first)', 'samples': 1, 'style': 'V', 'temperature': 0.0}, 'J12': {'conditions': [], 'model': 'grok-4.20-0309-reasoning', 'note': 'Phase 3c component-wise verifier: dropped after 47 calls (measured $0.010/call, 2x the estimate; budget)', 'samples': 1, 'style': 'W', 'temperature': 0.0}, 'J2': {'conditions': ['retrieved', 'gold', 'retrieved5', 'rv3'], 'model': 'grok-4.3', 'note': 'skeptical peer reviewer', 'samples': 1, 'style': 'B', 'temperature': 0.0}, 'J3': {'conditions': ['retrieved', 'gold', 'retrieved5'], 'model': 'grok-4.20-0309-non-reasoning', 'note': 'plain QA framing', 'samples': 1, 'style': 'C', 'temperature': 0.0}, 'J4': {'conditions': ['gold', 'retrieved5', 'rv3'], 'model': 'grok-4.20-0309-reasoning', 'note': 'SciFact annotation guidelines', 'samples': 1, 'style': 'D', 'temperature': 0.0}, 'J5': {'conditions': ['gold'], 'model': 'grok-4.7', 'note': 'SciFact guidelines, strongest model', 'samples': 1, 'style': 'D', 'temperature': 0.0}, 'J6': {'conditions': ['gold'], 'model': 'grok-4.5', 'note': "adversarial devil's advocate", 'samples': 1, 'style': 'F', 'temperature': 0.0}, 'J7': {'conditions': ['gold', 'retrieved5', 'rv3'], 'model': 'grok-4.6', 'note': 'two-sided support-vs-refute', 'samples': 1, 'style': 'E', 'temperature': 0.0}, 'J8': {'conditions': ['gold'], 'model': 'grok-4.20-0309-non-reasoning', 'note': 'self-consistency: 3 samples at T=1, averaged', 'samples': 3, 'style': 'A', 'temperature': 1.0}, 'J9': {'conditions': ['gold', 'retrieved5', 'rv3'], 'model': 'grok-4.20-0309-reasoning', 'note': 'few-shot (10 train examples) + guidelines', 'samples': 1, 'style': 'G', 'temperature': 0.0}}
+BM25 recall@3 (dev SUPPORT+CONTRADICT claims): 85.6%
+
+=== condition: gold ===  binary task (supported vs not); accuracy and false-accept rate with 95% bootstrap CIs
+policy                                     accuracy %             false-accept %           TA %    ECE
+J1 alone                                    86.7 [82.7, 90.3]      10.8 [6.2, 15.3]        83.1  0.029
+J11 alone                                   82.7 [78.3, 87.0]       0.6 [0.0, 1.7]         58.9  0.037
+J2 alone                                    84.7 [80.7, 88.7]       8.0 [4.0, 11.9]        74.2  0.043
+J3 alone                                    82.3 [78.0, 86.7]      21.0 [15.3, 27.3]       87.1  0.043
+J4 alone                                    90.3 [87.0, 93.3]       8.0 [4.0, 11.9]        87.9  0.047
+J5 alone                                    87.7 [84.0, 91.3]       6.8 [3.4, 10.8]        79.8  0.038
+J6 alone                                    90.0 [86.7, 93.3]       4.5 [1.7, 8.0]         82.3  0.031
+J7 alone                                    89.3 [85.7, 92.7]       7.4 [4.0, 11.4]        84.7  0.042
+J8 alone                                    85.0 [80.7, 89.0]      10.8 [6.2, 15.3]        79.0  0.020
+J9 alone                                    90.7 [87.3, 93.7]       8.5 [4.5, 13.1]        89.5  0.024
+nli alone                                   68.7 [63.3, 74.0]       6.8 [3.4, 10.8]        33.9  0.090
+nli2 alone                                  75.3 [70.3, 80.3]      15.9 [10.8, 21.6]       62.9  0.032
+overlap alone                               68.3 [63.0, 73.7]      33.0 [26.1, 39.8]       70.2  0.043
+J1 unwrapped                                86.7 [82.7, 90.3]      10.8 [6.2, 15.3]        83.1    -  
+J11 unwrapped                               77.7 [73.0, 82.3]       0.6 [0.0, 1.7]         46.8    -  
+J2 unwrapped                                86.7 [82.7, 90.3]       2.3 [0.6, 4.5]         71.0    -  
+J3 unwrapped                                81.0 [76.3, 85.3]      24.4 [18.2, 30.7]       88.7    -  
+J4 unwrapped                                90.0 [86.7, 93.3]       8.5 [4.5, 13.1]        87.9    -  
+J5 unwrapped                                88.3 [84.7, 91.7]       2.8 [0.6, 5.7]         75.8    -  
+J6 unwrapped                                85.0 [81.0, 89.0]       1.1 [0.0, 2.8]         65.3    -  
+J7 unwrapped                                91.0 [87.7, 94.0]       2.8 [0.6, 5.7]         82.3    -  
+J8 unwrapped                                86.0 [82.0, 89.7]      12.5 [8.0, 17.6]        83.9    -  
+J9 unwrapped                                90.7 [87.3, 93.7]       9.7 [5.7, 14.2]        91.1    -  
+J1 unwrapped (raw argmax, no node)          86.7 [82.7, 90.3]      10.8 [6.2, 15.3]        83.1    -  
+judge majority (raw argmax votes)           87.0 [83.0, 90.7]      16.5 [11.4, 22.2]       91.9    -  
+static node (geomean, equal trust)          86.7 [82.7, 90.3]       1.7 [0.0, 4.0]         70.2  0.159
+bayes-hard                                  90.7 [87.3, 93.7]       5.7 [2.3, 9.1]         85.5  0.093
+bayes-ess                                   90.3 [87.0, 93.7]       4.5 [1.7, 8.0]         83.1  0.061
+bayes-ess live (prequential)                90.7 [87.3, 94.0]       4.5 [1.7, 8.0]         83.9  0.060
+bayes-ess, gate off (ablation)              90.7 [87.3, 94.0]       4.5 [1.7, 8.0]         83.9  0.058
+bayes-ess, judges only                      91.0 [87.7, 94.0]       5.1 [2.3, 8.5]         85.5  0.045
+bayes-ess, local only (no API)              76.3 [71.3, 81.0]       7.4 [4.0, 11.4]        53.2  0.035
+reference: logistic stack (not gated)       90.3 [87.0, 93.7]       6.8 [3.4, 10.8]        86.3  0.051
+J11 proof alone (argmax S + verbatim quote)  77.3 [72.3, 82.0]       0.6 [0.0, 1.7]         46.0    -  
+bayes-ess_cal                               91.3 [88.0, 94.3]       4.0 [1.1, 6.8]         84.7  0.040
+bayes-ess_cal + J11 veto                    77.3 [72.3, 82.0]       0.6 [0.0, 1.7]         46.0  0.226
+node: train-CV selected = bayes-ess [all] + J11 veto  77.3 [72.3, 82.0]       0.6 [0.0, 1.7]         46.0  0.226
+node: train-CV selected = bayes-ess [all], no veto  90.3 [87.0, 93.7]       4.5 [1.7, 8.0]         83.1  0.061
+node: train-CV selected = bayes-ess [all]   90.3 [87.0, 93.7]       4.5 [1.7, 8.0]         83.1  0.061
+3-way (SUPPORT / CONTRADICT / NEI): accuracy [95% CI], macro-F1
+  J1 unwrapped (raw argmax)                 81.0 [76.3, 85.3]     F1 0.804
+  J11 unwrapped (raw argmax)                69.3 [64.0, 74.3]     F1 0.696
+  J2 unwrapped (raw argmax)                 80.7 [76.0, 85.0]     F1 0.810
+  J3 unwrapped (raw argmax)                 75.3 [70.3, 80.0]     F1 0.745
+  J4 unwrapped (raw argmax)                 86.0 [82.0, 89.7]     F1 0.858
+  J5 unwrapped (raw argmax)                 81.7 [77.3, 86.0]     F1 0.813
+  J6 unwrapped (raw argmax)                 80.3 [75.7, 84.7]     F1 0.809
+  J7 unwrapped (raw argmax)                 87.0 [83.0, 90.7]     F1 0.869
+  J8 unwrapped (raw argmax)                 80.7 [76.0, 85.0]     F1 0.801
+  J9 unwrapped (raw argmax)                 87.0 [83.0, 90.7]     F1 0.868
+  bayes-ess                                 84.7 [80.7, 88.7]     F1 0.841
+  bayes-ess_cal                             84.0 [79.7, 88.0]     F1 0.824
+  bayes-hard                                85.3 [81.3, 89.0]     F1 0.847
+  nli alone (calibrated)                    49.7 [44.0, 55.3]     F1 0.357
+Safety: unsupported dev claims accepted, vs J1 unwrapped (exact McNemar; paired bootstrap of the drop)
+  bayes-ess                                FA  19 ->   8 of 176  (only-baseline 12, only-policy 1, McNemar p=0.0034; drop +6.2 pts [+2.3, +10.2])  accuracy +3.7 pts [+0.3, +7.3] p=0.0614
+  bayes-ess live (prequential)             FA  19 ->   8 of 176  (only-baseline 12, only-policy 1, McNemar p=0.0034; drop +6.2 pts [+2.3, +10.2])  accuracy +4.0 pts [+0.7, +7.7] p=0.0357
+  bayes-ess_cal                            FA  19 ->   7 of 176  (only-baseline 13, only-policy 1, McNemar p=0.0018; drop +6.8 pts [+2.8, +10.8])  accuracy +4.7 pts [+1.3, +8.3] p=0.0161
+  bayes-hard                               FA  19 ->  10 of 176  (only-baseline 11, only-policy 2, McNemar p=0.0225; drop +5.1 pts [+1.1, +9.1])  accuracy +4.0 pts [+0.7, +7.3] p=0.0290
+  judge majority (raw argmax votes)        FA  19 ->  29 of 176  (only-baseline 0, only-policy 10, McNemar p=0.0020; drop -5.7 pts [-9.1, -2.3])  accuracy +0.3 pts [-2.7, +3.3] p=1.0000
+  node: train-CV selected = bayes-ess [all] FA  19 ->   8 of 176  (only-baseline 12, only-policy 1, McNemar p=0.0034; drop +6.2 pts [+2.3, +10.2])  accuracy +3.7 pts [+0.3, +7.3] p=0.0614
+  static node (geomean, equal trust)       FA  19 ->   3 of 176  (only-baseline 16, only-policy 0, McNemar p=0.0000; drop +9.1 pts [+5.1, +13.6])  accuracy +0.0 pts [-4.0, +4.0] p=1.0000
+Score correlation (dev, Pearson on calibrated logits) / error phi:
+  J11~J8         r=+0.58  both wrong  20 (a 52, b 45)  phi_err=+0.30
+  J1~J11         r=+0.61  both wrong  16 (a 40, b 52)  phi_err=+0.23
+  J1~J2          r=+0.76  both wrong  21 (a 40, b 46)  phi_err=+0.40
+  J1~J3          r=+0.82  both wrong  28 (a 40, b 53)  phi_err=+0.54
+  J1~J4          r=+0.82  both wrong  21 (a 40, b 29)  phi_err=+0.57
+  J1~J5          r=+0.77  both wrong  20 (a 40, b 37)  phi_err=+0.45
+  J1~J6          r=+0.79  both wrong  19 (a 40, b 30)  phi_err=+0.49
+  J1~J7          r=+0.82  both wrong  18 (a 40, b 32)  phi_err=+0.44
+  J1~J8          r=+0.94  both wrong  39 (a 40, b 45)  phi_err=+0.91
+  J1~J9          r=+0.82  both wrong  18 (a 40, b 28)  phi_err=+0.48
+  J2~J11         r=+0.75  both wrong  27 (a 46, b 52)  phi_err=+0.47
+  J2~J3          r=+0.76  both wrong  22 (a 46, b 53)  phi_err=+0.34
+  J2~J4          r=+0.90  both wrong  23 (a 46, b 29)  phi_err=+0.58
+  J2~J5          r=+0.91  both wrong  28 (a 46, b 37)  phi_err=+0.63
+  J2~J6          r=+0.91  both wrong  27 (a 46, b 30)  phi_err=+0.69
+  J2~J7          r=+0.90  both wrong  29 (a 46, b 32)  phi_err=+0.72
+  J2~J8          r=+0.76  both wrong  24 (a 46, b 45)  phi_err=+0.44
+  J2~J9          r=+0.91  both wrong  21 (a 46, b 28)  phi_err=+0.53
+  J3~J11         r=+0.60  both wrong  13 (a 53, b 52)  phi_err=+0.09
+  J3~J4          r=+0.83  both wrong  23 (a 53, b 29)  phi_err=+0.53
+  J3~J5          r=+0.77  both wrong  21 (a 53, b 37)  phi_err=+0.38
+  J3~J6          r=+0.83  both wrong  20 (a 53, b 30)  phi_err=+0.43
+  J3~J7          r=+0.84  both wrong  21 (a 53, b 32)  phi_err=+0.43
+  J3~J8          r=+0.84  both wrong  29 (a 53, b 45)  phi_err=+0.52
+  J3~J9          r=+0.84  both wrong  22 (a 53, b 28)  phi_err=+0.51
+  J4~J11         r=+0.75  both wrong  16 (a 29, b 52)  phi_err=+0.33
+  J4~J5          r=+0.91  both wrong  23 (a 29, b 37)  phi_err=+0.67
+  J4~J6          r=+0.93  both wrong  22 (a 29, b 30)  phi_err=+0.72
+  J4~J7          r=+0.93  both wrong  22 (a 29, b 32)  phi_err=+0.69
+  J4~J8          r=+0.82  both wrong  23 (a 29, b 45)  phi_err=+0.59
+  J4~J9          r=+0.96  both wrong  24 (a 29, b 28)  phi_err=+0.83
+  J5~J11         r=+0.76  both wrong  21 (a 37, b 52)  phi_err=+0.39
+  J5~J6          r=+0.92  both wrong  27 (a 37, b 30)  phi_err=+0.79
+  J5~J7          r=+0.92  both wrong  26 (a 37, b 32)  phi_err=+0.72
+  J5~J8          r=+0.74  both wrong  22 (a 37, b 45)  phi_err=+0.47
+  J5~J9          r=+0.92  both wrong  22 (a 37, b 28)  phi_err=+0.65
+  J6~J11         r=+0.74  both wrong  22 (a 30, b 52)  phi_err=+0.49
+  J6~J7          r=+0.95  both wrong  25 (a 30, b 32)  phi_err=+0.78
+  J6~J8          r=+0.82  both wrong  22 (a 30, b 45)  phi_err=+0.54
+  J6~J9          r=+0.94  both wrong  20 (a 30, b 28)  phi_err=+0.66
+  J7~J11         r=+0.72  both wrong  18 (a 32, b 52)  phi_err=+0.36
+  J7~J8          r=+0.83  both wrong  21 (a 32, b 45)  phi_err=+0.49
+  J7~J9          r=+0.95  both wrong  21 (a 32, b 28)  phi_err=+0.67
+  J9~J11         r=+0.75  both wrong  14 (a 28, b 52)  phi_err=+0.28
+  J9~J8          r=+0.82  both wrong  20 (a 28, b 45)  phi_err=+0.51
+  nli2~J1        r=+0.47  both wrong  15 (a 74, b 40)  phi_err=+0.12
+  nli2~J11       r=+0.54  both wrong  28 (a 74, b 52)  phi_err=+0.31
+  nli2~J2        r=+0.57  both wrong  20 (a 74, b 46)  phi_err=+0.19
+  nli2~J3        r=+0.49  both wrong  17 (a 74, b 53)  phi_err=+0.08
+  nli2~J4        r=+0.59  both wrong  11 (a 74, b 29)  phi_err=+0.10
+  nli2~J5        r=+0.60  both wrong  20 (a 74, b 37)  phi_err=+0.26
+  nli2~J6        r=+0.56  both wrong  16 (a 74, b 30)  phi_err=+0.22
+  nli2~J7        r=+0.56  both wrong  14 (a 74, b 32)  phi_err=+0.15
+  nli2~J8        r=+0.48  both wrong  17 (a 74, b 45)  phi_err=+0.13
+  nli2~J9        r=+0.57  both wrong   8 (a 74, b 28)  phi_err=+0.03
+  nli2~overlap   r=+0.36  both wrong  28 (a 74, b 95)  phi_err=+0.08
+  nli~J1         r=+0.39  both wrong  21 (a 94, b 40)  phi_err=+0.18
+  nli~J11        r=+0.41  both wrong  43 (a 94, b 52)  phi_err=+0.51
+  nli~J2         r=+0.40  both wrong  30 (a 94, b 46)  phi_err=+0.31
+  nli~J3         r=+0.37  both wrong  18 (a 94, b 53)  phi_err=+0.03
+  nli~J4         r=+0.43  both wrong  17 (a 94, b 29)  phi_err=+0.19
+  nli~J5         r=+0.42  both wrong  25 (a 94, b 37)  phi_err=+0.29
+  nli~J6         r=+0.41  both wrong  21 (a 94, b 30)  phi_err=+0.28
+  nli~J7         r=+0.40  both wrong  18 (a 94, b 32)  phi_err=+0.19
+  nli~J8         r=+0.40  both wrong  26 (a 94, b 45)  phi_err=+0.24
+  nli~J9         r=+0.41  both wrong  14 (a 94, b 28)  phi_err=+0.13
+  nli~nli2       r=+0.52  both wrong  45 (a 94, b 74)  phi_err=+0.36
+  nli~overlap    r=+0.28  both wrong  37 (a 94, b 95)  phi_err=+0.11
+  overlap~J1     r=+0.36  both wrong  17 (a 95, b 40)  phi_err=+0.09
+  overlap~J11    r=+0.39  both wrong  24 (a 95, b 52)  phi_err=+0.14
+  overlap~J2     r=+0.40  both wrong  18 (a 95, b 46)  phi_err=+0.07
+  overlap~J3     r=+0.34  both wrong  19 (a 95, b 53)  phi_err=+0.04
+  overlap~J4     r=+0.41  both wrong  16 (a 95, b 29)  phi_err=+0.17
+  overlap~J5     r=+0.37  both wrong  17 (a 95, b 37)  phi_err=+0.12
+  overlap~J6     r=+0.42  both wrong  18 (a 95, b 30)  phi_err=+0.20
+  overlap~J7     r=+0.38  both wrong  16 (a 95, b 32)  phi_err=+0.14
+  overlap~J8     r=+0.37  both wrong  21 (a 95, b 45)  phi_err=+0.14
+  overlap~J9     r=+0.41  both wrong  12 (a 95, b 28)  phi_err=+0.08
+Train-CV accuracy of candidate node configurations: {'bayes-ess [all]': 0.9143, 'bayes-ess [judges]': 0.9029, 'bayes-ess_cal [all]': 0.9057, 'bayes-ess_cal [judges]': 0.9086, 'bayes-hard [all]': 0.9029, 'bayes-hard [judges]': 0.9057, 'bayes-logit [all]': 0.9114, 'bayes-logit [judges]': 0.9086, 'bayes-soft [all]': 0.9114, 'bayes-soft [judges]': 0.9057}
+Selected (by train CV): node: train-CV selected = bayes-ess [all]
+Node vs best single judge (chosen on train accuracy), paired on dev:
+  bayes-ess                                    vs J4 (train 90.3%): 90.3% vs 90.0%  diff +0.3 pts [-2.0, +2.7]  node-only-right 7, judge-only-right 6, McNemar p=1.000
+  bayes-ess_cal                                vs J4 (train 90.3%): 91.3% vs 90.0%  diff +1.3 pts [-1.3, +4.0]  node-only-right 10, judge-only-right 6, McNemar p=0.454
+  bayes-hard                                   vs J4 (train 90.3%): 90.7% vs 90.0%  diff +0.7 pts [-1.0, +2.7]  node-only-right 5, judge-only-right 3, McNemar p=0.727
+  node: train-CV selected = bayes-ess [all]    vs J4 (train 90.3%): 90.3% vs 90.0%  diff +0.3 pts [-2.0, +2.7]  node-only-right 7, judge-only-right 6, McNemar p=1.000
+Error analysis of the selected node (dev errors): {'contradict_accepted': 3, 'nei_accepted': 5, 'panel_unanimous_vs_gold': 6, 'retrieval_miss': 0, 'support_rejected_gate': 1, 'support_rejected_panel_consensus': 16, 'support_rejected_split_panel': 4}
+Label-noise candidates (every judge confidently disagrees with gold, gold evidence): 7
+  dev:1368     gold=SUPPORT    panel=NEI  (SciFact dev claim id 1368; cited docs 2425364)
+  dev:1385     gold=SUPPORT    panel=CONTRADICT  (SciFact dev claim id 1385; cited docs 306006)
+  dev:593      gold=SUPPORT    panel=CONTRADICT  (SciFact dev claim id 593; cited docs 19675911)
+  dev:783      gold=NEI        panel=CONTRADICT  (SciFact dev claim id 783; cited docs 40632104)
+  dev:808      gold=SUPPORT    panel=CONTRADICT  (SciFact dev claim id 808; cited docs 36606083)
+  dev:907      gold=NEI        panel=SUPPORT  (SciFact dev claim id 907; cited docs 6923961)
+  train:44     gold=SUPPORT    panel=NEI  (SciFact train claim id 44; cited docs 56893404)
+Selective mode (abstain band picked on TRAIN out-of-fold posteriors, applied to dev unchanged):
+  bayes-ess_cal  target 0.97: band [0.053, 0.912) train-OOF cov 76.9% -> dev coverage 78.3% (235 decided), errors 9, acc 96.2%, error-rate 95% upper (Clopper-Pearson) 6.59%, false accepts 2/94 accepted
+  bayes-ess_cal  target 0.98: band [0.000, 0.911) train-OOF cov 31.1% -> dev coverage 31.3% (94 decided), errors 2, acc 97.9%, error-rate 95% upper (Clopper-Pearson) 6.55%, false accepts 2/94 accepted
+  bayes-ess_cal  target 0.99: band [0.000, 0.912) train-OOF cov 30.9% -> dev coverage 31.3% (94 decided), errors 2, acc 97.9%, error-rate 95% upper (Clopper-Pearson) 6.55%, false accepts 2/94 accepted
+  bayes-ess_cal  target 1.00: band [0.000, 0.989) train-OOF cov 21.4% -> dev coverage 21.0% (63 decided), errors 1, acc 98.4%, error-rate 95% upper (Clopper-Pearson) 7.31%, false accepts 1/63 accepted
+  selected       target 0.97: band [0.022, 0.984) train-OOF cov 49.7% -> dev coverage 50.3% (151 decided), errors 6, acc 96.0%, error-rate 95% upper (Clopper-Pearson) 7.69%, false accepts 0/47 accepted
+  selected       target 0.98: band [0.000, 0.915) train-OOF cov 29.4% -> dev coverage 28.3% (85 decided), errors 4, acc 95.3%, error-rate 95% upper (Clopper-Pearson) 10.45%, false accepts 4/85 accepted
+  selected       target 0.99: band [0.000, 0.984) train-OOF cov 14.9% -> dev coverage 15.7% (47 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 6.18%, false accepts 0/47 accepted
+  selected       target 1.00: band [0.000, 0.984) train-OOF cov 14.9% -> dev coverage 15.7% (47 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 6.18%, false accepts 0/47 accepted
+Fail-closed NOT_SURE (Learn-Then-Test margin on train OOF + disagreement rule; through ClaimTrace):
+  bayes-ess_cal  alpha 0.005: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.01: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.02: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.05: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.1: log-odds margin 1.68; train OOF 11/261 err, UB 8.97% -> dev coverage 77.7% (233), errors 13, UB95 8.72%, FA 4/86, {'ACCEPT': 86, 'NOT_SURE': 67, 'REJECT': 147}
+  selected       alpha 0.005: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.01: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.02: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.05: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.1: log-odds margin 1.91; train OOF 13/264 err, UB 9.89% -> dev coverage 78.3% (235), errors 16, UB95 10.16%, FA 4/77, {'ACCEPT': 77, 'NOT_SURE': 65, 'REJECT': 158}
+  Phase 3c proof_or_not_sure (selected config) [train_oof]: coverage 79.4% (278), errors 22, UB95 11.11%, false accepts 1/61 (UB95 7.54%), {'ACCEPT': 61, 'NOT_SURE': 72, 'REJECT': 217}
+  Phase 3c proof_or_not_sure (selected config) [dev]: coverage 82.3% (247), errors 22, UB95 12.47%, false accepts 1/58 (UB95 7.92%), {'ACCEPT': 58, 'NOT_SURE': 53, 'REJECT': 189}
+Sensitivity, 9 label_review dev claims excluded (not a headline): J1 unwrapped (raw argmax, no node) 88.7%, J4 unwrapped 92.1%, bayes-ess_cal 93.1%, node: train-CV selected = bayes-ess [all] 92.4%
+Gate: {'gate_closed_dev': 2, 'gate_closed_dev_supported': 1, 'gate_closed_train': 3, 'j1_commits_without_quote': 0, 'missing_judge_calls': 1, 'unparsed_judge_replies': 1}
+Learned reliabilities (train): {'J1': 0.8466, 'J11': 0.7926, 'J2': 0.8722, 'J3': 0.858, 'J4': 0.9062, 'J5': 0.8608, 'J6': 0.892, 'J7': 0.9091, 'J8': 0.8722, 'J9': 0.9006, 'nli': 0.6705, 'nli2': 0.7614, 'overlap': 0.7188}
+
+=== condition: retrieved ===  binary task (supported vs not); accuracy and false-accept rate with 95% bootstrap CIs
+policy                                     accuracy %             false-accept %           TA %    ECE
+J1 alone                                    85.0 [81.0, 89.0]      11.9 [7.4, 17.0]        80.6  0.028
+J2 alone                                    81.0 [76.3, 85.3]      22.7 [16.5, 29.0]       86.3  0.049
+J3 alone                                    82.0 [77.7, 86.3]      23.9 [17.6, 30.1]       90.3  0.035
+nli alone                                   63.0 [57.3, 68.3]      13.1 [8.5, 18.2]        29.0  0.072
+nli2 alone                                  73.3 [68.0, 78.3]      14.2 [9.1, 19.3]        55.6  0.046
+overlap alone                               62.7 [57.3, 68.0]       9.7 [5.7, 14.2]        23.4  0.038
+J1 unwrapped                                84.3 [80.0, 88.3]      13.6 [8.5, 18.8]        81.5    -  
+J2 unwrapped                                86.0 [82.0, 90.0]       4.5 [1.7, 8.0]         72.6    -  
+J3 unwrapped                                82.0 [77.7, 86.3]      23.9 [17.6, 30.1]       90.3    -  
+J1 unwrapped (raw argmax, no node)          84.3 [80.0, 88.3]      13.6 [8.5, 18.8]        81.5    -  
+judge majority (raw argmax votes)           85.7 [81.7, 89.3]      13.1 [8.5, 18.2]        83.9    -  
+static node (geomean, equal trust)          84.3 [80.0, 88.3]       8.5 [4.5, 13.1]        74.2  0.117
+bayes-hard                                  84.3 [80.3, 88.3]       9.1 [5.1, 13.6]        75.0  0.105
+bayes-ess                                   84.7 [80.3, 88.7]       9.7 [5.7, 14.2]        76.6  0.047
+bayes-ess live (prequential)                84.3 [80.0, 88.3]      15.9 [10.8, 21.6]       84.7  0.039
+bayes-ess, gate off (ablation)              85.0 [81.0, 89.0]       9.7 [5.7, 14.2]        77.4  0.043
+bayes-ess, judges only                      86.0 [82.0, 89.7]      11.9 [7.4, 17.0]        83.1  0.058
+bayes-ess, local only (no API)              72.7 [67.3, 77.7]      17.0 [11.4, 22.7]       58.1  0.062
+reference: logistic stack (not gated)       87.3 [83.7, 91.0]       9.7 [5.7, 14.2]        83.1  0.027
+bayes-ess_cal                               86.0 [82.0, 89.7]      15.9 [10.8, 21.6]       88.7  0.041
+node: train-CV selected = bayes-ess [all]   84.7 [80.3, 88.7]       9.7 [5.7, 14.2]        76.6  0.047
+3-way (SUPPORT / CONTRADICT / NEI): accuracy [95% CI], macro-F1
+  J1 unwrapped (raw argmax)                 76.0 [71.0, 80.7]     F1 0.747
+  J2 unwrapped (raw argmax)                 76.0 [71.3, 80.7]     F1 0.754
+  J3 unwrapped (raw argmax)                 73.3 [68.3, 78.3]     F1 0.715
+  bayes-ess                                 75.7 [70.7, 80.3]     F1 0.745
+  bayes-ess_cal                             78.7 [74.0, 83.3]     F1 0.771
+  bayes-hard                                75.3 [70.3, 80.0]     F1 0.742
+  nli alone (calibrated)                    44.3 [38.7, 50.0]     F1 0.314
+Safety: unsupported dev claims accepted, vs J1 unwrapped (exact McNemar; paired bootstrap of the drop)
+  bayes-ess                                FA  24 ->  17 of 176  (only-baseline 7, only-policy 0, McNemar p=0.0156; drop +4.0 pts [+1.1, +7.4])  accuracy +0.3 pts [-2.3, +3.0] p=1.0000
+  bayes-ess live (prequential)             FA  24 ->  28 of 176  (only-baseline 3, only-policy 7, McNemar p=0.3438; drop -2.3 pts [-5.7, +1.1])  accuracy +0.0 pts [-3.0, +3.0] p=1.0000
+  bayes-ess_cal                            FA  24 ->  28 of 176  (only-baseline 1, only-policy 5, McNemar p=0.2188; drop -2.3 pts [-5.1, +0.0])  accuracy +1.7 pts [-1.3, +4.7] p=0.3833
+  bayes-hard                               FA  24 ->  16 of 176  (only-baseline 8, only-policy 0, McNemar p=0.0078; drop +4.5 pts [+1.7, +8.0])  accuracy +0.0 pts [-3.0, +3.0] p=1.0000
+  judge majority (raw argmax votes)        FA  24 ->  23 of 176  (only-baseline 2, only-policy 1, McNemar p=1.0000; drop +0.6 pts [-1.1, +2.8])  accuracy +1.3 pts [-0.7, +3.7] p=0.3438
+  node: train-CV selected = bayes-ess [all] FA  24 ->  17 of 176  (only-baseline 7, only-policy 0, McNemar p=0.0156; drop +4.0 pts [+1.1, +7.4])  accuracy +0.3 pts [-2.3, +3.0] p=1.0000
+  static node (geomean, equal trust)       FA  24 ->  15 of 176  (only-baseline 9, only-policy 0, McNemar p=0.0039; drop +5.1 pts [+2.3, +8.5])  accuracy +0.0 pts [-3.0, +3.0] p=1.0000
+Score correlation (dev, Pearson on calibrated logits) / error phi:
+  J1~J2          r=+0.76  both wrong  27 (a 45, b 57)  phi_err=+0.44
+  J1~J3          r=+0.80  both wrong  28 (a 45, b 54)  phi_err=+0.48
+  J2~J3          r=+0.70  both wrong  26 (a 57, b 54)  phi_err=+0.35
+  nli2~J1        r=+0.41  both wrong  20 (a 80, b 45)  phi_err=+0.17
+  nli2~J2        r=+0.44  both wrong  18 (a 80, b 57)  phi_err=+0.05
+  nli2~J3        r=+0.40  both wrong  16 (a 80, b 54)  phi_err=+0.03
+  nli2~overlap   r=+0.30  both wrong  52 (a 80, b 112)  phi_err=+0.34
+  nli~J1         r=+0.22  both wrong  23 (a 111, b 45)  phi_err=+0.12
+  nli~J2         r=+0.22  both wrong  17 (a 111, b 57)  phi_err=-0.07
+  nli~J3         r=+0.21  both wrong  15 (a 111, b 54)  phi_err=-0.09
+  nli~nli2       r=+0.33  both wrong  56 (a 111, b 80)  phi_err=+0.41
+  nli~overlap    r=+0.09  both wrong  69 (a 111, b 112)  phi_err=+0.39
+  overlap~J1     r=+0.27  both wrong  23 (a 112, b 45)  phi_err=+0.12
+  overlap~J2     r=+0.31  both wrong  21 (a 112, b 57)  phi_err=-0.00
+  overlap~J3     r=+0.22  both wrong  10 (a 112, b 54)  phi_err=-0.18
+Train-CV accuracy of candidate node configurations: {'bayes-ess [all]': 0.8686, 'bayes-ess [judges]': 0.8571, 'bayes-ess_cal [all]': 0.8686, 'bayes-ess_cal [judges]': 0.8543, 'bayes-hard [all]': 0.8571, 'bayes-hard [judges]': 0.8571, 'bayes-logit [all]': 0.8486, 'bayes-logit [judges]': 0.8629, 'bayes-soft [all]': 0.8486, 'bayes-soft [judges]': 0.8543}
+Selected (by train CV): node: train-CV selected = bayes-ess [all]
+Node vs best single judge (chosen on train accuracy), paired on dev:
+  bayes-ess                                    vs J1 (train 84.6%): 84.7% vs 84.3%  diff +0.3 pts [-2.3, +3.0]  node-only-right 9, judge-only-right 8, McNemar p=1.000
+  bayes-ess_cal                                vs J1 (train 84.6%): 86.0% vs 84.3%  diff +1.7 pts [-1.3, +4.7]  node-only-right 13, judge-only-right 8, McNemar p=0.383
+  bayes-hard                                   vs J1 (train 84.6%): 84.3% vs 84.3%  diff +0.0 pts [-3.0, +3.0]  node-only-right 10, judge-only-right 10, McNemar p=1.000
+  node: train-CV selected = bayes-ess [all]    vs J1 (train 84.6%): 84.7% vs 84.3%  diff +0.3 pts [-2.3, +3.0]  node-only-right 9, judge-only-right 8, McNemar p=1.000
+Error analysis of the selected node (dev errors): {'contradict_accepted': 5, 'nei_accepted': 11, 'panel_unanimous_vs_gold': 13, 'retrieval_miss': 10, 'support_rejected_gate': 1, 'support_rejected_panel_consensus': 11, 'support_rejected_split_panel': 8}
+Selective mode (abstain band picked on TRAIN out-of-fold posteriors, applied to dev unchanged):
+  bayes-ess_cal  target 0.97: band [0.000, 0.926) train-OOF cov 22.3% -> dev coverage 25.0% (75 decided), errors 5, acc 93.3%, error-rate 95% upper (Clopper-Pearson) 13.51%, false accepts 5/75 accepted
+  bayes-ess_cal  target 0.98: band [0.000, 0.994) train-OOF cov 5.1% -> dev coverage 4.3% (13 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 20.58%, false accepts 0/13 accepted
+  bayes-ess_cal  target 0.99: band [0.000, 0.994) train-OOF cov 5.1% -> dev coverage 4.3% (13 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 20.58%, false accepts 0/13 accepted
+  bayes-ess_cal  target 1.00: band [0.000, 0.994) train-OOF cov 5.1% -> dev coverage 4.3% (13 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 20.58%, false accepts 0/13 accepted
+  selected       target 0.97: band [0.000, 0.917) train-OOF cov 12.3% -> dev coverage 16.0% (48 decided), errors 4, acc 91.7%, error-rate 95% upper (Clopper-Pearson) 18.06%, false accepts 4/48 accepted
+  selected       target 0.98: band [0.000, 0.926) train-OOF cov 10.6% -> dev coverage 16.0% (48 decided), errors 4, acc 91.7%, error-rate 95% upper (Clopper-Pearson) 18.06%, false accepts 4/48 accepted
+  selected       target 0.99: band [0.000, 0.926) train-OOF cov 10.6% -> dev coverage 16.0% (48 decided), errors 4, acc 91.7%, error-rate 95% upper (Clopper-Pearson) 18.06%, false accepts 4/48 accepted
+  selected       target 1.00: band [0.000, 0.926) train-OOF cov 10.6% -> dev coverage 16.0% (48 decided), errors 4, acc 91.7%, error-rate 95% upper (Clopper-Pearson) 18.06%, false accepts 4/48 accepted
+Fail-closed NOT_SURE (Learn-Then-Test margin on train OOF + disagreement rule; through ClaimTrace):
+  bayes-ess_cal  alpha 0.005: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.3% (1), errors 1, UB95 100.00%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 299, 'REJECT': 1}
+  bayes-ess_cal  alpha 0.01: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.3% (1), errors 1, UB95 100.00%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 299, 'REJECT': 1}
+  bayes-ess_cal  alpha 0.02: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.3% (1), errors 1, UB95 100.00%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 299, 'REJECT': 1}
+  bayes-ess_cal  alpha 0.05: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.3% (1), errors 1, UB95 100.00%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 299, 'REJECT': 1}
+  bayes-ess_cal  alpha 0.1: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.3% (1), errors 1, UB95 100.00%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 299, 'REJECT': 1}
+  selected       alpha 0.005: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.3% (1), errors 1, UB95 100.00%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 299, 'REJECT': 1}
+  selected       alpha 0.01: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.3% (1), errors 1, UB95 100.00%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 299, 'REJECT': 1}
+  selected       alpha 0.02: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.3% (1), errors 1, UB95 100.00%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 299, 'REJECT': 1}
+  selected       alpha 0.05: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.3% (1), errors 1, UB95 100.00%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 299, 'REJECT': 1}
+  selected       alpha 0.1: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.3% (1), errors 1, UB95 100.00%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 299, 'REJECT': 1}
+Sensitivity, 9 label_review dev claims excluded (not a headline): J1 unwrapped 86.6%, J1 unwrapped (raw argmax, no node) 86.6%, bayes-ess_cal 88.0%, node: train-CV selected = bayes-ess [all] 86.6%
+Gate: {'gate_closed_dev': 1, 'gate_closed_dev_supported': 1, 'gate_closed_train': 3, 'j1_commits_without_quote': 0, 'missing_judge_calls': 0, 'unparsed_judge_replies': 0}
+Learned reliabilities (train): {'J1': 0.8438, 'J2': 0.8494, 'J3': 0.8352, 'nli': 0.6506, 'nli2': 0.7386, 'overlap': 0.6392}
+
+=== condition: retrieved5 ===  binary task (supported vs not); accuracy and false-accept rate with 95% bootstrap CIs
+policy                                     accuracy %             false-accept %           TA %    ECE
+J1 alone                                    83.0 [78.7, 87.0]      15.3 [10.2, 21.0]       80.6  0.021
+J2 alone                                    85.3 [81.3, 89.0]       7.4 [4.0, 11.4]        75.0  0.044
+J3 alone                                    81.7 [77.3, 85.7]      21.0 [15.3, 27.3]       85.5  0.035
+J4 alone                                    88.0 [84.3, 91.7]      14.2 [9.1, 19.3]        91.1  0.022
+J7 alone                                    84.3 [80.0, 88.3]      14.8 [9.7, 19.9]        83.1  0.059
+J9 alone                                    87.3 [83.3, 91.0]      10.8 [6.2, 15.3]        84.7  0.018
+nli alone                                   62.3 [57.0, 67.7]      13.6 [9.1, 18.8]        28.2  0.048
+nli2 alone                                  72.3 [67.3, 77.3]       8.5 [4.5, 13.1]        45.2  0.034
+overlap alone                               60.3 [55.0, 66.0]      19.9 [14.2, 26.1]       32.3  0.052
+rerank alone                                70.3 [65.0, 75.7]      28.4 [21.6, 35.2]       68.5  0.042
+J1 unwrapped                                83.0 [78.7, 87.0]      15.3 [10.2, 21.0]       80.6    -  
+J2 unwrapped                                84.3 [80.3, 88.3]       9.1 [5.1, 13.6]        75.0    -  
+J3 unwrapped                                82.0 [77.7, 86.3]      25.6 [19.3, 31.8]       92.7    -  
+J4 unwrapped                                87.0 [83.0, 90.7]      17.0 [11.4, 22.7]       92.7    -  
+J7 unwrapped                                86.3 [82.3, 90.0]      10.2 [6.2, 14.8]        81.5    -  
+J9 unwrapped                                87.0 [83.0, 90.7]      17.6 [11.9, 23.3]       93.5    -  
+J1 unwrapped (raw argmax, no node)          83.0 [78.7, 87.0]      15.3 [10.2, 21.0]       80.6    -  
+judge majority (raw argmax votes)           83.7 [79.3, 87.7]      22.7 [16.5, 29.0]       92.7    -  
+static node (geomean, equal trust)          84.7 [80.3, 88.3]      13.1 [8.5, 18.2]        81.5  0.070
+bayes-hard                                  86.3 [82.3, 90.0]      11.4 [6.8, 16.5]        83.1  0.134
+bayes-ess                                   87.3 [83.3, 91.0]      10.8 [6.2, 15.3]        84.7  0.069
+bayes-ess live (prequential)                87.3 [83.3, 91.0]      10.8 [6.2, 15.3]        84.7  0.057
+bayes-ess, gate off (ablation)              87.7 [84.0, 91.3]      10.8 [6.2, 15.3]        85.5  0.065
+bayes-ess, judges only                      85.3 [81.3, 89.3]      13.1 [8.5, 18.2]        83.1  0.060
+bayes-ess, local only (no API)              71.0 [65.7, 76.0]      34.1 [27.3, 40.9]       78.2  0.080
+reference: logistic stack (not gated)       87.7 [83.7, 91.3]      13.1 [8.5, 18.2]        88.7  0.028
+bayes-ess_cal                               86.0 [82.0, 89.7]      11.4 [6.8, 16.5]        82.3  0.053
+node: train-CV selected = bayes-ess [all]   87.3 [83.3, 91.0]      10.8 [6.2, 15.3]        84.7  0.069
+3-way (SUPPORT / CONTRADICT / NEI): accuracy [95% CI], macro-F1
+  J1 unwrapped (raw argmax)                 75.0 [70.0, 80.0]     F1 0.742
+  J2 unwrapped (raw argmax)                 77.0 [72.0, 81.7]     F1 0.772
+  J3 unwrapped (raw argmax)                 74.0 [69.0, 79.0]     F1 0.723
+  J4 unwrapped (raw argmax)                 81.3 [76.7, 85.7]     F1 0.809
+  J7 unwrapped (raw argmax)                 79.3 [74.7, 83.7]     F1 0.793
+  J9 unwrapped (raw argmax)                 81.0 [76.7, 85.3]     F1 0.804
+  bayes-ess                                 81.0 [76.3, 85.3]     F1 0.808
+  bayes-ess_cal                             79.0 [74.3, 83.3]     F1 0.789
+  bayes-hard                                80.3 [75.7, 84.7]     F1 0.803
+  nli alone (calibrated)                    44.0 [38.3, 49.7]     F1 0.320
+Safety: unsupported dev claims accepted, vs J1 unwrapped (exact McNemar; paired bootstrap of the drop)
+  bayes-ess                                FA  27 ->  19 of 176  (only-baseline 11, only-policy 3, McNemar p=0.0574; drop +4.5 pts [+0.6, +8.5])  accuracy +4.3 pts [+1.3, +7.7] p=0.0106
+  bayes-ess live (prequential)             FA  27 ->  19 of 176  (only-baseline 11, only-policy 3, McNemar p=0.0574; drop +4.5 pts [+0.6, +8.5])  accuracy +4.3 pts [+1.3, +7.7] p=0.0106
+  bayes-ess_cal                            FA  27 ->  20 of 176  (only-baseline 12, only-policy 5, McNemar p=0.1435; drop +4.0 pts [-0.6, +8.5])  accuracy +3.0 pts [-0.3, +6.7] p=0.1360
+  bayes-hard                               FA  27 ->  20 of 176  (only-baseline 11, only-policy 4, McNemar p=0.1185; drop +4.0 pts [+0.0, +8.5])  accuracy +3.3 pts [+0.3, +6.7] p=0.0639
+  judge majority (raw argmax votes)        FA  27 ->  40 of 176  (only-baseline 1, only-policy 14, McNemar p=0.0010; drop -7.4 pts [-11.9, -3.4])  accuracy +0.7 pts [-3.0, +4.3] p=0.8555
+  node: train-CV selected = bayes-ess [all] FA  27 ->  19 of 176  (only-baseline 11, only-policy 3, McNemar p=0.0574; drop +4.5 pts [+0.6, +8.5])  accuracy +4.3 pts [+1.3, +7.7] p=0.0106
+  static node (geomean, equal trust)       FA  27 ->  23 of 176  (only-baseline 10, only-policy 6, McNemar p=0.4545; drop +2.3 pts [-2.3, +6.8])  accuracy +1.7 pts [-1.7, +5.0] p=0.4244
+Score correlation (dev, Pearson on calibrated logits) / error phi:
+  J1~J2          r=+0.79  both wrong  28 (a 51, b 44)  phi_err=+0.51
+  J1~J3          r=+0.82  both wrong  39 (a 51, b 55)  phi_err=+0.68
+  J1~J4          r=+0.83  both wrong  28 (a 51, b 36)  phi_err=+0.60
+  J1~J7          r=+0.83  both wrong  35 (a 51, b 47)  phi_err=+0.66
+  J1~J9          r=+0.83  both wrong  30 (a 51, b 38)  phi_err=+0.63
+  J2~J3          r=+0.76  both wrong  24 (a 44, b 55)  phi_err=+0.39
+  J2~J4          r=+0.90  both wrong  24 (a 44, b 36)  phi_err=+0.54
+  J2~J7          r=+0.90  both wrong  34 (a 44, b 47)  phi_err=+0.70
+  J2~J9          r=+0.91  both wrong  30 (a 44, b 38)  phi_err=+0.69
+  J3~J4          r=+0.84  both wrong  31 (a 55, b 36)  phi_err=+0.65
+  J3~J7          r=+0.84  both wrong  34 (a 55, b 47)  phi_err=+0.60
+  J3~J9          r=+0.85  both wrong  29 (a 55, b 38)  phi_err=+0.57
+  J4~J7          r=+0.94  both wrong  33 (a 36, b 47)  phi_err=+0.77
+  J4~J9          r=+0.96  both wrong  29 (a 36, b 38)  phi_err=+0.75
+  J7~J9          r=+0.94  both wrong  35 (a 47, b 38)  phi_err=+0.80
+  nli2~J1        r=+0.42  both wrong  23 (a 83, b 51)  phi_err=+0.18
+  nli2~J2        r=+0.49  both wrong  28 (a 83, b 44)  phi_err=+0.33
+  nli2~J3        r=+0.41  both wrong  16 (a 83, b 55)  phi_err=+0.02
+  nli2~J4        r=+0.49  both wrong  13 (a 83, b 36)  phi_err=+0.07
+  nli2~J7        r=+0.48  both wrong  21 (a 83, b 47)  phi_err=+0.16
+  nli2~J9        r=+0.49  both wrong  19 (a 83, b 38)  phi_err=+0.19
+  nli2~overlap   r=+0.19  both wrong  56 (a 83, b 119)  phi_err=+0.35
+  nli2~rerank    r=+0.35  both wrong  34 (a 83, b 89)  phi_err=+0.15
+  nli~J1         r=+0.26  both wrong  22 (a 113, b 51)  phi_err=+0.05
+  nli~J2         r=+0.33  both wrong  27 (a 113, b 44)  phi_err=+0.20
+  nli~J3         r=+0.29  both wrong  23 (a 113, b 55)  phi_err=+0.04
+  nli~J4         r=+0.37  both wrong  15 (a 113, b 36)  phi_err=+0.03
+  nli~J7         r=+0.33  both wrong  21 (a 113, b 47)  phi_err=+0.06
+  nli~J9         r=+0.33  both wrong  19 (a 113, b 38)  phi_err=+0.10
+  nli~nli2       r=+0.46  both wrong  65 (a 113, b 83)  phi_err=+0.52
+  nli~overlap    r=+0.13  both wrong  67 (a 113, b 119)  phi_err=+0.31
+  nli~rerank     r=+0.29  both wrong  42 (a 113, b 89)  phi_err=+0.13
+  overlap~J1     r=+0.27  both wrong  27 (a 119, b 51)  phi_err=+0.12
+  overlap~J2     r=+0.26  both wrong  27 (a 119, b 44)  phi_err=+0.18
+  overlap~J3     r=+0.24  both wrong  24 (a 119, b 55)  phi_err=+0.04
+  overlap~J4     r=+0.24  both wrong  15 (a 119, b 36)  phi_err=+0.02
+  overlap~J7     r=+0.24  both wrong  22 (a 119, b 47)  phi_err=+0.06
+  overlap~J9     r=+0.23  both wrong  21 (a 119, b 38)  phi_err=+0.12
+  overlap~rerank r=+0.42  both wrong  52 (a 119, b 89)  phi_err=+0.25
+  rerank~J1      r=+0.44  both wrong  23 (a 89, b 51)  phi_err=+0.15
+  rerank~J2      r=+0.47  both wrong  20 (a 89, b 44)  phi_err=+0.14
+  rerank~J3      r=+0.43  both wrong  21 (a 89, b 55)  phi_err=+0.09
+  rerank~J4      r=+0.48  both wrong  15 (a 89, b 36)  phi_err=+0.10
+  rerank~J7      r=+0.46  both wrong  21 (a 89, b 47)  phi_err=+0.14
+  rerank~J9      r=+0.48  both wrong  18 (a 89, b 38)  phi_err=+0.15
+Train-CV accuracy of candidate node configurations: {'bayes-ess [all]': 0.9086, 'bayes-ess [judges]': 0.8943, 'bayes-ess_cal [all]': 0.9029, 'bayes-ess_cal [judges]': 0.9029, 'bayes-hard [all]': 0.9029, 'bayes-hard [judges]': 0.8943, 'bayes-logit [all]': 0.8971, 'bayes-logit [judges]': 0.9057, 'bayes-soft [all]': 0.9029, 'bayes-soft [judges]': 0.9057}
+Selected (by train CV): node: train-CV selected = bayes-ess [all]
+Node vs best single judge (chosen on train accuracy), paired on dev:
+  bayes-ess                                    vs J7 (train 88.9%): 87.3% vs 86.3%  diff +1.0 pts [-1.3, +3.7]  node-only-right 9, judge-only-right 6, McNemar p=0.607
+  bayes-ess_cal                                vs J7 (train 88.9%): 86.0% vs 86.3%  diff -0.3 pts [-3.3, +2.7]  node-only-right 9, judge-only-right 10, McNemar p=1.000
+  bayes-hard                                   vs J7 (train 88.9%): 86.3% vs 86.3%  diff +0.0 pts [-2.3, +2.3]  node-only-right 6, judge-only-right 6, McNemar p=1.000
+  node: train-CV selected = bayes-ess [all]    vs J7 (train 88.9%): 87.3% vs 86.3%  diff +1.0 pts [-1.3, +3.7]  node-only-right 9, judge-only-right 6, McNemar p=0.607
+Error analysis of the selected node (dev errors): {'contradict_accepted': 2, 'nei_accepted': 17, 'panel_unanimous_vs_gold': 16, 'retrieval_miss': 4, 'support_rejected_gate': 1, 'support_rejected_panel_consensus': 7, 'support_rejected_split_panel': 7}
+Selective mode (abstain band picked on TRAIN out-of-fold posteriors, applied to dev unchanged):
+  bayes-ess_cal  target 0.97: band [0.000, 0.997) train-OOF cov 4.0% -> dev coverage 5.0% (15 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 18.10%, false accepts 0/15 accepted
+  bayes-ess_cal  target 0.98: band [0.000, 0.997) train-OOF cov 4.0% -> dev coverage 5.0% (15 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 18.10%, false accepts 0/15 accepted
+  bayes-ess_cal  target 0.99: band [0.000, 0.997) train-OOF cov 4.0% -> dev coverage 5.0% (15 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 18.10%, false accepts 0/15 accepted
+  bayes-ess_cal  target 1.00: band [0.000, 0.997) train-OOF cov 4.0% -> dev coverage 5.0% (15 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 18.10%, false accepts 0/15 accepted
+  selected       target 0.97: band [0.000, 1.001) train-OOF cov 0.0% -> dev coverage 0.0% (0 decided), errors 0, acc -, error-rate 95% upper (Clopper-Pearson) 100.00%, false accepts 0/0 accepted
+  selected       target 0.98: band [0.000, 1.001) train-OOF cov 0.0% -> dev coverage 0.0% (0 decided), errors 0, acc -, error-rate 95% upper (Clopper-Pearson) 100.00%, false accepts 0/0 accepted
+  selected       target 0.99: band [0.000, 1.001) train-OOF cov 0.0% -> dev coverage 0.0% (0 decided), errors 0, acc -, error-rate 95% upper (Clopper-Pearson) 100.00%, false accepts 0/0 accepted
+  selected       target 1.00: band [0.000, 1.001) train-OOF cov 0.0% -> dev coverage 0.0% (0 decided), errors 0, acc -, error-rate 95% upper (Clopper-Pearson) 100.00%, false accepts 0/0 accepted
+Fail-closed NOT_SURE (Learn-Then-Test margin on train OOF + disagreement rule; through ClaimTrace):
+  bayes-ess_cal  alpha 0.005: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.01: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.02: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.05: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.1: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.005: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.01: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.02: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.05: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.1: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+Sensitivity, 9 label_review dev claims excluded (not a headline): J1 unwrapped (raw argmax, no node) 84.9%, J7 unwrapped 88.3%, bayes-ess_cal 88.0%, node: train-CV selected = bayes-ess [all] 89.3%
+Gate: {'gate_closed_dev': 2, 'gate_closed_dev_supported': 1, 'gate_closed_train': 4, 'j1_commits_without_quote': 0, 'missing_judge_calls': 0, 'unparsed_judge_replies': 0}
+Learned reliabilities (train): {'J1': 0.8352, 'J2': 0.8693, 'J3': 0.8295, 'J4': 0.9006, 'J7': 0.8977, 'J9': 0.892, 'nli': 0.6449, 'nli2': 0.7358, 'overlap': 0.6449, 'rerank': 0.7045}
+
+=== condition: rv3 ===  binary task (supported vs not); accuracy and false-accept rate with 95% bootstrap CIs
+policy                                     accuracy %             false-accept %           TA %    ECE
+J1 alone                                    82.7 [78.3, 87.0]      13.1 [8.5, 18.2]        76.6  0.024
+J10 alone                                   88.0 [84.3, 91.7]      11.9 [7.4, 17.0]        87.9  0.038
+J11 alone                                   84.7 [80.3, 88.7]       9.1 [5.1, 13.6]        75.8  0.025
+J2 alone                                    84.3 [80.3, 88.3]       9.1 [5.1, 13.6]        75.0  0.024
+J4 alone                                    87.3 [83.3, 91.0]      11.4 [6.8, 16.5]        85.5  0.024
+J7 alone                                    83.7 [79.3, 87.7]      18.2 [12.5, 23.9]       86.3  0.034
+J9 alone                                    88.7 [85.0, 92.0]       9.7 [5.7, 14.2]        86.3  0.024
+nli alone                                   65.7 [60.3, 71.0]       5.7 [2.3, 9.1]         25.0  0.026
+nli2 alone                                  73.3 [68.3, 78.3]       8.0 [4.0, 11.9]        46.8  0.052
+overlap alone                               62.0 [56.7, 67.7]       6.2 [2.8, 10.2]        16.9  0.017
+rerank alone                                68.0 [62.7, 73.3]      31.2 [24.4, 38.1]       66.9  0.068
+J1 unwrapped                                83.0 [78.7, 87.0]      16.5 [11.4, 22.2]       82.3    -  
+J10 unwrapped                               87.7 [84.0, 91.3]      11.9 [7.4, 17.0]        87.1    -  
+J11 unwrapped                               79.7 [75.0, 84.0]       2.3 [0.6, 4.5]         54.0    -  
+J2 unwrapped                                84.3 [80.3, 88.3]       9.1 [5.1, 13.6]        75.0    -  
+J4 unwrapped                                85.7 [81.7, 89.3]      19.9 [14.2, 26.1]       93.5    -  
+J7 unwrapped                                85.7 [81.7, 89.3]      13.1 [8.5, 18.2]        83.9    -  
+J9 unwrapped                                85.7 [81.7, 89.3]      19.3 [13.6, 25.6]       92.7    -  
+J1 unwrapped (raw argmax, no node)          83.0 [78.7, 87.0]      16.5 [11.4, 22.2]       82.3    -  
+judge majority (raw argmax votes)           85.7 [81.7, 89.3]      19.3 [13.6, 25.6]       92.7    -  
+static node (geomean, equal trust)          85.7 [81.7, 89.3]       9.1 [5.1, 13.6]        78.2  0.113
+bayes-hard                                  87.0 [83.0, 90.7]       6.8 [3.4, 10.8]        78.2  0.124
+bayes-ess                                   87.3 [83.3, 91.0]       6.8 [3.4, 10.8]        79.0  0.054
+bayes-ess live (prequential)                88.3 [84.7, 91.7]       6.8 [3.4, 10.8]        81.5  0.052
+bayes-ess, gate off (ablation)              87.7 [84.0, 91.3]       6.8 [3.4, 10.8]        79.8  0.050
+bayes-ess, judges only                      87.0 [83.0, 90.7]       9.7 [5.7, 14.2]        82.3  0.044
+bayes-ess, local only (no API)              72.3 [67.3, 77.3]       6.8 [3.4, 10.8]        42.7  0.092
+reference: logistic stack (not gated)       88.7 [85.0, 92.0]       9.7 [5.7, 14.2]        86.3  0.028
+J11 proof alone (argmax S + verbatim quote)  79.3 [74.7, 83.7]       2.3 [0.6, 4.5]         53.2    -  
+bayes-ess_cal                               87.3 [83.7, 91.0]       6.2 [2.8, 10.2]        78.2  0.045
+bayes-ess_cal + J11 veto                    79.0 [74.3, 83.3]       1.7 [0.0, 4.0]         51.6  0.206
+node: train-CV selected = bayes-ess [all] + J11 veto  78.7 [74.0, 83.0]       2.3 [0.6, 4.5]         51.6  0.202
+node: train-CV selected = bayes-ess [all], no veto  87.3 [83.3, 91.0]       6.8 [3.4, 10.8]        79.0  0.054
+node: train-CV selected = bayes-ess [all]   87.3 [83.3, 91.0]       6.8 [3.4, 10.8]        79.0  0.054
+3-way (SUPPORT / CONTRADICT / NEI): accuracy [95% CI], macro-F1
+  J1 unwrapped (raw argmax)                 74.3 [69.3, 79.3]     F1 0.734
+  J10 unwrapped (raw argmax)                81.7 [77.0, 86.0]     F1 0.815
+  J11 unwrapped (raw argmax)                69.7 [64.3, 74.7]     F1 0.700
+  J2 unwrapped (raw argmax)                 76.3 [71.7, 81.0]     F1 0.766
+  J4 unwrapped (raw argmax)                 80.3 [75.7, 84.7]     F1 0.799
+  J7 unwrapped (raw argmax)                 78.7 [74.0, 83.3]     F1 0.784
+  J9 unwrapped (raw argmax)                 80.7 [76.0, 85.0]     F1 0.803
+  bayes-ess                                 79.3 [74.7, 83.7]     F1 0.790
+  bayes-ess_cal                             79.0 [74.3, 83.3]     F1 0.786
+  bayes-hard                                78.7 [74.0, 83.0]     F1 0.785
+  nli alone (calibrated)                    45.7 [40.0, 51.3]     F1 0.325
+Safety: unsupported dev claims accepted, vs J1 unwrapped (exact McNemar; paired bootstrap of the drop)
+  bayes-ess                                FA  29 ->  12 of 176  (only-baseline 17, only-policy 0, McNemar p=0.0000; drop +9.7 pts [+5.7, +14.2])  accuracy +4.3 pts [+0.7, +8.0] p=0.0294
+  bayes-ess live (prequential)             FA  29 ->  12 of 176  (only-baseline 17, only-policy 0, McNemar p=0.0000; drop +9.7 pts [+5.7, +14.2])  accuracy +5.3 pts [+1.7, +9.0] p=0.0070
+  bayes-ess_cal                            FA  29 ->  11 of 176  (only-baseline 18, only-policy 0, McNemar p=0.0000; drop +10.2 pts [+5.7, +14.8])  accuracy +4.3 pts [+0.7, +8.0] p=0.0351
+  bayes-hard                               FA  29 ->  12 of 176  (only-baseline 17, only-policy 0, McNemar p=0.0000; drop +9.7 pts [+5.7, +14.2])  accuracy +4.0 pts [+0.3, +7.7] p=0.0576
+  judge majority (raw argmax votes)        FA  29 ->  34 of 176  (only-baseline 7, only-policy 12, McNemar p=0.3593; drop -2.8 pts [-8.0, +2.3])  accuracy +2.7 pts [-1.0, +6.3] p=0.2153
+  node: train-CV selected = bayes-ess [all] FA  29 ->  12 of 176  (only-baseline 17, only-policy 0, McNemar p=0.0000; drop +9.7 pts [+5.7, +14.2])  accuracy +4.3 pts [+0.7, +8.0] p=0.0294
+  static node (geomean, equal trust)       FA  29 ->  16 of 176  (only-baseline 14, only-policy 1, McNemar p=0.0010; drop +7.4 pts [+3.4, +11.9])  accuracy +2.7 pts [-1.0, +6.3] p=0.2153
+Score correlation (dev, Pearson on calibrated logits) / error phi:
+  J10~J11        r=+0.80  both wrong  21 (a 36, b 46)  phi_err=+0.44
+  J1~J10         r=+0.78  both wrong  25 (a 52, b 36)  phi_err=+0.51
+  J1~J11         r=+0.65  both wrong  23 (a 52, b 46)  phi_err=+0.37
+  J1~J2          r=+0.77  both wrong  30 (a 52, b 47)  phi_err=+0.53
+  J1~J4          r=+0.83  both wrong  28 (a 52, b 38)  phi_err=+0.57
+  J1~J7          r=+0.80  both wrong  30 (a 52, b 49)  phi_err=+0.51
+  J1~J9          r=+0.81  both wrong  27 (a 52, b 34)  phi_err=+0.59
+  J2~J10         r=+0.88  both wrong  28 (a 47, b 36)  phi_err=+0.63
+  J2~J11         r=+0.81  both wrong  30 (a 47, b 46)  phi_err=+0.58
+  J2~J4          r=+0.89  both wrong  33 (a 47, b 38)  phi_err=+0.75
+  J2~J7          r=+0.87  both wrong  33 (a 47, b 49)  phi_err=+0.63
+  J2~J9          r=+0.89  both wrong  30 (a 47, b 34)  phi_err=+0.71
+  J4~J10         r=+0.90  both wrong  26 (a 38, b 36)  phi_err=+0.66
+  J4~J11         r=+0.80  both wrong  25 (a 38, b 46)  phi_err=+0.53
+  J4~J7          r=+0.94  both wrong  34 (a 38, b 49)  phi_err=+0.75
+  J4~J9          r=+0.96  both wrong  32 (a 38, b 34)  phi_err=+0.88
+  J7~J10         r=+0.86  both wrong  31 (a 49, b 36)  phi_err=+0.70
+  J7~J11         r=+0.76  both wrong  27 (a 49, b 46)  phi_err=+0.49
+  J7~J9          r=+0.94  both wrong  31 (a 49, b 34)  phi_err=+0.72
+  J9~J10         r=+0.89  both wrong  24 (a 34, b 36)  phi_err=+0.64
+  J9~J11         r=+0.80  both wrong  25 (a 34, b 46)  phi_err=+0.58
+  nli2~J1        r=+0.41  both wrong  23 (a 80, b 52)  phi_err=+0.18
+  nli2~J10       r=+0.52  both wrong  16 (a 80, b 36)  phi_err=+0.15
+  nli2~J11       r=+0.52  both wrong  26 (a 80, b 46)  phi_err=+0.29
+  nli2~J2        r=+0.50  both wrong  30 (a 80, b 47)  phi_err=+0.36
+  nli2~J4        r=+0.52  both wrong  18 (a 80, b 38)  phi_err=+0.18
+  nli2~J7        r=+0.48  both wrong  18 (a 80, b 49)  phi_err=+0.10
+  nli2~J9        r=+0.50  both wrong  17 (a 80, b 34)  phi_err=+0.19
+  nli2~overlap   r=+0.27  both wrong  58 (a 80, b 114)  phi_err=+0.43
+  nli2~rerank    r=+0.26  both wrong  29 (a 80, b 96)  phi_err=+0.05
+  nli~J1         r=+0.26  both wrong  25 (a 103, b 52)  phi_err=+0.13
+  nli~J10        r=+0.36  both wrong  15 (a 103, b 36)  phi_err=+0.06
+  nli~J11        r=+0.30  both wrong  25 (a 103, b 46)  phi_err=+0.18
+  nli~J2         r=+0.28  both wrong  30 (a 103, b 47)  phi_err=+0.27
+  nli~J4         r=+0.34  both wrong  19 (a 103, b 38)  phi_err=+0.13
+  nli~J7         r=+0.30  both wrong  18 (a 103, b 49)  phi_err=+0.02
+  nli~J9         r=+0.32  both wrong  17 (a 103, b 34)  phi_err=+0.12
+  nli~nli2       r=+0.50  both wrong  67 (a 103, b 80)  phi_err=+0.63
+  nli~overlap    r=+0.23  both wrong  78 (a 103, b 114)  phi_err=+0.56
+  nli~rerank     r=+0.25  both wrong  37 (a 103, b 96)  phi_err=+0.06
+  overlap~J1     r=+0.32  both wrong  27 (a 114, b 52)  phi_err=+0.13
+  overlap~J10    r=+0.30  both wrong  15 (a 114, b 36)  phi_err=+0.03
+  overlap~J11    r=+0.26  both wrong  25 (a 114, b 46)  phi_err=+0.14
+  overlap~J2     r=+0.30  both wrong  28 (a 114, b 47)  phi_err=+0.19
+  overlap~J4     r=+0.30  both wrong  18 (a 114, b 38)  phi_err=+0.07
+  overlap~J7     r=+0.28  both wrong  16 (a 114, b 49)  phi_err=-0.05
+  overlap~J9     r=+0.30  both wrong  17 (a 114, b 34)  phi_err=+0.09
+  overlap~rerank r=+0.44  both wrong  44 (a 114, b 96)  phi_err=+0.11
+  rerank~J1      r=+0.41  both wrong  25 (a 96, b 52)  phi_err=+0.16
+  rerank~J10     r=+0.44  both wrong  15 (a 96, b 36)  phi_err=+0.08
+  rerank~J11     r=+0.34  both wrong  17 (a 96, b 46)  phi_err=+0.05
+  rerank~J2      r=+0.40  both wrong  17 (a 96, b 47)  phi_err=+0.04
+  rerank~J4      r=+0.40  both wrong  14 (a 96, b 38)  phi_err=+0.04
+  rerank~J7      r=+0.39  both wrong  21 (a 96, b 49)  phi_err=+0.10
+  rerank~J9      r=+0.42  both wrong  15 (a 96, b 34)  phi_err=+0.09
+Train-CV accuracy of candidate node configurations: {'bayes-ess [all]': 0.8914, 'bayes-ess [judges]': 0.8743, 'bayes-ess_cal [all]': 0.8914, 'bayes-ess_cal [judges]': 0.8514, 'bayes-hard [all]': 0.8686, 'bayes-hard [judges]': 0.8686, 'bayes-logit [all]': 0.8657, 'bayes-logit [judges]': 0.8629, 'bayes-soft [all]': 0.8686, 'bayes-soft [judges]': 0.8629}
+Selected (by train CV): node: train-CV selected = bayes-ess [all]
+Node vs best single judge (chosen on train accuracy), paired on dev:
+  bayes-ess                                    vs J4 (train 86.9%): 87.3% vs 85.7%  diff +1.7 pts [-2.3, +5.7]  node-only-right 23, judge-only-right 18, McNemar p=0.533
+  bayes-ess_cal                                vs J4 (train 86.9%): 87.3% vs 85.7%  diff +1.7 pts [-2.7, +6.0]  node-only-right 24, judge-only-right 19, McNemar p=0.542
+  bayes-hard                                   vs J4 (train 86.9%): 87.0% vs 85.7%  diff +1.3 pts [-2.7, +5.7]  node-only-right 23, judge-only-right 19, McNemar p=0.644
+  node: train-CV selected = bayes-ess [all]    vs J4 (train 86.9%): 87.3% vs 85.7%  diff +1.7 pts [-2.3, +5.7]  node-only-right 23, judge-only-right 18, McNemar p=0.533
+Error analysis of the selected node (dev errors): {'contradict_accepted': 2, 'nei_accepted': 10, 'panel_unanimous_vs_gold': 9, 'retrieval_miss': 4, 'support_rejected_gate': 1, 'support_rejected_panel_consensus': 12, 'support_rejected_split_panel': 9}
+Selective mode (abstain band picked on TRAIN out-of-fold posteriors, applied to dev unchanged):
+  bayes-ess_cal  target 0.97: band [0.000, 0.971) train-OOF cov 20.6% -> dev coverage 19.7% (59 decided), errors 3, acc 94.9%, error-rate 95% upper (Clopper-Pearson) 12.62%, false accepts 3/59 accepted
+  bayes-ess_cal  target 0.98: band [0.000, 0.996) train-OOF cov 5.4% -> dev coverage 4.0% (12 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 22.09%, false accepts 0/12 accepted
+  bayes-ess_cal  target 0.99: band [0.000, 0.996) train-OOF cov 5.4% -> dev coverage 4.0% (12 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 22.09%, false accepts 0/12 accepted
+  bayes-ess_cal  target 1.00: band [0.000, 0.996) train-OOF cov 5.4% -> dev coverage 4.0% (12 decided), errors 0, acc 100.0%, error-rate 95% upper (Clopper-Pearson) 22.09%, false accepts 0/12 accepted
+  selected       target 0.97: band [0.000, 1.001) train-OOF cov 0.0% -> dev coverage 0.0% (0 decided), errors 0, acc -, error-rate 95% upper (Clopper-Pearson) 100.00%, false accepts 0/0 accepted
+  selected       target 0.98: band [0.000, 1.001) train-OOF cov 0.0% -> dev coverage 0.0% (0 decided), errors 0, acc -, error-rate 95% upper (Clopper-Pearson) 100.00%, false accepts 0/0 accepted
+  selected       target 0.99: band [0.000, 1.001) train-OOF cov 0.0% -> dev coverage 0.0% (0 decided), errors 0, acc -, error-rate 95% upper (Clopper-Pearson) 100.00%, false accepts 0/0 accepted
+  selected       target 1.00: band [0.000, 1.001) train-OOF cov 0.0% -> dev coverage 0.0% (0 decided), errors 0, acc -, error-rate 95% upper (Clopper-Pearson) 100.00%, false accepts 0/0 accepted
+Fail-closed NOT_SURE (Learn-Then-Test margin on train OOF + disagreement rule; through ClaimTrace):
+  bayes-ess_cal  alpha 0.005: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.01: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.02: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.05: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  bayes-ess_cal  alpha 0.1: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.005: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.01: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.02: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.05: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  selected       alpha 0.1: log-odds margin 99.00; train OOF 0/0 err, UB 0.00% -> dev coverage 0.7% (2), errors 1, UB95 97.47%, FA 0/0, {'ACCEPT': 0, 'NOT_SURE': 298, 'REJECT': 2}
+  Phase 3c proof_or_not_sure (selected config) [train_oof]: coverage 84.9% (297), errors 28, UB95 12.70%, false accepts 5/84 (UB95 12.11%), {'ACCEPT': 84, 'NOT_SURE': 53, 'REJECT': 213}
+  Phase 3c proof_or_not_sure (selected config) [dev]: coverage 86.0% (258), errors 30, UB95 15.44%, false accepts 4/68 (UB95 12.96%), {'ACCEPT': 68, 'NOT_SURE': 42, 'REJECT': 190}
+Sensitivity, 9 label_review dev claims excluded (not a headline): J1 unwrapped (raw argmax, no node) 84.9%, J4 unwrapped 87.6%, bayes-ess_cal 89.3%, node: train-CV selected = bayes-ess [all] 89.3%
+Gate: {'gate_closed_dev': 2, 'gate_closed_dev_supported': 1, 'gate_closed_train': 2, 'j1_commits_without_quote': 0, 'missing_judge_calls': 0, 'unparsed_judge_replies': 1}
+Learned reliabilities (train): {'J1': 0.8381, 'J10': 0.8636, 'J11': 0.8381, 'J2': 0.858, 'J4': 0.8892, 'J7': 0.8722, 'J9': 0.8835, 'nli': 0.6335, 'nli2': 0.7273, 'overlap': 0.625, 'rerank': 0.7273}
+

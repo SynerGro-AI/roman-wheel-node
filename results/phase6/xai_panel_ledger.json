@@ -1,0 +1,161 @@
+{
+ "label": "BENCHMARK COMPARISON ONLY. xAI/Grok judge outputs. Not used to fit, select or tune anything that ships (policy 4.3.0 and roman_wheel_node.fit use local open-model features only). Repo-only: not in the sdist or wheel.",
+ "source": "results/phase6/refit_42.json and structural_scifact.json (policy 4.2.0 run, git 69aa8db, phase6/refit_policy_42.py, now historical)",
+ "panel_sources": "xAI/Grok judges J1 J2 J4 J7 J9 J10 + nli nli2 overlap; J1 verbatim-quote gate",
+ "held_out": {
+  "test": "scifact_dev",
+  "n": 300
+ },
+ "panel_4_2_0_on_dev": {
+  "n": 300,
+  "ACCEPT": 108,
+  "NOT_SURE": 190,
+  "BLOCK": 2,
+  "accepted_true": 101,
+  "false_accepts": 7,
+  "blocked_true": 1,
+  "supported": 124,
+  "errors_or_mismatch": 0,
+  "accept_rate": 0.36,
+  "accept_precision": 0.9351851851851852,
+  "false_accept_share_upper95_cp": 0.11829149485576121,
+  "coverage_of_supported": 0.8145161290322581,
+  "decided": 110,
+  "accuracy_decided": 0.9272727272727272,
+  "accuracy_all_not_sure_as_reject": 0.9
+ },
+ "panel_4_2_0_params": {
+  "cutoff": 0.133,
+  "margin": 1.1747359841409104,
+  "threshold": 0.3318224567636762
+ },
+ "panel_certificate_on_train_oof": {
+  "0.1": {
+   "certified": true,
+   "m_a": 1.1747359841409104,
+   "m_r": Infinity,
+   "step": 40,
+   "decided": 280,
+   "errors": 17,
+   "accepted": 280,
+   "false_accepts": 17,
+   "upper": 0.08968083179366616,
+   "config": "scifact|bayes-logit [all]|base",
+   "rho": 0.0,
+   "n": 799
+  },
+  "0.05": {
+   "certified": false
+  },
+  "0.02": {
+   "certified": false
+  },
+  "0.01": {
+   "certified": false
+  }
+ },
+ "panel_structural_veto_check_on_train_oof": {
+  "population": "SciFact train out-of-fold (n=799), policy 4.2.0 panel margin 1.1747",
+  "accepts": 280,
+  "false_accepts": 17,
+  "bar": {
+   "min_false_accepts_caught": 3,
+   "min_caught_per_correct_lost": 3
+  },
+  "fields": {
+   "identifier_mutation": {
+    "false_accepts_caught": 0,
+    "correct_accepts_lost": 2,
+    "meets_bar": false
+   },
+   "fragment": {
+    "false_accepts_caught": 0,
+    "correct_accepts_lost": 2,
+    "meets_bar": false
+   },
+   "near_copy_swap": {
+    "false_accepts_caught": 0,
+    "correct_accepts_lost": 3,
+    "meets_bar": false
+   },
+   "numbers_missing": {
+    "false_accepts_caught": 0,
+    "correct_accepts_lost": 10,
+    "meets_bar": false
+   },
+   "negation_inserted": {
+    "false_accepts_caught": 0,
+    "correct_accepts_lost": 3,
+    "meets_bar": false
+   },
+   "negation_dropped": {
+    "false_accepts_caught": 7,
+    "correct_accepts_lost": 131,
+    "meets_bar": false
+   },
+   "direction_conflict": {
+    "false_accepts_caught": 2,
+    "correct_accepts_lost": 6,
+    "meets_bar": false
+   },
+   "absolutes_unbacked": {
+    "false_accepts_caught": 0,
+    "correct_accepts_lost": 1,
+    "meets_bar": false
+   }
+  },
+  "fields_meeting_bar": [],
+  "current_frozen_veto_fields": [
+   "identifier_mutation",
+   "fragment",
+   "near_copy_swap"
+  ],
+  "frozen_rule_effect": {
+   "false_accepts_caught": 0,
+   "correct_accepts_lost": 7,
+   "veto_reasons": {
+    "identifier_mutation": 2,
+    "fragment": 2,
+    "near_copy_swap": 3
+   }
+  }
+ },
+ "shipped_local_4_3_0_on_dev_for_comparison": {
+  "local": {
+   "n": 300,
+   "ACCEPT": 58,
+   "NOT_SURE": 242,
+   "BLOCK": 0,
+   "accepted_true": 52,
+   "false_accepts": 6,
+   "blocked_true": 0,
+   "supported": 124,
+   "errors_or_mismatch": 0,
+   "accept_rate": 0.19333333333333333,
+   "accept_precision": 0.896551724137931,
+   "false_accept_share_upper95_cp": 0.19399900692178793,
+   "coverage_of_supported": 0.41935483870967744,
+   "decided": 58,
+   "accuracy_decided": 0.896551724137931,
+   "accuracy_all_not_sure_as_reject": 0.74
+  },
+  "local-lite": {
+   "n": 300,
+   "ACCEPT": 16,
+   "NOT_SURE": 284,
+   "BLOCK": 0,
+   "accepted_true": 15,
+   "false_accepts": 1,
+   "blocked_true": 0,
+   "supported": 124,
+   "errors_or_mismatch": 0,
+   "accept_rate": 0.05333333333333334,
+   "accept_precision": 0.9375,
+   "false_accept_share_upper95_cp": 0.26395739728856865,
+   "coverage_of_supported": 0.12096774193548387,
+   "decided": 16,
+   "accuracy_decided": 0.9375,
+   "accuracy_all_not_sure_as_reject": 0.6333333333333333
+  }
+ }
+}

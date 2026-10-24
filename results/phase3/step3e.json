@@ -1,0 +1,1509 @@
+{
+ "protocol": "Phase 3e: zero-cost fixes on the cached Phase 3d judge outputs (no xAI call: judges are read from cache only, and\nthe script refuses to run with XAI_API_KEY set).\n\nProtocol (no test label is used for any choice):\n* Calibration populations: SciFact train (350 + unused, gold evidence) and HealthVer train (internal, unlicensed).\n* Calibration schemes: per-dataset (each population calibrates its own node) and pooled (Phase 3d), both evaluated on\n  each population's own out-of-fold (5-fold) posteriors.\n* Pre-specified family per population: 2 schemes x 3 nodes (bayes-hard [judges], bayes-logit [all], bayes-ess [judges])\n  x accept rules (base, U5, U6, U6+NLIe, U6+noNLIc, U6/U0; SciFact per-dataset adds J11, J11+U6 because J11 is cached\n  only there) x 4 asymmetry ratios rho (0 = accept-only, 0.5, 1, 2).\n* LTT: fixed-sequence testing along each config's pre-ordered margin path (K = 40 steps, conservative first),\n  Bonferroni over all (config, rho) of the population, delta = 0.05 per population; one-sided Clopper-Pearson on\n  out-of-fold decided errors. Per alpha the certified config with the most decided calibration claims is used.\n* Tests (frozen, fit on the whole scheme pool): SciFact dev with the SciFact certificate, HealthVer test with the\n  HealthVer certificate, Climate-FEVER (no calibration data, transfer: measured, not certified) with the SciFact\n  certificate restricted to configs that need no J11 (J11 is not cached on Climate-FEVER).\n* Full coverage: per-dataset node chosen by 5-fold CV accuracy on each population (10 Phase 3 candidates).\nOutputs: results/phase3/step3e.json + step3e.txt (aggregates only); per-item outputs in cache/step3e (gitignored).\n",
+ "skipped_incomplete": {
+  "healthver_test": 308
+ },
+ "calibration_counts": {
+  "scifact": 799,
+  "healthver": 1999,
+  "pooled": 2798
+ },
+ "test_counts": {
+  "healthver_test": 1515,
+  "climatefever": 1500,
+  "scifact_dev": 300
+ },
+ "internal_note": {
+  "healthver": "internal, unlicensed dataset, data not redistributed"
+ },
+ "calibration_diagnostics": {
+  "scifact": {
+   "blocks": 7,
+   "blocks_on_supported": 4,
+   "U6": {
+    "n": 204,
+    "gold_support": 194
+   },
+   "U6+NLIe": {
+    "n": 109,
+    "gold_support": 108
+   },
+   "J11": {
+    "n": 63,
+    "gold_support": 61
+   },
+   "J11+U6": {
+    "n": 52,
+    "gold_support": 51
+   },
+   "U0": {
+    "n": 400,
+    "gold_support": 13
+   }
+  },
+  "healthver": {
+   "blocks": 9,
+   "blocks_on_supported": 3,
+   "U6": {
+    "n": 80,
+    "gold_support": 70
+   },
+   "U6+NLIe": {
+    "n": 35,
+    "gold_support": 30
+   },
+   "J11": {
+    "n": 0,
+    "gold_support": 0
+   },
+   "J11+U6": {
+    "n": 0,
+    "gold_support": 0
+   },
+   "U0": {
+    "n": 1371,
+    "gold_support": 261
+   }
+  }
+ },
+ "risks": {
+  "selective_blocks_decided": {
+   "scifact": {
+    "calibration_n": 799,
+    "certificates": {
+     "n_tests": 168,
+     "delta_each": 0.00029761904761904765,
+     "min_decided_zero_errors": {
+      "0.1": 78,
+      "0.05": 159,
+      "0.02": 402,
+      "0.01": 808
+     },
+     "alphas": {
+      "0.1": {
+       "certified": false
+      },
+      "0.05": {
+       "certified": false
+      },
+      "0.02": {
+       "certified": false
+      },
+      "0.01": {
+       "certified": false
+      }
+     },
+     "tightest_first_step": {
+      "config": "pooled|bayes-logit [all]|U6",
+      "rho": 1.0,
+      "decided": 446,
+      "errors": 10,
+      "upper": 0.057422271411006906,
+      "n": 799
+     }
+    },
+    "tests": {
+     "scifact_dev": {
+      "n": 300,
+      "labels": {
+       "SUPPORT": 124,
+       "NEI": 112,
+       "CONTRADICT": 64
+      },
+      "ltt": {
+       "0.1": {
+        "n": 300,
+        "decided": 2,
+        "coverage": 0.006666666666666667,
+        "errors": 1,
+        "error_upper95_cp": 0.9746794344808964,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.016877163787066454,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         0.5,
+         0.0,
+         1.0
+        ],
+        "certified": false
+       },
+       "0.05": {
+        "n": 300,
+        "decided": 2,
+        "coverage": 0.006666666666666667,
+        "errors": 1,
+        "error_upper95_cp": 0.9746794344808964,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.016877163787066454,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         0.5,
+         0.0,
+         1.0
+        ],
+        "certified": false
+       },
+       "0.02": {
+        "n": 300,
+        "decided": 2,
+        "coverage": 0.006666666666666667,
+        "errors": 1,
+        "error_upper95_cp": 0.9746794344808964,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.016877163787066454,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         0.5,
+         0.0,
+         1.0
+        ],
+        "certified": false
+       },
+       "0.01": {
+        "n": 300,
+        "decided": 2,
+        "coverage": 0.006666666666666667,
+        "errors": 1,
+        "error_upper95_cp": 0.9746794344808964,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.016877163787066454,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         0.5,
+         0.0,
+         1.0
+        ],
+        "certified": false
+       }
+      }
+     },
+     "climatefever": {
+      "n": 1500,
+      "labels": {
+       "SUPPORT": 633,
+       "NEI": 634,
+       "CONTRADICT": 233
+      },
+      "ltt": {
+       "0.1": {
+        "n": 1500,
+        "decided": 11,
+        "coverage": 0.007333333333333333,
+        "errors": 4,
+        "error_upper95_cp": 0.6501884654280827,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.0034493225775216593,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         0.6363636363636364,
+         0.36363636363636365,
+         0.9090909090909091
+        ],
+        "certified": false
+       },
+       "0.05": {
+        "n": 1500,
+        "decided": 11,
+        "coverage": 0.007333333333333333,
+        "errors": 4,
+        "error_upper95_cp": 0.6501884654280827,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.0034493225775216593,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         0.6363636363636364,
+         0.36363636363636365,
+         0.9090909090909091
+        ],
+        "certified": false
+       },
+       "0.02": {
+        "n": 1500,
+        "decided": 11,
+        "coverage": 0.007333333333333333,
+        "errors": 4,
+        "error_upper95_cp": 0.6501884654280827,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.0034493225775216593,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         0.6363636363636364,
+         0.36363636363636365,
+         0.9090909090909091
+        ],
+        "certified": false
+       },
+       "0.01": {
+        "n": 1500,
+        "decided": 11,
+        "coverage": 0.007333333333333333,
+        "errors": 4,
+        "error_upper95_cp": 0.6501884654280827,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.0034493225775216593,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         0.6363636363636364,
+         0.36363636363636365,
+         0.9090909090909091
+        ],
+        "certified": false
+       }
+      }
+     }
+    }
+   },
+   "healthver": {
+    "calibration_n": 1999,
+    "certificates": {
+     "n_tests": 144,
+     "delta_each": 0.00034722222222222224,
+     "min_decided_zero_errors": {
+      "0.1": 76,
+      "0.05": 156,
+      "0.02": 395,
+      "0.01": 793
+     },
+     "alphas": {
+      "0.1": {
+       "certified": false
+      },
+      "0.05": {
+       "certified": false
+      },
+      "0.02": {
+       "certified": false
+      },
+      "0.01": {
+       "certified": false
+      }
+     },
+     "tightest_first_step": {
+      "config": "pooled|bayes-logit [all]|U6+NLIe",
+      "rho": 2.0,
+      "decided": 393,
+      "errors": 25,
+      "upper": 0.11592922225171663,
+      "n": 1999
+     }
+    },
+    "tests": {
+     "healthver_test": {
+      "n": 1515,
+      "labels": {
+       "CONTRADICT": 333,
+       "NEI": 618,
+       "SUPPORT": 564
+      },
+      "ltt": {
+       "0.1": {
+        "n": 1515,
+        "decided": 2,
+        "coverage": 0.0013201320132013201,
+        "errors": 0,
+        "error_upper95_cp": 0.7763932022500211,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "certified": false
+       },
+       "0.05": {
+        "n": 1515,
+        "decided": 2,
+        "coverage": 0.0013201320132013201,
+        "errors": 0,
+        "error_upper95_cp": 0.7763932022500211,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "certified": false
+       },
+       "0.02": {
+        "n": 1515,
+        "decided": 2,
+        "coverage": 0.0013201320132013201,
+        "errors": 0,
+        "error_upper95_cp": 0.7763932022500211,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "certified": false
+       },
+       "0.01": {
+        "n": 1515,
+        "decided": 2,
+        "coverage": 0.0013201320132013201,
+        "errors": 0,
+        "error_upper95_cp": 0.7763932022500211,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "accuracy_decided": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "certified": false
+       }
+      }
+     }
+    }
+   }
+  },
+  "selective_blocks_separate": {
+   "scifact": {
+    "calibration_n": 799,
+    "certificates": {
+     "n_tests": 168,
+     "delta_each": 0.00029761904761904765,
+     "min_decided_zero_errors": {
+      "0.1": 78,
+      "0.05": 159,
+      "0.02": 402,
+      "0.01": 808
+     },
+     "alphas": {
+      "0.1": {
+       "certified": true,
+       "m_a": 1.1747359841409104,
+       "m_r": 1.5100121322960884,
+       "step": 40,
+       "decided": 727,
+       "errors": 39,
+       "accepted": 280,
+       "false_accepts": 17,
+       "upper": 0.08828824467994227,
+       "config": "scifact|bayes-logit [all]|base",
+       "rho": 1.0,
+       "n": 799
+      },
+      "0.05": {
+       "certified": false
+      },
+      "0.02": {
+       "certified": false
+      },
+      "0.01": {
+       "certified": false
+      }
+     },
+     "tightest_first_step": {
+      "config": "pooled|bayes-logit [all]|U6",
+      "rho": 1.0,
+      "decided": 439,
+      "errors": 6,
+      "upper": 0.04436590373714886,
+      "n": 799
+     }
+    },
+    "tests": {
+     "scifact_dev": {
+      "n": 300,
+      "labels": {
+       "SUPPORT": 124,
+       "NEI": 112,
+       "CONTRADICT": 64
+      },
+      "ltt": {
+       "0.1": {
+        "n": 300,
+        "decided": 283,
+        "coverage": 0.9433333333333334,
+        "errors": 21,
+        "error_upper95_cp": 0.10510044799174703,
+        "accepted": 108,
+        "false_accepts": 7,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.03977272727272727,
+        "false_accept_rate_all_upper95_cp": 0.07340388839956558,
+        "false_accept_share_of_accepted_upper95_cp": 0.11829149485576121,
+        "accuracy_decided": [
+         0.9257950530035336,
+         0.8939929328621908,
+         0.9540636042402827
+        ],
+        "certified": true,
+        "config": "scifact|bayes-logit [all]|base",
+        "rho": 1.0
+       },
+       "0.05": {
+        "n": 300,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.016877163787066454,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.02": {
+        "n": 300,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.016877163787066454,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.01": {
+        "n": 300,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.016877163787066454,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       }
+      }
+     },
+     "climatefever": {
+      "n": 1500,
+      "labels": {
+       "SUPPORT": 633,
+       "NEI": 634,
+       "CONTRADICT": 233
+      },
+      "ltt": {
+       "0.1": {
+        "n": 1500,
+        "decided": 1376,
+        "coverage": 0.9173333333333333,
+        "errors": 394,
+        "error_upper95_cp": 0.30707223634949066,
+        "accepted": 132,
+        "false_accepts": 2,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.002306805074971165,
+        "false_accept_rate_all_upper95_cp": 0.007243615491712091,
+        "false_accept_share_of_accepted_upper95_cp": 0.046925206494095116,
+        "accuracy_decided": [
+         0.7136627906976745,
+         0.6896802325581395,
+         0.7369186046511628
+        ],
+        "certified": true,
+        "config": "scifact|bayes-logit [all]|base",
+        "rho": 1.0
+       },
+       "0.05": {
+        "n": 1500,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.0034493225775216593,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.02": {
+        "n": 1500,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.0034493225775216593,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.01": {
+        "n": 1500,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.0034493225775216593,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       }
+      }
+     }
+    }
+   },
+   "healthver": {
+    "calibration_n": 1999,
+    "certificates": {
+     "n_tests": 144,
+     "delta_each": 0.00034722222222222224,
+     "min_decided_zero_errors": {
+      "0.1": 76,
+      "0.05": 156,
+      "0.02": 395,
+      "0.01": 793
+     },
+     "alphas": {
+      "0.1": {
+       "certified": false
+      },
+      "0.05": {
+       "certified": false
+      },
+      "0.02": {
+       "certified": false
+      },
+      "0.01": {
+       "certified": false
+      }
+     },
+     "tightest_first_step": {
+      "config": "pooled|bayes-logit [all]|U6+NLIe",
+      "rho": 2.0,
+      "decided": 384,
+      "errors": 22,
+      "upper": 0.10853339376500172,
+      "n": 1999
+     }
+    },
+    "tests": {
+     "healthver_test": {
+      "n": 1515,
+      "labels": {
+       "CONTRADICT": 333,
+       "NEI": 618,
+       "SUPPORT": 564
+      },
+      "ltt": {
+       "0.1": {
+        "n": 1515,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.05": {
+        "n": 1515,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.02": {
+        "n": 1515,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.01": {
+        "n": 1515,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       }
+      }
+     }
+    }
+   }
+  },
+  "accept_precision": {
+   "scifact": {
+    "calibration_n": 799,
+    "certificates": {
+     "n_tests": 42,
+     "delta_each": 0.0011904761904761906,
+     "min_decided_zero_errors": {
+      "0.1": 64,
+      "0.05": 132,
+      "0.02": 334,
+      "0.01": 670
+     },
+     "alphas": {
+      "0.1": {
+       "certified": true,
+       "m_a": 5.558172765083535,
+       "m_r": Infinity,
+       "step": 36,
+       "decided": 267,
+       "errors": 12,
+       "accepted": 267,
+       "false_accepts": 12,
+       "upper": 0.09735269814995973,
+       "config": "pooled|bayes-logit [all]|base",
+       "rho": 0.0,
+       "n": 799
+      },
+      "0.05": {
+       "certified": true,
+       "m_a": 9.092917296278914,
+       "m_r": Infinity,
+       "step": 20,
+       "decided": 152,
+       "errors": 0,
+       "accepted": 152,
+       "false_accepts": 0,
+       "upper": 0.04333183878946675,
+       "config": "pooled|bayes-logit [all]|base",
+       "rho": 0.0,
+       "n": 799
+      },
+      "0.02": {
+       "certified": false
+      },
+      "0.01": {
+       "certified": false
+      }
+     },
+     "tightest_first_step": {
+      "config": "pooled|bayes-logit [all]|base",
+      "rho": 0.0,
+      "decided": 152,
+      "errors": 0,
+      "upper": 0.04333183878946675,
+      "n": 799
+     }
+    },
+    "tests": {
+     "scifact_dev": {
+      "n": 300,
+      "labels": {
+       "SUPPORT": 124,
+       "NEI": 112,
+       "CONTRADICT": 64
+      },
+      "ltt": {
+       "0.1": {
+        "n": 300,
+        "decided": 104,
+        "coverage": 0.3466666666666667,
+        "errors": 6,
+        "error_upper95_cp": 0.11068920528488926,
+        "accepted": 104,
+        "false_accepts": 6,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.03409090909090909,
+        "false_accept_rate_all_upper95_cp": 0.06617339232775185,
+        "false_accept_share_of_accepted_upper95_cp": 0.11068920528488926,
+        "accuracy_decided": [
+         0.9423076923076923,
+         0.8942307692307693,
+         0.9807692307692307
+        ],
+        "certified": true,
+        "config": "pooled|bayes-logit [all]|base",
+        "rho": 0.0
+       },
+       "0.05": {
+        "n": 300,
+        "decided": 63,
+        "coverage": 0.21,
+        "errors": 1,
+        "error_upper95_cp": 0.073098617260472,
+        "accepted": 63,
+        "false_accepts": 1,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.005681818181818182,
+        "false_accept_rate_all_upper95_cp": 0.02666878642963525,
+        "false_accept_share_of_accepted_upper95_cp": 0.073098617260472,
+        "accuracy_decided": [
+         0.9841269841269841,
+         0.9523809523809523,
+         1.0
+        ],
+        "certified": true,
+        "config": "pooled|bayes-logit [all]|base",
+        "rho": 0.0
+       },
+       "0.02": {
+        "n": 300,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.016877163787066454,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.01": {
+        "n": 300,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 176,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.016877163787066454,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       }
+      }
+     },
+     "climatefever": {
+      "n": 1500,
+      "labels": {
+       "SUPPORT": 633,
+       "NEI": 634,
+       "CONTRADICT": 233
+      },
+      "ltt": {
+       "0.1": {
+        "n": 1500,
+        "decided": 121,
+        "coverage": 0.08066666666666666,
+        "errors": 1,
+        "error_upper95_cp": 0.03860415476665709,
+        "accepted": 121,
+        "false_accepts": 1,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0011534025374855825,
+        "false_accept_rate_all_upper95_cp": 0.005459785911821886,
+        "false_accept_share_of_accepted_upper95_cp": 0.03860415476665709,
+        "accuracy_decided": [
+         0.9917355371900827,
+         0.9752066115702479,
+         1.0
+        ],
+        "certified": true,
+        "config": "pooled|bayes-logit [all]|base",
+        "rho": 0.0
+       },
+       "0.05": {
+        "n": 1500,
+        "decided": 36,
+        "coverage": 0.024,
+        "errors": 0,
+        "error_upper95_cp": 0.07984650951989443,
+        "accepted": 36,
+        "false_accepts": 0,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.0034493225775216593,
+        "false_accept_share_of_accepted_upper95_cp": 0.07984650951989443,
+        "accuracy_decided": [
+         1.0,
+         1.0,
+         1.0
+        ],
+        "certified": true,
+        "config": "pooled|bayes-logit [all]|base",
+        "rho": 0.0
+       },
+       "0.02": {
+        "n": 1500,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.0034493225775216593,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.01": {
+        "n": 1500,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 867,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.0034493225775216593,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       }
+      }
+     }
+    }
+   },
+   "healthver": {
+    "calibration_n": 1999,
+    "certificates": {
+     "n_tests": 36,
+     "delta_each": 0.001388888888888889,
+     "min_decided_zero_errors": {
+      "0.1": 63,
+      "0.05": 129,
+      "0.02": 326,
+      "0.01": 655
+     },
+     "alphas": {
+      "0.1": {
+       "certified": false
+      },
+      "0.05": {
+       "certified": false
+      },
+      "0.02": {
+       "certified": false
+      },
+      "0.01": {
+       "certified": false
+      }
+     },
+     "tightest_first_step": {
+      "config": "healthver|bayes-logit [all]|base",
+      "rho": 0.0,
+      "decided": 186,
+      "errors": 25,
+      "upper": 0.2241330487326293,
+      "n": 1999
+     }
+    },
+    "tests": {
+     "healthver_test": {
+      "n": 1515,
+      "labels": {
+       "CONTRADICT": 333,
+       "NEI": 618,
+       "SUPPORT": 564
+      },
+      "ltt": {
+       "0.1": {
+        "n": 1515,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.05": {
+        "n": 1515,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.02": {
+        "n": 1515,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       },
+       "0.01": {
+        "n": 1515,
+        "decided": 0,
+        "coverage": 0.0,
+        "errors": 0,
+        "error_upper95_cp": 1.0,
+        "accepted": 0,
+        "false_accepts": 0,
+        "unsupported": 951,
+        "false_accept_rate_all": 0.0,
+        "false_accept_rate_all_upper95_cp": 0.003145130195797923,
+        "false_accept_share_of_accepted_upper95_cp": 1.0,
+        "certified": false
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "full_coverage_per_dataset": {
+  "scifact_dev": {
+   "n": 300,
+   "decided": 300,
+   "coverage": 1.0,
+   "errors": 31,
+   "error_upper95_cp": 0.13690687714378433,
+   "accepted": 113,
+   "false_accepts": 10,
+   "unsupported": 176,
+   "false_accept_rate_all": 0.056818181818181816,
+   "false_accept_rate_all_upper95_cp": 0.09447032433992684,
+   "false_accept_share_of_accepted_upper95_cp": 0.14548426071031476,
+   "accuracy_decided": [
+    0.8966666666666666,
+    0.86,
+    0.93
+   ],
+   "node": "bayes-soft [all]",
+   "calibrated_on": "scifact",
+   "cv_accuracy": 0.9211514392991239
+  },
+  "climatefever": {
+   "n": 1500,
+   "decided": 1500,
+   "coverage": 1.0,
+   "errors": 482,
+   "error_upper95_cp": 0.34174766651019256,
+   "accepted": 157,
+   "false_accepts": 3,
+   "unsupported": 867,
+   "false_accept_rate_all": 0.0034602076124567475,
+   "false_accept_rate_all_upper95_cp": 0.008918596721565163,
+   "false_accept_share_of_accepted_upper95_cp": 0.04864313143877975,
+   "accuracy_decided": [
+    0.6786666666666666,
+    0.6553333333333333,
+    0.702
+   ],
+   "node": "bayes-soft [all]",
+   "calibrated_on": "scifact",
+   "cv_accuracy": 0.9211514392991239
+  },
+  "healthver_test": {
+   "n": 1515,
+   "decided": 1515,
+   "coverage": 1.0,
+   "errors": 326,
+   "error_upper95_cp": 0.23328073913527375,
+   "accepted": 512,
+   "false_accepts": 137,
+   "unsupported": 951,
+   "false_accept_rate_all": 0.1440588853838065,
+   "false_accept_rate_all_upper95_cp": 0.16413244782806863,
+   "false_accept_share_of_accepted_upper95_cp": 0.3016871552712908,
+   "accuracy_decided": [
+    0.7848184818481848,
+    0.7636963696369637,
+    0.8052805280528053
+   ],
+   "node": "bayes-hard [all]",
+   "calibrated_on": "healthver",
+   "cv_accuracy": 0.7908954477238619
+  }
+ },
+ "phase3d_reference": {
+  "healthver_test": {
+   "node_full_coverage": {
+    "n": 1515,
+    "decided": 1515,
+    "coverage": 1.0,
+    "errors": 324,
+    "error_rate": 0.21386138613861386,
+    "error_upper95_cp": 0.23192379273259386,
+    "accepted": 488,
+    "false_accepts": 124,
+    "false_accept_upper95_cp_of_accepted": 0.2886008985346571,
+    "unsupported": 951,
+    "accuracy_decided": [
+     0.7861386138613862,
+     0.7656765676567657,
+     0.8066006600660066
+    ],
+    "false_accept_rate_all": [
+     0.08184818481848184,
+     0.06864686468646865,
+     0.09570957095709572
+    ]
+   },
+   "ltt": {
+    "0.1": {
+     "n": 1515,
+     "decided": 2,
+     "coverage": 0.0013201320132013201,
+     "errors": 0,
+     "error_rate": 0.0,
+     "error_upper95_cp": 0.7763932022500211,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 951,
+     "accuracy_decided": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "0.05": {
+     "n": 1515,
+     "decided": 2,
+     "coverage": 0.0013201320132013201,
+     "errors": 0,
+     "error_rate": 0.0,
+     "error_upper95_cp": 0.7763932022500211,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 951,
+     "accuracy_decided": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "0.02": {
+     "n": 1515,
+     "decided": 2,
+     "coverage": 0.0013201320132013201,
+     "errors": 0,
+     "error_rate": 0.0,
+     "error_upper95_cp": 0.7763932022500211,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 951,
+     "accuracy_decided": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "0.01": {
+     "n": 1515,
+     "decided": 2,
+     "coverage": 0.0013201320132013201,
+     "errors": 0,
+     "error_rate": 0.0,
+     "error_upper95_cp": 0.7763932022500211,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 951,
+     "accuracy_decided": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "ltt_family": {
+    "0.1": {
+     "n": 1515,
+     "decided": 106,
+     "coverage": 0.06996699669966996,
+     "errors": 4,
+     "error_rate": 0.03773584905660377,
+     "error_upper95_cp": 0.08427132560467471,
+     "accepted": 19,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 0.14586850331224346,
+     "unsupported": 951,
+     "accuracy_decided": [
+      0.9622641509433962,
+      0.9245283018867925,
+      0.9905660377358491
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "climatefever": {
+   "node_full_coverage": {
+    "n": 1500,
+    "decided": 1500,
+    "coverage": 1.0,
+    "errors": 318,
+    "error_rate": 0.212,
+    "error_upper95_cp": 0.23010357215862598,
+    "accepted": 367,
+    "false_accepts": 26,
+    "false_accept_upper95_cp_of_accepted": 0.0969413955599462,
+    "unsupported": 867,
+    "accuracy_decided": [
+     0.788,
+     0.7673333333333333,
+     0.8086666666666666
+    ],
+    "false_accept_rate_all": [
+     0.017333333333333333,
+     0.010666666666666666,
+     0.024
+    ]
+   },
+   "ltt": {
+    "0.1": {
+     "n": 1500,
+     "decided": 11,
+     "coverage": 0.007333333333333333,
+     "errors": 4,
+     "error_rate": 0.36363636363636365,
+     "error_upper95_cp": 0.6501884654280827,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 867,
+     "accuracy_decided": [
+      0.6363636363636364,
+      0.36363636363636365,
+      0.9090909090909091
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "0.05": {
+     "n": 1500,
+     "decided": 11,
+     "coverage": 0.007333333333333333,
+     "errors": 4,
+     "error_rate": 0.36363636363636365,
+     "error_upper95_cp": 0.6501884654280827,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 867,
+     "accuracy_decided": [
+      0.6363636363636364,
+      0.36363636363636365,
+      0.9090909090909091
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "0.02": {
+     "n": 1500,
+     "decided": 11,
+     "coverage": 0.007333333333333333,
+     "errors": 4,
+     "error_rate": 0.36363636363636365,
+     "error_upper95_cp": 0.6501884654280827,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 867,
+     "accuracy_decided": [
+      0.6363636363636364,
+      0.36363636363636365,
+      0.9090909090909091
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "0.01": {
+     "n": 1500,
+     "decided": 11,
+     "coverage": 0.007333333333333333,
+     "errors": 4,
+     "error_rate": 0.36363636363636365,
+     "error_upper95_cp": 0.6501884654280827,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 867,
+     "accuracy_decided": [
+      0.6363636363636364,
+      0.36363636363636365,
+      0.9090909090909091
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "ltt_family": {
+    "0.1": {
+     "n": 1500,
+     "decided": 142,
+     "coverage": 0.09466666666666666,
+     "errors": 15,
+     "error_rate": 0.1056338028169014,
+     "error_upper95_cp": 0.1579907892993223,
+     "accepted": 36,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 0.07984650951989443,
+     "unsupported": 867,
+     "accuracy_decided": [
+      0.8943661971830986,
+      0.8450704225352113,
+      0.9436619718309859
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "scifact_dev": {
+   "node_full_coverage": {
+    "n": 300,
+    "decided": 300,
+    "coverage": 1.0,
+    "errors": 38,
+    "error_rate": 0.12666666666666668,
+    "error_upper95_cp": 0.16270140638478855,
+    "accepted": 144,
+    "false_accepts": 29,
+    "false_accept_upper95_cp_of_accepted": 0.2642768354620863,
+    "unsupported": 176,
+    "accuracy_decided": [
+     0.8733333333333333,
+     0.8333333333333334,
+     0.91
+    ],
+    "false_accept_rate_all": [
+     0.09666666666666666,
+     0.06333333333333334,
+     0.13
+    ]
+   },
+   "ltt": {
+    "0.1": {
+     "n": 300,
+     "decided": 2,
+     "coverage": 0.006666666666666667,
+     "errors": 1,
+     "error_rate": 0.5,
+     "error_upper95_cp": 0.9746794344808964,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 176,
+     "accuracy_decided": [
+      0.5,
+      0.0,
+      1.0
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "0.05": {
+     "n": 300,
+     "decided": 2,
+     "coverage": 0.006666666666666667,
+     "errors": 1,
+     "error_rate": 0.5,
+     "error_upper95_cp": 0.9746794344808964,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 176,
+     "accuracy_decided": [
+      0.5,
+      0.0,
+      1.0
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "0.02": {
+     "n": 300,
+     "decided": 2,
+     "coverage": 0.006666666666666667,
+     "errors": 1,
+     "error_rate": 0.5,
+     "error_upper95_cp": 0.9746794344808964,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 176,
+     "accuracy_decided": [
+      0.5,
+      0.0,
+      1.0
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "0.01": {
+     "n": 300,
+     "decided": 2,
+     "coverage": 0.006666666666666667,
+     "errors": 1,
+     "error_rate": 0.5,
+     "error_upper95_cp": 0.9746794344808964,
+     "accepted": 0,
+     "false_accepts": 0,
+     "false_accept_upper95_cp_of_accepted": 1.0,
+     "unsupported": 176,
+     "accuracy_decided": [
+      0.5,
+      0.0,
+      1.0
+     ],
+     "false_accept_rate_all": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "ltt_family": {
+    "0.1": {
+     "n": 300,
+     "decided": 65,
+     "coverage": 0.21666666666666667,
+     "errors": 2,
+     "error_rate": 0.03076923076923077,
+     "error_upper95_cp": 0.09370678347465368,
+     "accepted": 63,
+     "false_accepts": 1,
+     "false_accept_upper95_cp_of_accepted": 0.073098617260472,
+     "unsupported": 176,
+     "accuracy_decided": [
+      0.9692307692307692,
+      0.9230769230769231,
+      1.0
+     ],
+     "false_accept_rate_all": [
+      0.0033333333333333335,
+      0.0,
+      0.01
+     ]
+    }
+   }
+  }
+ }
+}

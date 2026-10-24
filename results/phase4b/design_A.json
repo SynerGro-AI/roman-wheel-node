@@ -1,0 +1,173 @@
+{
+ "half": "A",
+ "seed": "rwn-phase4b-structural-2026-10-22",
+ "groups": 601,
+ "bar": {
+  "min_false_accepts_caught": 3,
+  "min_caught_per_correct_lost": 3
+ },
+ "fields": {
+  "identifier_mutation": {
+   "false_accepts_caught": 15,
+   "correct_accepts_lost": 0,
+   "meets_bar": true
+  },
+  "fragment": {
+   "false_accepts_caught": 3,
+   "correct_accepts_lost": 1,
+   "meets_bar": true
+  },
+  "near_copy_swap": {
+   "false_accepts_caught": 11,
+   "correct_accepts_lost": 1,
+   "meets_bar": true
+  },
+  "numbers_missing": {
+   "false_accepts_caught": 2,
+   "correct_accepts_lost": 7,
+   "meets_bar": false
+  },
+  "negation_inserted": {
+   "false_accepts_caught": 0,
+   "correct_accepts_lost": 0,
+   "meets_bar": false
+  },
+  "negation_dropped": {
+   "false_accepts_caught": 10,
+   "correct_accepts_lost": 25,
+   "meets_bar": false
+  },
+  "direction_conflict": {
+   "false_accepts_caught": 2,
+   "correct_accepts_lost": 3,
+   "meets_bar": false
+  },
+  "absolutes_unbacked": {
+   "false_accepts_caught": 0,
+   "correct_accepts_lost": 1,
+   "meets_bar": false
+  }
+ },
+ "frozen_veto_fields": [
+  "identifier_mutation",
+  "fragment",
+  "near_copy_swap"
+ ],
+ "frozen_rule": {
+  "version": "4b.0",
+  "veto_fields": [
+   "identifier_mutation",
+   "fragment",
+   "near_copy_swap"
+  ],
+  "swap_context": 5,
+  "swap_min_side": 1,
+  "mutation_suffix": 4,
+  "on_veto": "NOT_SURE"
+ },
+ "result_A": {
+  "before": {
+   "labelled": 1665,
+   "supported": 531,
+   "unsupported": 1134,
+   "accepted": 254,
+   "false_accepts": 63,
+   "blocked": 18,
+   "not_sure": 1393,
+   "coverage": 0.15255255255255254,
+   "precision": 0.7519685039370079,
+   "precision_ci95": [
+    0.6941258965466455,
+    0.8038271634676948
+   ],
+   "false_accept_share_upper": 0.2966510352794306,
+   "delta": 0.05,
+   "false_accept_rate_of_unsupported": 0.05555555555555555,
+   "false_accept_rate_of_unsupported_upper": 0.06807231931681622,
+   "recall_of_supported": 0.35969868173258,
+   "alphas": {
+    "0.01": {
+     "certified": false,
+     "upper": 0.2966510352794306,
+     "accepts_needed_zero_errors": 299,
+     "labelled_needed_at_observed_coverage_zero_errors": 1960,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    },
+    "0.02": {
+     "certified": false,
+     "upper": 0.2966510352794306,
+     "accepts_needed_zero_errors": 149,
+     "labelled_needed_at_observed_coverage_zero_errors": 977,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    },
+    "0.05": {
+     "certified": false,
+     "upper": 0.2966510352794306,
+     "accepts_needed_zero_errors": 59,
+     "labelled_needed_at_observed_coverage_zero_errors": 387,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    }
+   }
+  },
+  "after": {
+   "labelled": 1665,
+   "supported": 531,
+   "unsupported": 1134,
+   "accepted": 229,
+   "false_accepts": 40,
+   "blocked": 18,
+   "not_sure": 1418,
+   "coverage": 0.13753753753753753,
+   "precision": 0.8253275109170306,
+   "precision_ci95": [
+    0.7698335519188859,
+    0.8721822832973781
+   ],
+   "false_accept_share_upper": 0.22122691975312678,
+   "delta": 0.05,
+   "false_accept_rate_of_unsupported": 0.03527336860670194,
+   "false_accept_rate_of_unsupported_upper": 0.04567100853554175,
+   "recall_of_supported": 0.3559322033898305,
+   "alphas": {
+    "0.01": {
+     "certified": false,
+     "upper": 0.22122691975312678,
+     "accepts_needed_zero_errors": 299,
+     "labelled_needed_at_observed_coverage_zero_errors": 2174,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    },
+    "0.02": {
+     "certified": false,
+     "upper": 0.22122691975312678,
+     "accepts_needed_zero_errors": 149,
+     "labelled_needed_at_observed_coverage_zero_errors": 1084,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    },
+    "0.05": {
+     "certified": false,
+     "upper": 0.22122691975312678,
+     "accepts_needed_zero_errors": 59,
+     "labelled_needed_at_observed_coverage_zero_errors": 429,
+     "labelled_needed_at_observed_coverage_and_error_rate": null
+    }
+   }
+  },
+  "vetoed": 25,
+  "false_accepts_caught": 23,
+  "correct_accepts_lost": 2,
+  "coverage_lost_points": 0.01501501501501501,
+  "veto_reasons": {
+   "identifier_mutation": 9,
+   "fragment": 4,
+   "near_copy_swap": 6,
+   "identifier_mutation+near_copy_swap": 6
+  },
+  "veto_reasons_on_false_accepts": {
+   "identifier_mutation": 9,
+   "fragment": 3,
+   "near_copy_swap": 5,
+   "identifier_mutation+near_copy_swap": 6
+  }
+ },
+ "note": "HealthVer and COVID-Fact: internal, unlicensed datasets; data and per-item outputs are not redistributed"
+}

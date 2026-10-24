@@ -15,3 +15,16 @@ venv/
 /suite_results.png
 /train_results.json
 /train_results.png
+.hypothesis/
+# phase 3 downloads and API response caches (never commit)
+phase3/data/
+phase3/models/
+phase3/cache/
+.env
+# phase 4 shadow-mode logs (claims, evidence, labels: never commit)
+rwn_shadow/
+
+# Phase 5 local-only artifacts (internal data, model weights, per-item scores)
+phase5/bundle/
+phase5/models/
+phase5/runs/

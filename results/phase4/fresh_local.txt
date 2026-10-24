@@ -1,0 +1,21 @@
+Fresh-set certification: policy 254804f8ac9b, profile local, risk = false accepts among ACCEPTs, one-sided Clopper-Pearson, delta 0.05; pre-registered 2026-10-22T09:10:42-0600
+skipped: {'other_rule': 0, 'unlabelled': 0, 'unsure': 0}
+== all: 6311 labelled (1936 supported), 633 ACCEPT (coverage 10.0%), 204 false accepts, precision 67.8% [95% CI 64.0%, 71.4%], false-accept share UB 35.4%; BLOCK 0, NOT_SURE 5678; false accepts / unsupported 4.7% (UB 5.2%)
+   alpha 1%: not certified (UB 35.4%); needs 299 error-free accepts = ~2982 labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+   alpha 2%: not certified (UB 35.4%); needs 149 error-free accepts = ~1486 labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+   alpha 5%: not certified (UB 35.4%); needs 59 error-free accepts = ~589 labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+== ds=hv_test_unjudged: 308 labelled (107 supported), 0 ACCEPT (coverage 0.0%), 0 false accepts, precision n/a, false-accept share UB 100.0%; BLOCK 0, NOT_SURE 308; false accepts / unsupported 0.0% (UB 1.5%)
+   alpha 1%: not certified (UB 100.0%); needs 299 error-free accepts = ~None labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+   alpha 2%: not certified (UB 100.0%); needs 149 error-free accepts = ~None labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+   alpha 5%: not certified (UB 100.0%); needs 59 error-free accepts = ~None labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+== ds=covidfact: 4086 labelled (1296 supported), 612 ACCEPT (coverage 15.0%), 203 false accepts, precision 66.8% [95% CI 62.9%, 70.6%], false-accept share UB 36.4%; BLOCK 0, NOT_SURE 3474; false accepts / unsupported 7.3% (UB 8.1%)
+   alpha 1%: not certified (UB 36.4%); needs 299 error-free accepts = ~1997 labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+   alpha 2%: not certified (UB 36.4%); needs 149 error-free accepts = ~995 labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+   alpha 5%: not certified (UB 36.4%); needs 59 error-free accepts = ~394 labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+== ds=hv_dev: 1917 labelled (533 supported), 21 ACCEPT (coverage 1.1%), 1 false accepts, precision 95.2% [95% CI 76.2%, 99.9%], false-accept share UB 20.7%; BLOCK 0, NOT_SURE 1896; false accepts / unsupported 0.1% (UB 0.3%)
+   alpha 1%: not certified (UB 20.7%); needs 299 error-free accepts = ~27295 labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+   alpha 2%: not certified (UB 20.7%); needs 149 error-free accepts = ~13602 labelled claims at this coverage; at the observed error rate: impossible (rate >= alpha)
+   alpha 5%: not certified (UB 20.7%); needs 59 error-free accepts = ~5386 labelled claims at this coverage; at the observed error rate: 2105597
+
+HealthVer and COVID-Fact: internal, unlicensed datasets; data and per-item outputs are not redistributed
+shadow counts {'ACCEPT': 633, 'NOT_SURE': 5678, 'BLOCK': 0}, node errors 0, elapsed 1014s

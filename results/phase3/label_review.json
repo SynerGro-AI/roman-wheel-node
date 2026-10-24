@@ -1,0 +1,321 @@
+{
+ "dev": [
+  {
+   "key": "dev:1292",
+   "claim_id": 1292,
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.7,
+   "doc": "56893404",
+   "quote_sentences": [
+    [
+     "56893404",
+     3
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": []
+  },
+  {
+   "key": "dev:1368",
+   "claim_id": 1368,
+   "gold": "SUPPORT",
+   "panel": "NEI",
+   "min_conf": 0.8,
+   "doc": "2425364",
+   "quote_sentences": [],
+   "quote_match": "no quote",
+   "rationale": [
+    [
+     "2425364",
+     9
+    ],
+    [
+     "2425364",
+     10
+    ]
+   ]
+  },
+  {
+   "key": "dev:1385",
+   "claim_id": 1385,
+   "gold": "SUPPORT",
+   "panel": "CONTRADICT",
+   "min_conf": 0.9,
+   "doc": "306006",
+   "quote_sentences": [
+    [
+     "306006",
+     4
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": [
+    [
+     "306006",
+     4
+    ]
+   ]
+  },
+  {
+   "key": "dev:593",
+   "claim_id": 593,
+   "gold": "SUPPORT",
+   "panel": "CONTRADICT",
+   "min_conf": 0.9,
+   "doc": "19675911",
+   "quote_sentences": [
+    [
+     "19675911",
+     5
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": [
+    [
+     "19675911",
+     5
+    ]
+   ]
+  },
+  {
+   "key": "dev:693",
+   "claim_id": 693,
+   "gold": "SUPPORT",
+   "panel": "CONTRADICT",
+   "min_conf": 0.55,
+   "doc": "24088502",
+   "quote_sentences": [
+    [
+     "24088502",
+     8
+    ]
+   ],
+   "quote_match": "near",
+   "rationale": [
+    [
+     "24088502",
+     8
+    ],
+    [
+     "24088502",
+     9
+    ]
+   ]
+  },
+  {
+   "key": "dev:783",
+   "claim_id": 783,
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.8,
+   "doc": "40632104",
+   "quote_sentences": [
+    [
+     "40632104",
+     4
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": []
+  },
+  {
+   "key": "dev:808",
+   "claim_id": 808,
+   "gold": "SUPPORT",
+   "panel": "CONTRADICT",
+   "min_conf": 0.85,
+   "doc": "36606083",
+   "quote_sentences": [
+    [
+     "36606083",
+     3
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": [
+    [
+     "36606083",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "dev:879",
+   "claim_id": 879,
+   "gold": "CONTRADICT",
+   "panel": "SUPPORT",
+   "min_conf": 0.75,
+   "doc": "8426046",
+   "quote_sentences": [
+    [
+     "8426046",
+     6
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": [
+    [
+     "8426046",
+     3
+    ]
+   ]
+  },
+  {
+   "key": "dev:907",
+   "claim_id": 907,
+   "gold": "NEI",
+   "panel": "SUPPORT",
+   "min_conf": 0.85,
+   "doc": "6923961",
+   "quote_sentences": [
+    [
+     "6923961",
+     1
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": []
+  }
+ ],
+ "train": [
+  {
+   "key": "train:610",
+   "claim_id": 610,
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.63,
+   "doc": "40096222",
+   "quote_sentences": [
+    [
+     "40096222",
+     0
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": []
+  },
+  {
+   "key": "train:1214",
+   "claim_id": 1214,
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.8,
+   "doc": "6493422",
+   "quote_sentences": [
+    [
+     "6493422",
+     1
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": []
+  },
+  {
+   "key": "train:989",
+   "claim_id": 989,
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.77,
+   "doc": "9988425",
+   "quote_sentences": [
+    [
+     "9988425",
+     5
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": []
+  },
+  {
+   "key": "train:1386",
+   "claim_id": 1386,
+   "gold": "CONTRADICT",
+   "panel": "SUPPORT",
+   "min_conf": 0.82,
+   "doc": "306006",
+   "quote_sentences": [
+    [
+     "306006",
+     4
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": [
+    [
+     "306006",
+     4
+    ]
+   ]
+  },
+  {
+   "key": "train:651",
+   "claim_id": 651,
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.75,
+   "doc": "9433958",
+   "quote_sentences": [
+    [
+     "9433958",
+     3
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": []
+  },
+  {
+   "key": "train:44",
+   "claim_id": 44,
+   "gold": "SUPPORT",
+   "panel": "NEI",
+   "min_conf": 0.85,
+   "doc": "56893404",
+   "quote_sentences": [],
+   "quote_match": "no quote",
+   "rationale": [
+    [
+     "56893404",
+     3
+    ]
+   ]
+  },
+  {
+   "key": "train:1193",
+   "claim_id": 1193,
+   "gold": "NEI",
+   "panel": "CONTRADICT",
+   "min_conf": 0.75,
+   "doc": "20532591",
+   "quote_sentences": [
+    [
+     "20532591",
+     3
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": []
+  },
+  {
+   "key": "train:169",
+   "claim_id": 169,
+   "gold": "CONTRADICT",
+   "panel": "NEI",
+   "min_conf": 0.7,
+   "doc": "5824985",
+   "quote_sentences": [
+    [
+     "5824985",
+     11
+    ]
+   ],
+   "quote_match": "exact",
+   "rationale": [
+    [
+     "5824985",
+     11
+    ]
+   ]
+  }
+ ]
+}

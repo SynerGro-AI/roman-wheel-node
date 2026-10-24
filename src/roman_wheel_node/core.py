@@ -1,4 +1,4 @@
-"""Roman Wheel Node (algorithm v3, package 1.0.0): an exact-copy gate plus learned, auditable evidence fusion.
+"""Roman Wheel Node (algorithm v3): an exact-copy gate plus learned, auditable evidence fusion.
 
 Every claim an agent wants to put in its trace goes through :func:`roman_wheel_node`.
 
@@ -24,6 +24,7 @@ Nothing is ever edited or deleted: state is rebuilt by replaying the ledger, and
 Public API: ``clamp01``, ``opcode``, ``opcode_learned``, ``LiveWeights``,
 ``ThresholdLearner``, ``roman_wheel_node``, ``give_feedback``.
 """
+
 from __future__ import annotations
 
 import json
@@ -32,15 +33,26 @@ import os
 import time
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
-__all__ = ["clamp01", "opcode", "opcode_learned", "LiveWeights", "ThresholdLearner",
-           "roman_wheel_node", "give_feedback", "Result", "BAYES_VARIANTS"]
-__version__ = "1.0.0"   # package version (algorithm generation: v3)
+__all__ = [
+    "clamp01",
+    "opcode",
+    "opcode_learned",
+    "LiveWeights",
+    "ThresholdLearner",
+    "roman_wheel_node",
+    "give_feedback",
+    "Result",
+    "BAYES_VARIANTS",
+    "__version__",
+]
+from ._version import __version__  # package version, re-exported (algorithm generation: v3)
 
-Result = Tuple[float, str, str]                    # (eff, opcode, status)
+Result = Tuple[float, str, str]  # (eff, opcode, status)
 Scores = Union[Mapping[str, float], Sequence[float]]
-BAYES_VARIANTS = ("hard", "soft", "logit")
-_R_MIN, _R_MAX = 0.01, 0.99                         # caps one source's log-odds at +/-4.6
+BAYES_VARIANTS = ("hard", "soft", "logit")  # + "tan", "ess", "stack", "ess_cal" with dependence= (dependence.py)
+_R_MIN, _R_MAX = 0.01, 0.99  # caps one source's log-odds at +/-4.6
 _BLOCK: Result = (0.0, "000", "BLOCK")
+_DEP_VARIANTS = ("tan", "ess", "stack", "ess_cal")  # correlation-aware variants (see dependence.py)
 
 
 def clamp01(x: float) -> float:
@@ -61,10 +73,14 @@ def _sigmoid(z: float) -> float:
 
 def opcode(eff: float) -> Tuple[str, str]:
     """Fixed v1 bands: >=0.85 111, >=0.65 110, >=0.35 101 (ACCEPT); >0.05 100 HEDGE; else BLOCK."""
-    if eff >= 0.85: return "111", "ACCEPT"
-    if eff >= 0.65: return "110", "ACCEPT"
-    if eff >= 0.35: return "101", "ACCEPT"
-    if eff > 0.05:  return "100", "HEDGE"
+    if eff >= 0.85:
+        return "111", "ACCEPT"
+    if eff >= 0.65:
+        return "110", "ACCEPT"
+    if eff >= 0.35:
+        return "101", "ACCEPT"
+    if eff > 0.05:
+        return "100", "HEDGE"
     return "000", "BLOCK"
 
 
@@ -77,8 +93,10 @@ def opcode_learned(eff: float, cutoff: float, hedge_width: float = 0.15) -> Tupl
     c = clamp01(cutoff)
     if eff >= c:
         span = 1.0 - c
-        if eff >= c + 2.0 * span / 3.0: return "111", "ACCEPT"
-        if eff >= c + span / 3.0:       return "110", "ACCEPT"
+        if eff >= c + 2.0 * span / 3.0:
+            return "111", "ACCEPT"
+        if eff >= c + span / 3.0:
+            return "110", "ACCEPT"
         return "101", "ACCEPT"
     if eff > 0.05 and eff >= c - hedge_width:
         return "100", "HEDGE"
@@ -109,9 +127,12 @@ class LiveWeights:
             Default 150 (v3). ``None`` = never forget (the v2 default).
     """
 
-    def __init__(self, ledger_path: str = "weights_ledger.jsonl",
-                 prior: Tuple[float, float] = (1.0, 1.0),
-                 half_life: Optional[float] = 150) -> None:
+    def __init__(
+        self,
+        ledger_path: str = "weights_ledger.jsonl",
+        prior: Tuple[float, float] = (1.0, 1.0),
+        half_life: Optional[float] = 150,
+    ) -> None:
         self.path = ledger_path
         self.prior = prior
         self.half_life = half_life
@@ -135,8 +156,15 @@ class LiveWeights:
     def observe(self, source: str, outcome: float, strength: float = 1.0, note: str = "") -> float:
         """Record that ``source`` was right (1) or wrong (0). Append-only. Returns new reliability."""
         o, s = clamp01(outcome), max(0.0, float(strength))
-        ev = {"t": time.time(), "source": source, "outcome": o,
-              "strength": s, "d_alpha": o * s, "d_beta": (1 - o) * s, "note": note}
+        ev = {
+            "t": time.time(),
+            "source": source,
+            "outcome": o,
+            "strength": s,
+            "d_alpha": o * s,
+            "d_beta": (1 - o) * s,
+            "note": note,
+        }
         _append(self.path, ev)
         self._apply(ev)
         return self.reliability(source)
@@ -160,15 +188,21 @@ class ThresholdLearner:
 
     GRID = 1000
 
-    def __init__(self, ledger_path: str = "threshold_ledger.jsonl", half_life: Optional[float] = 500,
-                 min_obs: int = 30, default: float = 0.5, hedge_width: float = 0.15) -> None:
+    def __init__(
+        self,
+        ledger_path: str = "threshold_ledger.jsonl",
+        half_life: Optional[float] = 500,
+        min_obs: int = 30,
+        default: float = 0.5,
+        hedge_width: float = 0.15,
+    ) -> None:
         self.path = ledger_path
         self.half_life = half_life
-        self.growth = 2.0 ** (1.0 / half_life) if half_life else 1.0   # new weight grows = old decays
+        self.growth = 2.0 ** (1.0 / half_life) if half_life else 1.0  # new weight grows = old decays
         self.min_obs, self.default, self.hedge_width = min_obs, default, hedge_width
         self._t: Dict[str, List[float]] = {}
         self._f: Dict[str, List[float]] = {}
-        self._w: Dict[str, float] = {}     # weight of the next outcome (per mode)
+        self._w: Dict[str, float] = {}  # weight of the next outcome (per mode)
         self._n: Dict[str, int] = {}
         self._cache: Dict[str, float] = {}
         for ev in _replay(self.path):
@@ -177,15 +211,17 @@ class ThresholdLearner:
     def _apply(self, ev: dict) -> None:
         m = ev["mode"]
         if m not in self._t:
-            self._t[m] = [0.0] * (self.GRID + 1); self._f[m] = [0.0] * (self.GRID + 1)
+            self._t[m] = [0.0] * (self.GRID + 1)
+            self._f[m] = [0.0] * (self.GRID + 1)
             self._w[m], self._n[m] = 1.0, 0
         i = int(round(clamp01(ev["eff"]) * self.GRID))
         (self._t if ev["truth"] else self._f)[m][i] += self._w[m]
         self._w[m] *= self.growth
         self._n[m] += 1
-        if self._w[m] > 1e200:                       # renormalise; ratios are unchanged
+        if self._w[m] > 1e200:  # renormalise; ratios are unchanged
             k = 1.0 / self._w[m]
-            self._t[m] = [x * k for x in self._t[m]]; self._f[m] = [x * k for x in self._f[m]]
+            self._t[m] = [x * k for x in self._t[m]]
+            self._f[m] = [x * k for x in self._f[m]]
             self._w[m] = 1.0
         self._cache.pop(m, None)
 
@@ -198,6 +234,32 @@ class ThresholdLearner:
     def n(self, mode: str = "bayes") -> int:
         return self._n.get(mode, 0)
 
+    def band(
+        self, mode: str = "bayes", target: float = 0.99, min_decided: float = 1.0
+    ) -> Tuple[float, float, float, float]:
+        """Selective mode: the abstain band with the widest coverage whose decided accuracy is >= ``target``.
+
+        Claims with eff < lo are rejected, eff >= hi accepted, everything in between abstains (HEDGE). Uses the same
+        decayed ledger as :meth:`cutoff`. Returns ``(lo, hi, coverage, accuracy)`` on the ledger; with no qualifying
+        band, ``(0.0, 1.001, 0.0, 1.0)`` (abstain on everything).
+        """
+        if mode not in self._t:
+            return (0.0, 1.0 + 1.0 / self.GRID, 0.0, 1.0)
+        G = 50  # coarse 0.02 grid keeps the search O(G^2)
+        t = [0.0] * G
+        f = [0.0] * G
+        for i in range(self.GRID + 1):
+            j = min(G - 1, i * G // (self.GRID + 1))
+            t[j] += self._t[mode][i]
+            f[j] += self._f[mode][i]
+        k = self._w[mode]  # bring weights to "latest = 1" scale
+        lo, hi, cov, acc = _band_search([x / k for x in t], [x / k for x in f], target, min_decided)
+
+        def to_eff(b):
+            return b * (self.GRID + 1) / G / self.GRID
+
+        return (to_eff(lo), to_eff(hi) if hi < G else 1.0 + 1.0 / self.GRID, cov, acc)
+
     def cutoff(self, mode: str = "bayes") -> float:
         """Current accuracy-maximising ACCEPT cut-off for ``mode``."""
         if self._n.get(mode, 0) < self.min_obs:
@@ -205,16 +267,43 @@ class ThresholdLearner:
         if mode in self._cache:
             return self._cache[mode]
         t, f = self._t[mode], self._f[mode]
-        correct = sum(t)                              # cut-off 0: accept everything
+        correct = sum(t)  # cut-off 0: accept everything
         best, best_i = correct, 0
         d_best = abs(0 - self.default * self.GRID)
-        for i in range(1, self.GRID + 1):             # moving the cut-off above bin i-1
+        for i in range(1, self.GRID + 1):  # moving the cut-off above bin i-1
             correct += f[i - 1] - t[i - 1]
             d = abs(i - self.default * self.GRID)
-            if correct > best + 1e-12 * max(1.0, best) or (abs(correct - best) <= 1e-12 * max(1.0, best) and d < d_best):
+            if correct > best + 1e-12 * max(1.0, best) or (
+                abs(correct - best) <= 1e-12 * max(1.0, best) and d < d_best
+            ):
                 best, best_i, d_best = correct, i, d
         self._cache[mode] = best_i / self.GRID
         return self._cache[mode]
+
+
+def _band_search(t: List[float], f: List[float], target: float, min_decided: float) -> Tuple[int, int, float, float]:
+    """Max-coverage (lo, hi) bin pair with decided accuracy >= target. Returns (lo, hi, coverage, accuracy)."""
+    n = len(t)
+    pt, pf = [0.0], [0.0]
+    for i in range(n):
+        pt.append(pt[-1] + t[i])
+        pf.append(pf[-1] + f[i])
+    tot = pt[-1] + pf[-1]
+    best = (0, n, 0.0, 1.0)  # decide nothing
+    if tot <= 0:
+        return best
+    for lo in range(n + 1):  # reject bins [0, lo), accept bins [hi, n)
+        rej_ok, rej_n = pf[lo], pt[lo] + pf[lo]
+        for hi in range(n, lo - 1, -1):
+            acc_ok, acc_n = pt[n] - pt[hi], (pt[n] - pt[hi]) + (pf[n] - pf[hi])
+            dec = rej_n + acc_n
+            if dec <= 0 or dec < min_decided:
+                continue
+            a = (rej_ok + acc_ok) / dec
+            cov = dec / tot
+            if a >= target and (cov > best[2] + 1e-12 or (abs(cov - best[2]) <= 1e-12 and a > best[3])):
+                best = (lo, hi, cov, a)
+    return best
 
 
 def _bayes_llr(s: float, r: float, variant: str) -> float:
@@ -235,11 +324,20 @@ def _bayes_llr(s: float, r: float, variant: str) -> float:
     raise ValueError(f"unknown bayes variant {variant!r}; choose from {BAYES_VARIANTS}")
 
 
-def roman_wheel_node(a: float, scores: Scores, live: Optional[LiveWeights] = None,
-                     mode: str = "geomean", log_path: Optional[str] = None, flip: bool = False,
-                     threshold: Optional[ThresholdLearner] = None, variant: str = "hard",
-                     prior: float = 0.5, assumed_reliability: float = 0.75,
-                     cutoff: Union[None, float, str] = None) -> Result:
+def roman_wheel_node(
+    a: float,
+    scores: Scores,
+    live: Optional[LiveWeights] = None,
+    mode: str = "geomean",
+    log_path: Optional[str] = None,
+    flip: bool = False,
+    threshold: Optional[ThresholdLearner] = None,
+    variant: str = "hard",
+    prior: float = 0.5,
+    assumed_reliability: float = 0.75,
+    cutoff: Union[None, float, str] = None,
+    dependence: Optional[object] = None,
+) -> Result:
     """Gate, fuse and classify one claim.
 
     Args:
@@ -251,6 +349,9 @@ def roman_wheel_node(a: float, scores: Scores, live: Optional[LiveWeights] = Non
         flip: geomean/product only - invert sources with r < 0.5 (bayes always does this).
         threshold: optional :class:`ThresholdLearner`; if given, ACCEPT iff eff >= its learned
             cut-off for key ``mode`` (``"bayes:<variant>"`` for bayes).
+        dependence: a :class:`~roman_wheel_node.dependence.DependenceLearner` (or a replay snapshot). It is
+            required for the correlation-aware bayes variants ``"tan"``, ``"ess"`` and ``"stack"``, which use the
+            learner's own reliabilities and dependence model, so ``live`` is ignored for them.
         cutoff: used only when ``threshold`` is None. ``None`` (default): geomean/product use the
             fixed v1 bands (ACCEPT >= 0.35); bayes uses 0.5, the decision boundary of a posterior.
             A float sets a fixed ACCEPT cut-off with relative bands; ``"fixed"`` forces v1 bands.
@@ -266,29 +367,48 @@ def roman_wheel_node(a: float, scores: Scores, live: Optional[LiveWeights] = Non
     key = f"bayes:{variant}" if mode == "bayes" else mode
     result: Result
     if a <= 0 or not scores:
-        result = _BLOCK                                    # gate fail / no evidence
+        result = _BLOCK  # gate fail / no evidence
     else:
         ws = {k: clamp01(v) for k, v in scores.items()}
         if any(v == 0.0 for v in ws.values()):
-            result = _BLOCK                                # hard veto
+            result = _BLOCK  # hard veto
+        elif mode == "bayes" and variant in _DEP_VARIANTS:
+            if dependence is None:
+                raise ValueError(f"variant {variant!r} needs dependence=DependenceLearner(...)")
+            p0 = min(1 - 1e-9, max(1e-9, prior))
+            z = _logit(p0) + dependence.llr(ws, variant)  # type: ignore[attr-defined]
+            eff = round(_sigmoid(z), 3)
+            result = (eff, *_decide(eff, threshold, key, 0.5 if cutoff is None else cutoff))
         elif mode == "bayes":
             p0 = min(1 - 1e-9, max(1e-9, prior))
-            z = _logit(p0) + sum(_bayes_llr(ws[k], live.reliability(k) if live else assumed_reliability, variant)
-                                 for k in ws)
+            z = _logit(p0) + sum(
+                _bayes_llr(ws[k], live.reliability(k) if live else assumed_reliability, variant) for k in ws
+            )
             eff = round(_sigmoid(z), 3)
             result = (eff, *_decide(eff, threshold, key, 0.5 if cutoff is None else cutoff))
         else:
             result = _fuse_v2(ws, live, mode, flip, threshold, key, cutoff)
     if log_path:
-        _append(log_path, {"t": time.time(), "a": a, "scores": dict(scores), "mode": key,
-                           "reliability": {k: live.reliability(k) for k in scores} if live else None,
-                           "cutoff": threshold.cutoff(key) if threshold else cutoff,
-                           "eff": result[0], "opcode": result[1], "status": result[2]})
+        _append(
+            log_path,
+            {
+                "t": time.time(),
+                "a": a,
+                "scores": dict(scores),
+                "mode": key,
+                "reliability": {k: live.reliability(k) for k in scores} if live else None,
+                "cutoff": threshold.cutoff(key) if threshold else cutoff,
+                "eff": result[0],
+                "opcode": result[1],
+                "status": result[2],
+            },
+        )
     return result
 
 
-def _decide(eff: float, threshold: Optional[ThresholdLearner], key: str,
-            cutoff: Union[None, float, str] = None) -> Tuple[str, str]:
+def _decide(
+    eff: float, threshold: Optional[ThresholdLearner], key: str, cutoff: Union[None, float, str] = None
+) -> Tuple[str, str]:
     if threshold is not None:
         return opcode_learned(eff, threshold.cutoff(key), threshold.hedge_width)
     if cutoff is None or cutoff == "fixed":
@@ -296,9 +416,15 @@ def _decide(eff: float, threshold: Optional[ThresholdLearner], key: str,
     return opcode_learned(eff, float(cutoff))
 
 
-def _fuse_v2(ws: Dict[str, float], live: Optional[LiveWeights], mode: str, flip: bool,
-             threshold: Optional[ThresholdLearner], key: str,
-             cutoff: Union[None, float, str] = None) -> Result:
+def _fuse_v2(
+    ws: Dict[str, float],
+    live: Optional[LiveWeights],
+    mode: str,
+    flip: bool,
+    threshold: Optional[ThresholdLearner],
+    key: str,
+    cutoff: Union[None, float, str] = None,
+) -> Result:
     """v2 reliability-weighted geometric mean / product (behaviour kept bit-for-bit)."""
     rel = {k: (live.reliability(k) if live else 1.0) for k in ws}
     if flip:
@@ -308,7 +434,7 @@ def _fuse_v2(ws: Dict[str, float], live: Optional[LiveWeights], mode: str, flip:
     else:
         use, inf = ws, rel
     if sum(inf.values()) < 1e-9:
-        return _BLOCK                                       # every source is pure noise
+        return _BLOCK  # every source is pure noise
     if mode == "product":
         eff = math.prod(use[k] ** inf[k] for k in ws)
     else:
@@ -317,23 +443,38 @@ def _fuse_v2(ws: Dict[str, float], live: Optional[LiveWeights], mode: str, flip:
     return (eff, *_decide(eff, threshold, key, cutoff))
 
 
-def give_feedback(scores: Mapping[str, float], truth: bool, live: Optional[LiveWeights] = None,
-                  threshold: Optional[ThresholdLearner] = None, eff: Optional[float] = None,
-                  mode: str = "bayes", variant: str = "hard") -> None:
+def give_feedback(
+    scores: Mapping[str, float],
+    truth: bool,
+    live: Optional[LiveWeights] = None,
+    threshold: Optional[ThresholdLearner] = None,
+    eff: Optional[float] = None,
+    mode: str = "bayes",
+    variant: str = "hard",
+    dependence: Optional[object] = None,
+) -> None:
     """Close the loop once a claim's truth is known.
 
     Each source is marked right if its vote (score > 0.5) matched ``truth``; if ``threshold``
     and ``eff`` are given, the outcome is also added to the threshold ledger under the same
-    key the node uses. Both writes are append-only.
+    key the node uses; if ``dependence`` is given, the claim is added to its ledger. All writes are append-only.
     """
     if live is not None:
         for k, v in scores.items():
             live.observe(k, 1.0 if (clamp01(v) > 0.5) == bool(truth) else 0.0)
     if threshold is not None and eff is not None:
         threshold.record(eff, truth, f"bayes:{variant}" if mode == "bayes" else mode)
+    if dependence is not None:
+        dependence.record(scores, truth)  # type: ignore[attr-defined]
 
 
 if __name__ == "__main__":
-    for a, ws in [(1, [0.9, 0.92, 0.88]), (1, [0.7] * 4), (0, [0.95, 0.9]),
-                  (1, [0.8, 0.0, 0.9]), (1, [1.5, 0.9]), (1, [])]:
+    for a, ws in [
+        (1, [0.9, 0.92, 0.88]),
+        (1, [0.7] * 4),
+        (0, [0.95, 0.9]),
+        (1, [0.8, 0.0, 0.9]),
+        (1, [1.5, 0.9]),
+        (1, []),
+    ]:
         print(" ", a, ws, roman_wheel_node(a, ws))
