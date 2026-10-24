@@ -318,7 +318,7 @@ def fit_profile(
                 raise FitError(f"{r.get('id')}: missing score for source {s}")
     ys = [_y(r) for r in rows]
     if len(rows) < 10 * folds:
-        raise FitError(f"need at least {10 * folds} examples with both classes in every fold; got {len(rows)}")
+        raise FitError(f"need at least {10 * folds} examples for {folds}-fold cross-fitting; got {len(rows)}")
     for f in range(folds):  # fold f = examples f, f + folds, ... (the same split _oof uses)
         fy = ys[f::folds]
         if all(fy) or not any(fy):
