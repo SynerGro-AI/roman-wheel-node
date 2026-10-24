@@ -1,0 +1,74 @@
+{
+ "by_dataset": {
+  "climatefever": {
+   "fp1_blocked": 11,
+   "fp1_reproduces_log": 1500,
+   "fp2_blocked": 2,
+   "records": 1500,
+   "still_blocked_false": 2,
+   "unblocked_false": 5,
+   "unblocked_false_now_NOT_SURE": 5,
+   "unblocked_true": 4,
+   "unblocked_true_now_NOT_SURE": 4
+  },
+  "covidfact": {
+   "fp1_blocked": 28,
+   "fp1_reproduces_log": 3521,
+   "fp2_blocked": 21,
+   "records": 3521,
+   "still_blocked_false": 12,
+   "still_blocked_true": 9,
+   "unblocked_false": 5,
+   "unblocked_false_now_NOT_SURE": 5,
+   "unblocked_true": 2,
+   "unblocked_true_now_NOT_SURE": 2
+  },
+  "healthver_test": {
+   "fp1_blocked": 3,
+   "fp1_reproduces_log": 1823,
+   "fp2_blocked": 3,
+   "records": 1823,
+   "still_blocked_false": 2,
+   "still_blocked_true": 1
+  },
+  "hv_test_unjudged": {
+   "fp1_blocked": 1,
+   "fp1_reproduces_log": 308,
+   "fp2_blocked": 1,
+   "records": 308,
+   "still_blocked_true": 1
+  },
+  "scifact_dev": {
+   "fp1_blocked": 6,
+   "fp1_reproduces_log": 300,
+   "fp2_blocked": 5,
+   "records": 300,
+   "still_blocked_false": 4,
+   "still_blocked_true": 1,
+   "unblocked_true": 1,
+   "unblocked_true_ACCEPT_after_4b_veto_ACCEPT": 1,
+   "unblocked_true_now_ACCEPT": 1
+  }
+ },
+ "logs": {
+  "phase4_fresh": "phase4/shadow_panel",
+  "phase4b_replay": "phase4b/replay_1792687785"
+ },
+ "note": "HealthVer and COVID-Fact: internal, unlicensed datasets; aggregates only, no text or per-item output",
+ "policy_4_1_0": "2156f5844d0d1fdad9d415b0aba0226c8c6b17a8a9b2294546b166dff4c3c82d",
+ "profile": "panel",
+ "total": {
+  "fp1_blocked": 49,
+  "fp1_reproduces_log": 7452,
+  "fp2_blocked": 32,
+  "records": 7452,
+  "still_blocked_false": 20,
+  "still_blocked_true": 12,
+  "unblocked_false": 10,
+  "unblocked_false_now_NOT_SURE": 10,
+  "unblocked_true": 7,
+  "unblocked_true_ACCEPT_after_4b_veto_ACCEPT": 1,
+  "unblocked_true_now_ACCEPT": 1,
+  "unblocked_true_now_NOT_SURE": 6
+ }
+}

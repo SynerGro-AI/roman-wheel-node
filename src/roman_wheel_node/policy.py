@@ -27,13 +27,20 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 __all__ = ["Policy", "Profile", "PolicyError", "load_policy", "policy_sha256", "DEFAULT_POLICY_PATH",
-           "DEFAULT_POLICY_SHA256", "OUTCOMES", "ACCEPT", "NOT_SURE", "BLOCK"]
+           "DEFAULT_POLICY_SHA256", "POLICY_4_1_PATH", "POLICY_4_1_SHA256", "PINNED", "OUTCOMES", "ACCEPT", "NOT_SURE",
+           "BLOCK"]
 
 ACCEPT, NOT_SURE, BLOCK = "ACCEPT", "NOT_SURE", "BLOCK"
 OUTCOMES = (ACCEPT, NOT_SURE, BLOCK)
 DEFAULT_POLICY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "rwn-policy-4.0.0.json")
 # sha256 of the canonical policy body (every key except "sha256"); pinned here so a swapped or edited file is refused
 DEFAULT_POLICY_SHA256 = "254804f8ac9b500ef1951879fb64328b0f54303b8bef20e38b1684545f876eb1"
+# 4.1.0 = the 4.0.0 profiles byte-for-byte plus the fp2 (NFC-normalized, versioned) exact-copy fingerprint. Opt-in:
+# the default stays 4.0.0. Produced by phase5/export_policy_41.py.
+POLICY_4_1_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "policies", "rwn-policy-4.1.0.json")
+POLICY_4_1_SHA256 = "2156f5844d0d1fdad9d415b0aba0226c8c6b17a8a9b2294546b166dff4c3c82d"
+PINNED = {os.path.abspath(DEFAULT_POLICY_PATH): DEFAULT_POLICY_SHA256, os.path.abspath(POLICY_4_1_PATH): POLICY_4_1_SHA256}
+FINGERPRINTS = ("fp1", "fp2")
 EPS = 0.01                      # calibrated scores are clamped to [EPS, 1 - EPS] (as in Phase 3)
 
 
@@ -131,6 +138,7 @@ class Policy:
     default_profile: str
     profiles: Mapping[str, Profile]
     doc: Mapping = field(repr=False, default_factory=dict)
+    fingerprint: str = "fp1"          # exact-copy gate fingerprint: fp1 = raw sha256 (<= 4.0.0), fp2 = normalized
 
     def profile(self, name: Optional[str] = None) -> Profile:
         n = name or self.default_profile
@@ -175,7 +183,7 @@ def load_policy(path: Optional[str] = None, expected_sha256: Optional[str] = Non
     h = policy_sha256(doc)
     if doc.get("sha256") != h:
         raise PolicyError("policy body does not match its own sha256 (edited?)")
-    pin = expected_sha256 or (DEFAULT_POLICY_SHA256 if path is None or os.path.abspath(p) == DEFAULT_POLICY_PATH else None)
+    pin = expected_sha256 or PINNED.get(os.path.abspath(p))
     if pin is not None and pin != h:
         raise PolicyError(f"policy sha256 {h[:12]}... does not match the pinned {pin[:12]}...")
     if doc.get("format") != "rwn-policy" or tuple(doc.get("outcomes", ())) != OUTCOMES:
@@ -185,4 +193,12 @@ def load_policy(path: Optional[str] = None, expected_sha256: Optional[str] = Non
         raise PolicyError("default_profile missing")
     if profs[doc["default_profile"]].needs_judges:
         raise PolicyError("the default profile must not need paid judges")
-    return Policy(version=str(doc["version"]), sha256=h, default_profile=doc["default_profile"], profiles=profs, doc=doc)
+    fpv = (doc.get("gate") or {}).get("fingerprint", "fp1")
+    if fpv not in FINGERPRINTS:
+        raise PolicyError(f"unknown gate fingerprint {fpv!r}; have {FINGERPRINTS}")
+    if fpv == "fp2":
+        from .fingerprint import NORMALIZE_V2_TABLE_SHA256
+        if (doc.get("gate") or {}).get("normalize_table_sha256") != NORMALIZE_V2_TABLE_SHA256:
+            raise PolicyError("policy fp2 normalization table does not match this package's normalize_v2")
+    return Policy(version=str(doc["version"]), sha256=h, default_profile=doc["default_profile"], profiles=profs, doc=doc,
+                  fingerprint=fpv)

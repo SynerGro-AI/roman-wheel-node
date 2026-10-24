@@ -1,0 +1,10 @@
+fp2 exact-copy gate on cached panel decisions (policy 4.1.0 2156f5844d0d, profile panel)
+
+climatefever: records 1500, fp1 blocked 11 (log reproduced 1500/1500), fp2 blocked 2, newly blocked 0; un-blocked true 4 (now ACCEPT 0), un-blocked false 5 (now ACCEPT 0, after 4b veto still ACCEPT 0)
+covidfact: records 3521, fp1 blocked 28 (log reproduced 3521/3521), fp2 blocked 21, newly blocked 0; un-blocked true 2 (now ACCEPT 0), un-blocked false 5 (now ACCEPT 0, after 4b veto still ACCEPT 0)
+healthver_test: records 1823, fp1 blocked 3 (log reproduced 1823/1823), fp2 blocked 3, newly blocked 0; un-blocked true 0 (now ACCEPT 0), un-blocked false 0 (now ACCEPT 0, after 4b veto still ACCEPT 0)
+hv_test_unjudged: records 308, fp1 blocked 1 (log reproduced 308/308), fp2 blocked 1, newly blocked 0; un-blocked true 0 (now ACCEPT 0), un-blocked false 0 (now ACCEPT 0, after 4b veto still ACCEPT 0)
+scifact_dev: records 300, fp1 blocked 6 (log reproduced 300/300), fp2 blocked 5, newly blocked 0; un-blocked true 1 (now ACCEPT 1), un-blocked false 0 (now ACCEPT 0, after 4b veto still ACCEPT 0)
+TOTAL: records 7452, fp1 blocked 49 (log reproduced 7452/7452), fp2 blocked 32, newly blocked 0; un-blocked true 7 (now ACCEPT 1), un-blocked false 10 (now ACCEPT 0, after 4b veto still ACCEPT 0)
+
+HealthVer and COVID-Fact: internal, unlicensed datasets; aggregates only, no text or per-item output
