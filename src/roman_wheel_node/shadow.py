@@ -115,6 +115,17 @@ class FrozenNode:
                 return Verdict(out, None, f"error:{type(e).__name__}", "", self.trace.head(), d.seq)
 
 
+def _stderr(line: str) -> None:
+    """Best-effort report on stderr (the last place an error can go; it must not raise into the agent)."""
+    try:
+        print(line, file=sys.stderr, flush=True)
+    except Exception:  # stderr itself is closed or unencodable: retry with ASCII escapes, then give up
+        try:
+            print(line.encode("ascii", "backslashreplace").decode("ascii"), file=sys.stderr, flush=True)
+        except Exception:
+            return
+
+
 def _jsonable(x: Any) -> Any:
     """JSON-safe copy for the fresh-claims log (non-finite floats and odd objects become strings)."""
     if isinstance(x, float):
@@ -317,14 +328,17 @@ class ShadowRunner:
 
     def _error(self, where: str, e: BaseException) -> None:
         self.errors += 1
+        msg = f"{type(e).__name__}: {e}"
+        if any(t in msg for t in ("API_KEY", "TOKEN", "Bearer", "Authorization")):  # never log a credential
+            msg = type(e).__name__
         try:
-            msg = f"{type(e).__name__}: {e}"
-            if any(t in msg for t in ("API_KEY", "TOKEN", "Bearer", "Authorization")):  # never log a credential
-                msg = type(e).__name__
             with open(os.path.join(self.log_dir, "errors.jsonl"), "a", encoding="utf-8") as f:
                 f.write(json.dumps({"ts": time.time(), "where": where, "error": msg[:300]}) + "\n")
-        except Exception:
-            pass
+        except Exception as w:  # errors.jsonl unwritable: never lose the error silently, report it on stderr
+            _stderr(
+                f"roman-wheel-node: could not write {os.path.join(self.log_dir, 'errors.jsonl')} "
+                f"({type(w).__name__}); node error in {where}: {msg[:300]}"
+            )
 
 
 def _main(argv: Optional[Sequence[str]] = None) -> int:
