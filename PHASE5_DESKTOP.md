@@ -23,30 +23,35 @@ Expected sha256: `fe71efd2ff5370c52084a46d5d530b4c57c6663c259790178b69bb77757baf
 against the training record, so the file must be byte-identical.
 
 
-> **RTX 50-series (e.g. 5070 Ti):** run `.\phase5\setup_gpu.ps1` instead of the torch install line. It installs the official PyTorch 2.14.1 built for CUDA 13.2, which has native sm_120 kernels and runs on any driver reporting CUDA 13.2+ (13.5 included). cu124 has no kernels for these cards; do not fall back to CPU.
+> **GPU torch:** `.\phase5\setup_gpu.ps1` is the only supported way to install torch. It installs the official
+> PyTorch 2.14.1 built for CUDA 13.2 from the hash-locked `phase5\torch-cu132.lock` (`--require-hashes`, wheels only),
+> then checks for a working GPU. That build has native sm_120 kernels for RTX 50-series cards (e.g. 5070 Ti) and runs
+> on any NVIDIA driver reporting CUDA 13.2 or newer (13.5 included). Do not install torch any other way, and do not
+> fall back to CPU.
 
 ## 1. Set up (PowerShell, one time, about 10 to 20 minutes, mostly downloads)
 
 ```powershell
-# needs: Python 3.10-3.13 from python.org, Git for Windows, an NVIDIA driver (nvidia-smi should list the GPU)
+# needs: Python 3.13 or 3.14 from python.org, Git for Windows, an NVIDIA driver (nvidia-smi should list the GPU)
 cd C:\src
 if (-not (Test-Path roman-wheel-node)) { git clone https://github.com/SynerGro-AI/roman-wheel-node.git }
 cd roman-wheel-node
 git fetch origin
 git checkout phase5-pairs
 git pull
-py -3 -m venv C:\venvs\rwn5
+py -3.13 -m venv C:\venvs\rwn5
 C:\venvs\rwn5\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install torch --index-url https://download.pytorch.org/whl/cu124       # about 2.5 GB; cu124 suits recent drivers
-pip install -e ".[test,local-nli2]"
-python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"   # must show True
+.\phase5\setup_gpu.ps1                                                       # about 2.5 GB; must end with "GPU ready"
 $env:PYTHONPATH = "src"; python -m pytest -q                                # all tests should pass
 (Get-FileHash phase5\bundle\pairs_bundle.json -Algorithm SHA256).Hash        # must equal the hash in step 0
 ```
 
-If `torch.cuda.is_available()` prints False, run `pip uninstall -y torch` and repeat the torch line. For older
-drivers, use `cu121` instead of `cu124`.
+`setup_gpu.ps1` stops with a non-zero exit code and a `FAILED` line if any step fails: the lock file hash, the
+Python version, the hash-locked install, the CUDA check (torch 2.14.1+cu132, CUDA available, sm_120 kernels present)
+or the fixed-tensor GPU matmul self-test. If it reports CUDA not available, update the NVIDIA driver until
+`nvidia-smi` shows CUDA 13.2 or newer, then rerun `.\phase5\setup_gpu.ps1`. It also installs the repo
+(`pip install -e ".[test,local-nli2]"`) after torch.
 
 ## 2. Train (about 3 to 10 minutes on a recent GPU)
 
