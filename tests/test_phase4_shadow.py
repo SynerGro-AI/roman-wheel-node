@@ -8,6 +8,8 @@ import uuid
 from pathlib import Path
 
 import pytest
+from hypothesis import HealthCheck, given, settings  # a required test dependency ([test] extra): no silent skip
+from hypothesis import strategies as st
 
 from roman_wheel_node import fresh as FR
 from roman_wheel_node.policy import (
@@ -21,14 +23,6 @@ from roman_wheel_node.policy import (
 )
 from roman_wheel_node.shadow import FrozenNode, ShadowRunner
 from roman_wheel_node.sources import BM25, LocalSources, exact_gate, sha256
-
-try:
-    from hypothesis import HealthCheck, given, settings
-    from hypothesis import strategies as st
-
-    HAVE_HYP = True
-except ImportError:  # pragma: no cover
-    HAVE_HYP = False
 
 EV = ["Vitamin D supplementation reduced the incidence of acute respiratory infection in the trial."]
 TRUST = {sha256(s) for s in EV}
@@ -89,7 +83,7 @@ class Out:
         self.v = v
 
 
-if HAVE_HYP:
+class TestShadowProperties:  # hypothesis property tests
     outputs = st.one_of(
         st.none(),
         st.integers(),
@@ -117,7 +111,7 @@ if HAVE_HYP:
         trusted=st.booleans(),
         claims=st.lists(st.text(max_size=30), max_size=3),
     )
-    def test_shadow_returns_the_agent_output_unchanged(tmp_path, out, raw, ev, boom, trusted, claims):
+    def test_shadow_returns_the_agent_output_unchanged(self, tmp_path, out, raw, ev, boom, trusted, claims):
         def src(claim, sents):
             if boom:
                 raise RuntimeError("source crashed")
@@ -144,7 +138,7 @@ if HAVE_HYP:
 
     @settings(max_examples=60, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
     @given(nli2=st.floats(0, 1), ov=st.floats(0, 1), contra=st.floats(0, 1))
-    def test_enforce_releases_only_accepts(tmp_path, nli2, ov, contra):
+    def test_enforce_releases_only_accepts(self, tmp_path, nli2, ov, contra):
         r = runner(tmp_path, sources=fake_sources(nli2, ov, contra), enforce=True, on_withhold=lambda o, v: "WITHHELD")
         res = r.wrap(lambda: "answer", extract=lambda o: [("claim", EV)])()
         v = json.loads(Path(r.fresh_path).read_text(encoding="utf-8").splitlines()[-1])["outcome"]

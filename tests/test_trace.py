@@ -9,17 +9,11 @@ import uuid
 from pathlib import Path
 
 import pytest
+from hypothesis import HealthCheck, given, settings  # a required test dependency ([test] extra): no silent skip
+from hypothesis import strategies as st
 
 from roman_wheel_node import LiveWeights, ThresholdLearner, roman_wheel_node
 from roman_wheel_node.trace import _TOKEN, Claim, ClaimTrace, TamperError, replay
-
-try:
-    from hypothesis import HealthCheck, given, settings
-    from hypothesis import strategies as st
-
-    HAVE_HYP = True
-except ImportError:  # pragma: no cover
-    HAVE_HYP = False
 
 
 class Clock:
@@ -406,35 +400,36 @@ def _fuzz_case(tmp, ops, mode, allow_hedge):
     t.verify()
 
 
-if HAVE_HYP:
-    score_st = st.floats(min_value=-2, max_value=3, allow_nan=False)
-    op_st = st.tuples(
-        st.sampled_from([0, 1, 1, 1]),
-        st.dictionaries(st.sampled_from(list("abcde")), score_st, max_size=4),
-        st.lists(st.integers(0, 50), max_size=3),
-    )
+score_st = st.floats(min_value=-2, max_value=3, allow_nan=False)
+op_st = st.tuples(
+    st.sampled_from([0, 1, 1, 1]),
+    st.dictionaries(st.sampled_from(list("abcde")), score_st, max_size=4),
+    st.lists(st.integers(0, 50), max_size=3),
+)
 
-    @settings(max_examples=150, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    @given(
-        ops=st.lists(op_st, max_size=25),
-        mode=st.sampled_from(["geomean", "product", "bayes"]),
-        allow_hedge=st.booleans(),
-    )
-    def test_property_invariants(tmp_path, ops, mode, allow_hedge):
-        _fuzz_case(str(tmp_path), ops, mode, allow_hedge)
 
-    @settings(max_examples=200, deadline=None)
-    @given(
-        st.lists(st.floats(min_value=-5, max_value=5, allow_nan=False), max_size=8),
-        st.sampled_from(["geomean", "product"]),
-    )
-    def test_property_node_bounds(ws, mode):
-        eff, op, status = roman_wheel_node(1, ws, mode=mode)
-        assert 0.0 <= eff <= 1.0
-        if not ws or any(min(1, max(0, w)) == 0 for w in ws):
-            assert status == "BLOCK" and eff == 0.0
-        if ws and all(w >= 1 for w in ws):
-            assert eff == 1.0
+@settings(max_examples=150, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    ops=st.lists(op_st, max_size=25),
+    mode=st.sampled_from(["geomean", "product", "bayes"]),
+    allow_hedge=st.booleans(),
+)
+def test_property_invariants(tmp_path, ops, mode, allow_hedge):
+    _fuzz_case(str(tmp_path), ops, mode, allow_hedge)
+
+
+@settings(max_examples=200, deadline=None)
+@given(
+    st.lists(st.floats(min_value=-5, max_value=5, allow_nan=False), max_size=8),
+    st.sampled_from(["geomean", "product"]),
+)
+def test_property_node_bounds(ws, mode):
+    eff, op, status = roman_wheel_node(1, ws, mode=mode)
+    assert 0.0 <= eff <= 1.0
+    if not ws or any(min(1, max(0, w)) == 0 for w in ws):
+        assert status == "BLOCK" and eff == 0.0
+    if ws and all(w >= 1 for w in ws):
+        assert eff == 1.0
 
 
 def test_randomized_fuzz_loop(tmp_path):
