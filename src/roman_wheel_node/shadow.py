@@ -166,6 +166,44 @@ def _write_line(line: str) -> None:
     buf.flush()
 
 
+def _file_lines(ap: Any, path: str) -> List[str]:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read().split("\n")
+    except UnicodeDecodeError as e:
+        ap.error(f"{path}: not UTF-8 ({e})")
+    except OSError as e:
+        ap.error(f"cannot read {path}: {e.strerror or e}")
+
+
+def _jsonl_objects(ap: Any, name: str, lines: List[str]) -> List[Tuple[int, dict]]:
+    """(line number, object) for each non-blank line; a bad line is a usage error (exit 2), never a traceback."""
+    out = []
+    for i, line in enumerate(lines, 1):
+        if not line.strip():
+            continue
+        try:
+            d = json.loads(line)
+        except (ValueError, RecursionError) as e:
+            ap.error(f"{name}: line {i}: not JSON ({type(e).__name__}: {str(e)[:200]})")
+        if not isinstance(d, dict):
+            ap.error(f"{name}: line {i}: expected a JSON object, got {type(d).__name__}")
+        out.append((i, d))
+    return out
+
+
+def _read_claims(ap: Any, claims: str) -> List[dict]:
+    if claims == "-":
+        try:
+            lines = _read_text_lines(sys.stdin)
+        except UnicodeDecodeError as e:
+            ap.error(f"stdin: not UTF-8 ({e})")
+        name = "stdin"
+    else:
+        lines, name = _file_lines(ap, claims), claims
+    return [d for _, d in _jsonl_objects(ap, name, lines)]
+
+
 ClaimSpec = Union[str, Tuple[str, Sequence[str]], Mapping[str, Any]]
 
 
@@ -400,16 +438,11 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     corpus = None
     if args.corpus:
         corpus = {}
-        with open(args.corpus, encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
-                    d = json.loads(line)
-                    corpus[str(d["doc_id"])] = list(d["sentences"])
-    if args.claims == "-":
-        items = [json.loads(line) for line in _read_text_lines(sys.stdin) if line.strip()]
-    else:
-        with open(args.claims, encoding="utf-8") as f:
-            items = [json.loads(line) for line in f if line.strip()]
+        for i, d in _jsonl_objects(ap, args.corpus, _file_lines(ap, args.corpus)):
+            if "doc_id" not in d or not isinstance(d.get("sentences"), list):
+                ap.error(f"{args.corpus}: line {i}: needs 'doc_id' and a 'sentences' list")
+            corpus[str(d["doc_id"])] = list(d["sentences"])
+    items = _read_claims(ap, args.claims)
     trusted = {sha256(s) for it in items for s in it.get("evidence") or []} if args.trust_given_evidence else None
     pol = load_policy(args.policy_file, args.policy_sha256)
     if trusted is not None and pol.fingerprint == "fp2":

@@ -32,3 +32,49 @@ def test_stdin_claim_with_unicode_line_separators_is_one_claim(tmp_path):
     rows = [json.loads(x) for x in out.split("\n") if x]  # shadow mode echoes every claim on stdout
     assert [e["claim"] for e in rows] == [claim, "b."]
     assert '"counts": {"ACCEPT": 0, "NOT_SURE": 0, "BLOCK": 2}' in err  # the run summary goes to stderr
+
+
+# R2: bad input is a clear usage error (exit 2) naming where it is, never a traceback.
+BAD_INPUTS = [
+    (b'{"claim": "a."}\n\xff\xfe not utf-8\n', "not UTF-8"),
+    (b'{"claim": "a."}\n{"claim": \n', "line 2: not JSON"),
+    (b'{"claim": "a."}\n[1, 2]\n', "line 2: expected a JSON object, got list"),
+    (b'{"claim": "a."}\n' + b"[" * 200000 + b"\n", "line 2: not JSON"),
+]
+
+
+def _assert_usage_error(rc, err, what):
+    assert rc == 2, err[-400:]
+    assert "Traceback" not in err
+    assert what in err
+
+
+def test_bad_stdin_is_a_clear_error(tmp_path):
+    for data, what in BAD_INPUTS:
+        rc, _, err = _shadow(tmp_path, data, "-")
+        _assert_usage_error(rc, err, "stdin: " + what)
+
+
+def test_bad_claims_file_is_a_clear_error(tmp_path):
+    for n, (data, what) in enumerate(BAD_INPUTS):
+        f = tmp_path / f"claims{n}.jsonl"
+        f.write_bytes(data)
+        rc, _, err = _shadow(tmp_path, b"", str(f))
+        _assert_usage_error(rc, err, f"{f}: {what}")
+
+
+def test_bad_corpus_file_is_a_clear_error(tmp_path):
+    claims = tmp_path / "claims.jsonl"
+    claims.write_text('{"claim": "a.", "doc_ids": ["1"]}\n', encoding="utf-8")
+    no_list = (b'{"doc_id": 1, "sentences": "not a list"}\n', "line 1: needs 'doc_id' and a 'sentences' list")
+    cases = BAD_INPUTS + [no_list]
+    for n, (data, what) in enumerate(cases):
+        f = tmp_path / f"corpus{n}.jsonl"
+        f.write_bytes(data)
+        rc, _, err = _shadow(tmp_path, b"", "--corpus", str(f), str(claims))
+        _assert_usage_error(rc, err, f"{f}: {what}")
+
+
+def test_unreadable_claims_file_is_a_clear_error(tmp_path):
+    rc, _, err = _shadow(tmp_path, b"", str(tmp_path / "no-such-file.jsonl"))
+    _assert_usage_error(rc, err, "cannot read")
