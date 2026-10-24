@@ -34,7 +34,7 @@ Fixes found after the 1.2.0 upload. No policy, weight or decision changes: the s
 - 1.2.0 on PyPI was a manual `twine` upload from PR commit `13725f7` (same tree as merge `9dcdb4f`) before the merge,
   with no tag and no attestations. 1.2.1 is the first release to go through `release.yml` from a `v1.2.1` tag.
 
-## 1.2.0 (unreleased)
+## 1.2.0 (2026-10-24)
 Everything since 1.0.0. Version 1.1.0 was never published, so its changes are included here.
 
 ### Breaking changes
