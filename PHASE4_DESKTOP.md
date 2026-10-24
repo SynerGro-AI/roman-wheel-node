@@ -8,24 +8,31 @@ one), runs it on the GPU, and collects fresh claims for a later 1% / 2% certific
 
 ## 1. Install (PowerShell)
 
+**GPU torch: Windows only (win_amd64).** `.\phase5\setup_gpu.ps1` is the only supported way to install torch. It
+installs the official PyTorch 2.14.1 built for CUDA 13.2 from the hash-locked `phase5\torch-cu132.lock`, then checks
+for a working GPU. It needs 64-bit Windows on AMD64 with 64-bit Python 3.13 or 3.14, and refuses to run anywhere else.
+If it stops, look up its exit code in the "setup_gpu.ps1 exit codes" table in `PHASE5_DESKTOP.md`. Do not install
+torch any other way.
+
+The script lives on `phase5-pairs`, which contains everything on `phase4-shadow`, so check out `phase5-pairs` here.
+
 ```powershell
-# one-time: Python 3.10+ from python.org, Git for Windows, and an NVIDIA driver (check with: nvidia-smi)
+# one-time: Python 3.13 or 3.14 (64-bit) from python.org, Git for Windows, and an NVIDIA driver (check with: nvidia-smi)
 cd C:\src
 git clone https://github.com/SynerGro-AI/roman-wheel-node.git
 cd roman-wheel-node
-git checkout phase4-shadow
-py -3 -m venv C:\venvs\rwn
+git checkout phase5-pairs
+py -3.13 -m venv C:\venvs\rwn
 C:\venvs\rwn\Scripts\Activate.ps1
-pip install -e ".[test,local-nli,local-nli2]"
-# GPU builds (pick the CUDA wheel that matches your driver; cu124 works on recent drivers)
-pip install --force-reinstall torch --index-url https://download.pytorch.org/whl/cu124
+python -m pip install --upgrade pip
+.\phase5\setup_gpu.ps1                                               # torch + repo; must end with "GPU ready"
+# the ONNX extra for the local-lite profile; the constraint keeps the torch that setup_gpu.ps1 installed
+python -m pip install -c phase5\torch-cu132.constraints.txt --extra-index-url https://download.pytorch.org/whl/cu132 -e ".[test,local-nli]"
 pip uninstall -y onnxruntime; pip install onnxruntime-gpu
-python -c "import torch; print(torch.cuda.is_available())"          # should print True
 $env:PYTHONPATH = "src"; python -m pytest -q                          # all tests should pass
 ```
 
-If you'd rather not clone it, install from the branch directly:
-`pip install "roman-wheel-node[local-nli,local-nli2] @ git+https://github.com/SynerGro-AI/roman-wheel-node.git@phase4-shadow"`
+Installing straight from a git URL is not supported for the GPU setup, because `setup_gpu.ps1` runs from the checkout.
 
 ## 2. Apply the hook to your PRIVATE Seraphina repo
 
