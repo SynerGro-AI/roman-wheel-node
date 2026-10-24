@@ -3,6 +3,10 @@
 This trains a small NLI cross-encoder on COVID-Fact true/fake claim pairs. It then tests the checker once, as an
 accept-only veto on the frozen rule, against the held-out half B.
 
+**Windows only (win_amd64).** The GPU setup (`phase5\setup_gpu.ps1` with `phase5\torch-cu132.lock`) supports only
+64-bit Windows on an AMD64/x64 CPU, with 64-bit Python 3.13 or 3.14 from python.org. It refuses to run anywhere
+else (exit 7) before any pip call.
+
 - **No xAI calls, no spend.** Everything runs on the local GPU.
 - **Internal data.** The bundle holds COVID-Fact and HealthVer text. It stays on your machines. Never commit, upload
   or share it. Only aggregate results go into git.
@@ -47,11 +51,28 @@ $env:PYTHONPATH = "src"; python -m pytest -q                                # al
 (Get-FileHash phase5\bundle\pairs_bundle.json -Algorithm SHA256).Hash        # must equal the hash in step 0
 ```
 
-`setup_gpu.ps1` stops with a non-zero exit code and a `FAILED` line if any step fails: the lock file hash, the
-Python version, the hash-locked install, the CUDA check (torch 2.14.1+cu132, CUDA available, sm_120 kernels present)
-or the fixed-tensor GPU matmul self-test. If it reports CUDA not available, update the NVIDIA driver until
-`nvidia-smi` shows CUDA 13.2 or newer, then rerun `.\phase5\setup_gpu.ps1`. It also installs the repo
-(`pip install -e ".[test,local-nli2]"`) after torch.
+`setup_gpu.ps1` stops at the first failed step with a `FAILED: ...` line and a non-zero exit code. It installs torch
+from the hash-locked lock, then the repo (`pip install -e ".[test,local-nli2]"`, constrained to torch 2.14.1+cu132),
+then runs `phase5\check_gpu.py`. Check the code with `$LASTEXITCODE` right after it finishes.
+
+### setup_gpu.ps1 exit codes
+
+| Code | From | Meaning | What to do |
+|---|---|---|---|
+| 0 | setup_gpu.ps1 | GPU ready | Go on to step 2. |
+| 1 | setup_gpu.ps1 | `phase5\torch-cu132.lock` or `phase5\torch-cu132.constraints.txt` is missing, the lock's sha256 does not match, or a pip step failed (uninstall, hash-locked torch install, or the constrained repo install) | Restore the files with `git checkout -- phase5/torch-cu132.lock phase5/torch-cu132.constraints.txt`, then rerun. For a pip failure, read the pip error above the `FAILED` line: a hash error means a download did not match the lock, so do not edit the lock and report it. A `ResolutionImpossible` on the repo install means a dependency wanted a different torch, so report it rather than loosening the constraint. |
+| 2 | check_gpu.py | torch is not importable | Rerun `.\phase5\setup_gpu.ps1` inside the activated `C:\venvs\rwn5` venv. |
+| 3 | check_gpu.py | Wrong torch build: not exactly 2.14.1+cu132 (CUDA 13.2), e.g. a CPU or older CUDA build replaced it | Rerun `.\phase5\setup_gpu.ps1`. Do not install torch any other way. |
+| 4 | check_gpu.py | CUDA not available | Update the NVIDIA driver until `nvidia-smi` lists the GPU and shows CUDA 13.2 or newer, reboot, then rerun. |
+| 5 | check_gpu.py | This torch build has no kernels for the GPU's architecture (e.g. sm_120 missing from the arch list) | Do not fall back to CPU or another build. Report the printed GPU name, capability and arch list. |
+| 6 | check_gpu.py | The fixed-tensor GPU matmul self-test differs from the CPU result | Do not train. Rerun once; if it still fails, report the output (driver or hardware problem). |
+| 7 | setup_gpu.ps1 | Not Windows on AMD64, or Python is not a 64-bit Windows build (`win-amd64`) | Use 64-bit Windows with 64-bit Python 3.13 or 3.14 from python.org. |
+| 8 | setup_gpu.ps1 | Python is not 3.13 or 3.14 | Recreate the venv with `py -3.13 -m venv C:\venvs\rwn5`, activate it, then rerun. |
+
+> **Known limit:** the editable repo install (`pip install -e ".[test,local-nli2]"`, which pulls transformers,
+> sentencepiece, protobuf and the test tools) is not hash-locked. Only torch and its dependencies are, through
+> `phase5\torch-cu132.lock`. That step is protected by the torch constraint (`-c phase5\torch-cu132.constraints.txt`,
+> which pins `torch==2.14.1+cu132`, so a torch swap fails at resolve time) and by the exit-3 check in `check_gpu.py`.
 
 ## 2. Train (about 3 to 10 minutes on a recent GPU)
 
