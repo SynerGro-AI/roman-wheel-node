@@ -18355,7 +18355,7 @@
      "cited": [
       "2425364"
      ],
-     "claim": "Vitamin D deficiency effects the term of delivery.",
+     "claim_id": 1368,
      "gold": "SUPPORT",
      "key": "dev:1368",
      "panel": "NEI"
@@ -18364,7 +18364,7 @@
      "cited": [
       "306006"
      ],
-     "claim": "cSMAC formation enhances weak ligand signalling.",
+     "claim_id": 1385,
      "gold": "SUPPORT",
      "key": "dev:1385",
      "panel": "CONTRADICT"
@@ -18373,7 +18373,7 @@
      "cited": [
       "19675911"
      ],
-     "claim": "Incidence of heart failure decreased by 10% in women since 1979.",
+     "claim_id": 593,
      "gold": "SUPPORT",
      "key": "dev:593",
      "panel": "CONTRADICT"
@@ -18382,7 +18382,7 @@
      "cited": [
       "40632104"
      ],
-     "claim": "Mice without IFN-\u03b3 or its receptor are resistant to EAM induced with \u03b1-MyHC/CFA.",
+     "claim_id": 783,
      "gold": "NEI",
      "key": "dev:783",
      "panel": "CONTRADICT"
@@ -18391,7 +18391,7 @@
      "cited": [
       "36606083"
      ],
-     "claim": "Most termination events in Okazaki fragments are sequence specific.",
+     "claim_id": 808,
      "gold": "SUPPORT",
      "key": "dev:808",
      "panel": "CONTRADICT"
@@ -18400,7 +18400,7 @@
      "cited": [
       "6923961"
      ],
-     "claim": "PGE 2 promotes intestinal tumor growth by altering the expression of tumor suppressing and DNA repair genes.",
+     "claim_id": 907,
      "gold": "NEI",
      "key": "dev:907",
      "panel": "SUPPORT"
@@ -18409,7 +18409,7 @@
      "cited": [
       "56893404"
      ],
-     "claim": "A mutation in HNF4A leads to an increased risk of developing diabetes by the age of 14 years.",
+     "claim_id": 44,
      "gold": "SUPPORT",
      "key": "train:44",
      "panel": "NEI"

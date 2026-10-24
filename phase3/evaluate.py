@@ -710,7 +710,7 @@ def main() -> None:
                     ps = [r["cond"][cond]["src"][j] for j in judges]
                     tops = [am(p) for p in ps]
                     if len(set(tops)) == 1 and tops[0] != gl and all(p[tops[0]] >= 0.8 for p in ps):
-                        suspects.append({"key": k, "claim": r["claim"], "gold": r["label3"],
+                        suspects.append({"key": k, "claim_id": int(k.split(":")[1]), "gold": r["label3"],   # IDs only (SciFact is non-commercial)
                                          "panel": {"S": "SUPPORT", "C": "CONTRADICT", "N": "NEI"}[tops[0]],
                                          "cited": r["cited"]})
         # judge correlation (dev, calibrated logits; and error overlap)
