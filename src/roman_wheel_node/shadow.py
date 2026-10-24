@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sys
 import threading
 import time
@@ -207,8 +208,35 @@ def _jsonl_objects(ap: Any, name: str, lines: List[str]) -> List[Tuple[int, dict
             ap.error(f"{name}: line {i}: not JSON ({type(e).__name__}: {str(e)[:200]})")
         if not isinstance(d, dict):
             ap.error(f"{name}: line {i}: expected a JSON object, got {type(d).__name__}")
+        bad = _lone_surrogate(d)
+        if bad is not None:
+            ap.error(f"{name}: line {i}: not valid Unicode text (lone surrogate \\u{ord(bad):04x} from a JSON escape)")
         out.append((i, d))
     return out
+
+
+_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
+def _lone_surrogate(obj: Any) -> Optional[str]:
+    """The first unpaired surrogate (U+D800..U+DFFF) in any key or string of a parsed JSON value, else None.
+
+    UTF-8 input cannot carry one, but a JSON escape such as ``"\\ud800"`` can; such a string can never be written out
+    as UTF-8 (claims are echoed on stdout and logged), so it is rejected as invalid text. Iterative: values nested as
+    deep as ``json.loads`` accepts must not hit the recursion limit."""
+    stack = [obj]
+    while stack:
+        x = stack.pop()
+        if isinstance(x, str):
+            m = _SURROGATE.search(x)
+            if m:
+                return m.group()
+        elif isinstance(x, dict):
+            stack.extend(x.keys())
+            stack.extend(x.values())
+        elif isinstance(x, list):
+            stack.extend(x)
+    return None
 
 
 def _read_claims(ap: Any, claims: str) -> List[dict]:

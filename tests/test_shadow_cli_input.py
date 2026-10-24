@@ -40,6 +40,9 @@ BAD_INPUTS = [
     (b'{"claim": "a."}\n{"claim": \n', "line 2: not JSON"),
     (b'{"claim": "a."}\n[1, 2]\n', "line 2: expected a JSON object, got list"),
     (b'{"claim": "a."}\n' + b"[" * 200000 + b"\n", "line 2: not JSON"),
+    # valid JSON, but a lone surrogate escape is not Unicode text and could never be echoed or logged as UTF-8
+    (b'{"claim": "a."}\n{"claim": "x \\ud800 y"}\n', "line 2: not valid Unicode text (lone surrogate \\ud800"),
+    (b'{"claim": "a.", "meta": {"k\\udfff": [1, ["\\udc00"]]}}\n', "line 1: not valid Unicode text"),
 ]
 
 
@@ -97,3 +100,10 @@ def test_closed_stdin_is_a_clear_error(tmp_path):
         assert p.returncode == 0 and "Traceback" not in err, err[-400:]
         return
     _assert_usage_error(p.returncode, err, "stdin is closed")
+
+
+def test_paired_surrogate_escape_is_one_character_and_echoed(tmp_path):
+    """A correctly paired escape (an emoji written as \\ud83d\\ude00) is valid text: accepted, echoed as UTF-8."""
+    rc, out, err = _shadow(tmp_path, b'{"claim": "smile \\ud83d\\ude00."}\n', "-")
+    assert rc == 0 and "Traceback" not in err, err[-400:]
+    assert [json.loads(x)["claim"] for x in out.split("\n") if x] == ["smile \U0001f600."]

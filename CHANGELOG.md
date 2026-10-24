@@ -24,8 +24,9 @@ Fixes found after the 1.2.0 upload. No policy, weight or decision changes: the s
   (`need at least 50 examples for 5-fold cross-fitting; got 12`).
 - **Shadow CLI input.** A claim containing Unicode line separators (U+2028, U+0085, form feed and so on) is one claim:
   stdin and `--claims` are split on `\n` only (`str.splitlines()` split them into several claims). Non-UTF-8 or
-  invalid JSON on stdin, in the claims file or in the corpus file (including deeply nested JSON) is a clear usage
-  error naming the file and line, exit 2, instead of a traceback.
+  invalid JSON on stdin, in the claims file or in the corpus file (including deeply nested JSON, and valid JSON whose
+  `\uXXXX` escapes leave a lone surrogate, which is not Unicode text) is a clear usage error naming the file and line,
+  exit 2, instead of a traceback. Reading claims from `-` with stdin closed is a usage error too.
 - **Malformed scores are labelled as such.** A source score that is present but not a number in [0, 1] gives
   `error:malformed_score:<src>`; `error:missing_source:<src>` now means the score is really absent.
 - **CHANGELOG:** 1.2.0 is dated (it said "unreleased" after it was uploaded); a test keeps only the current version
