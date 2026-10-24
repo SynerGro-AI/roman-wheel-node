@@ -68,3 +68,20 @@ def test_profile_source_never_configured_is_reported(tmp_path, capsys):
     err = capsys.readouterr().err
     assert "needs source(s) ['nli2']" in err and "nli2: not configured (pass nli2=...)" in err
     assert r.observe("x.", ["x."]).reason == "error:missing_source:nli2"
+
+
+def test_malformed_score_is_labelled_malformed_not_missing(tmp_path):
+    """R4: a source that answered with an unusable score is 'malformed_score', not 'missing_source'."""
+    cases = [
+        ({"overlap": {"S": 0.9}}, "error:missing_source:nli2"),
+        ({"overlap": {"S": 0.9}, "nli2": None}, "error:missing_source:nli2"),
+        ({"overlap": {"S": 0.9}, "nli2": {"C": 0.1}}, "error:malformed_score:nli2"),
+        ({"overlap": {"S": 0.9}, "nli2": {"S": "x"}}, "error:malformed_score:nli2"),
+        ({"overlap": {"S": 0.9}, "nli2": {"S": float("nan")}}, "error:malformed_score:nli2"),
+        ({"overlap": {"S": 1.5}, "nli2": {"S": 0.9}}, "error:malformed_score:overlap"),
+        ({"overlap": [0.9], "nli2": "0.9"}, "error:malformed_score:nli2,overlap"),
+    ]
+    for n, (raw, why) in enumerate(cases):
+        r = ShadowRunner(str(tmp_path / f"s{n}"), sources=lambda c, s, raw=raw: raw, trusted_units=["x."])
+        v = r.observe("x.", ["x."])
+        assert (v.outcome, v.reason) == ("NOT_SURE", why), raw

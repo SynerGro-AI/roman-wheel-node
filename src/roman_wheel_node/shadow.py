@@ -113,7 +113,12 @@ class FrozenNode:
                 d = self.trace.submit(claim if isinstance(claim, str) else repr(claim), {}, a=a, not_sure=True)
                 out = BLOCK if a != 1 else NOT_SURE
                 miss = _missing_sources(self.prof, raw) if isinstance(raw, Mapping) else []
-                why = f"error:missing_source:{','.join(miss)}" if miss else f"error:{type(e).__name__}"
+                bad = _malformed_scores(self.prof, raw) if isinstance(raw, Mapping) and not miss else []
+                why = (
+                    f"error:missing_source:{','.join(miss)}"
+                    if miss
+                    else (f"error:malformed_score:{','.join(bad)}" if bad else f"error:{type(e).__name__}")
+                )
                 return Verdict(out, None, why, "", self.trace.head(), d.seq)
 
 
@@ -142,8 +147,22 @@ def _stderr(line: str) -> None:
 
 
 def _missing_sources(prof: Profile, raw: Mapping[str, Any]) -> List[str]:
-    """Sources the profile needs that gave no usable score in ``raw``."""
-    return [s for s in prof.sources if not (isinstance(raw.get(s), Mapping) and "S" in raw[s])]
+    """Sources the profile needs that are absent from ``raw`` (no entry, or None)."""
+    return [s for s in prof.sources if raw.get(s) is None]
+
+
+def _malformed_scores(prof: Profile, raw: Mapping[str, Any]) -> List[str]:
+    """Sources the profile needs that are present in ``raw`` but give no score ``Profile.calibrate`` accepts
+    (an entry that is not ``{"S": ...}``, or an S that is not a number in [0, 1])."""
+
+    def ok(v: Any) -> bool:
+        try:
+            x = float(v["S"])
+        except (KeyError, TypeError, ValueError, IndexError):
+            return False
+        return math.isfinite(x) and 0.0 <= x <= 1.0
+
+    return [s for s in prof.sources if raw.get(s) is not None and not ok(raw[s])]
 
 
 def _read_text_lines(stream: Any) -> List[str]:
