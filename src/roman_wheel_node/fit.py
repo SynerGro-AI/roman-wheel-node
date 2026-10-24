@@ -283,6 +283,13 @@ def _ltt(items, alpha: float, delta: float, K: int) -> dict:
     return best
 
 
+def _check_folds(folds: object) -> int:
+    """Cross-fitting needs at least 2 folds (with 1, every out-of-fold fit would be trained on nothing)."""
+    if isinstance(folds, bool) or not isinstance(folds, int) or folds < 2:
+        raise FitError(f"folds must be an integer >= 2; got {folds!r}")
+    return folds
+
+
 def fit_profile(
     examples: Sequence[Mapping],
     sources: Sequence[str],
@@ -303,14 +310,22 @@ def fit_profile(
     dis_cfg = {k: bool(v) for k, v in (disagreement or {}).items() if v}
     if set(dis_cfg) - {"nli2_contradiction"}:
         raise FitError(f"unsupported disagreement rule(s) {sorted(set(dis_cfg) - {'nli2_contradiction'})}")
+    _check_folds(folds)
     rows = list(examples)
     for r in rows:
         for s in srcs:
             if "S" not in r.get("scores", {}).get(s, {}):
                 raise FitError(f"{r.get('id')}: missing score for source {s}")
     ys = [_y(r) for r in rows]
-    if len(rows) < 10 * folds or sum(ys) < folds or len(ys) - sum(ys) < folds:
+    if len(rows) < 10 * folds:
         raise FitError(f"need at least {10 * folds} examples with both classes in every fold; got {len(rows)}")
+    for f in range(folds):  # fold f = examples f, f + folds, ... (the same split _oof uses)
+        fy = ys[f::folds]
+        if all(fy) or not any(fy):
+            raise FitError(
+                f"need at least {10 * folds} examples with both classes in every fold; fold {f + 1} of {folds} has "
+                f"only {'SUPPORT' if fy and fy[0] else 'non-SUPPORT'} examples ({len(fy)}); reorder or add examples"
+            )
     full = _fit(rows, srcs)
     cal, rel, cut, hw = full.cal, full.rel, full.cut, full.hedge_width
     effs, cuts, dis = _oof(rows, srcs, folds, dis_cfg)
@@ -446,6 +461,7 @@ def fit_policy(
     overlap, keeping only those every example can be scored for). ``alphas``: certificate levels to test (Bonferroni
     over all profiles: each test runs at ``delta / number of profiles``).
     """
+    _check_folds(folds)  # before any (slow) scoring
     rows = load_examples(examples) if isinstance(examples, str) else list(examples)
     if profiles is None:
         rows = score_examples(rows, sources)
@@ -514,7 +530,16 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
         alphas = tuple(float(a) for a in args.alphas.split(",") if a.strip())
     except ValueError:
         ap.error(f"--alphas {args.alphas!r}: expected comma-separated numbers")
-    rows = load_examples(args.examples)
+    if args.folds < 2:
+        ap.error(f"--folds {args.folds}: must be at least 2 (cross-fitting needs a held-out fold)")
+    try:
+        rows = load_examples(args.examples)
+    except FitError as e:
+        ap.error(str(e))
+    except OSError as e:
+        ap.error(f"cannot read {args.examples}: {e.strerror or e}")
+    except UnicodeDecodeError as e:
+        ap.error(f"{args.examples}: not UTF-8 text ({e.reason} at byte {e.start})")
     src = None
     if any("scores" not in r for r in rows):
         from .sources import LocalSources
@@ -534,7 +559,11 @@ def _main(argv: Optional[Sequence[str]] = None) -> int:
     except FitError as e:
         print(f"fit failed: {e}", file=sys.stderr)
         return 1
-    h = write_policy(doc, args.out)
+    try:
+        h = write_policy(doc, args.out)
+    except OSError as e:
+        print(f"fit failed: cannot write {args.out}: {e.strerror or e}", file=sys.stderr)
+        return 1
     summary = {
         "policy": args.out,
         "sha256": h,
