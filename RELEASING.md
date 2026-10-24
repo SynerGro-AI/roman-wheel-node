@@ -3,6 +3,15 @@
 Releases are published to PyPI only by `.github/workflows/release.yml`, from a pushed `v*` tag, through PyPI trusted
 publishing (OIDC). No PyPI API token is stored in the repository or its secrets, and none is needed.
 
+## Release history and provenance
+
+- **1.2.0 was not released through this workflow.** It was uploaded to PyPI manually with `twine` from the PR-branch
+  commit `13725f7` (same tree as the merge commit `9dcdb4f`), about 22 minutes before PR #7 was merged. There is no
+  `v1.2.0` tag, and the files on PyPI carry no attestations (PyPI's integrity API has no provenance for them).
+- **From 1.2.1 on, every release goes through `release.yml` from a `v<version>` tag on `main`** (here `v1.2.1`):
+  trusted publishing (OIDC, no token) through the reviewed `pypi` environment, so PyPI records attestations for each
+  file. Do not upload with `twine` by hand.
+
 ## One-time setup (repository owner)
 
 1. **PyPI trusted publisher.** On pypi.org, project `roman-wheel-node` → Publishing → add a GitHub publisher:
@@ -17,7 +26,7 @@ publishing (OIDC). No PyPI API token is stored in the repository or its secrets,
 
 1. Merge the release PR into `main`. The version lives only in `src/roman_wheel_node/_version.py`; set the
    `CHANGELOG.md` date for the version.
-2. Tag the merge commit on `main` and push the tag: `git tag v1.2.0 <commit-on-main> && git push origin v1.2.0`.
+2. Tag the merge commit on `main` and push the tag: `git tag v1.2.1 <commit-on-main> && git push origin v1.2.1`.
 3. The **build** job runs; approve the **publish** job in the Actions UI when it asks for review.
 
 ## What the workflow enforces

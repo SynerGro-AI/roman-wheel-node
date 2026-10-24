@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.2.1 (UNRELEASED)
+Fixes found after the 1.2.0 upload. No policy, weight or decision changes: the shipped policy is still
+`rwn-policy-4.3.0`, and every decision on the same inputs is unchanged.
+
+### Fixed
+- **Non-ASCII claims on Windows (and any non-UTF-8 locale).** Every text file the package, tests and scripts open,
+  read or write now uses `encoding="utf-8"` (it used the locale encoding, cp1252 on Windows, so a claim with `≥` or
+  `α` could fail to log and audit logs were not portable between systems). The shadow CLI reads stdin and writes
+  stdout as UTF-8. Regression test: `tests/test_encoding.py` (runs the package under a non-UTF-8 locale with
+  `EncodingWarning` as an error).
+- **Errors are no longer lost silently.** If `errors.jsonl` cannot be written, the node error is reported on stderr
+  (was `except: pass`).
+- **Model load failures are named.** A local source that fails to load now says which model could not be loaded, or
+  that torch/transformers (or onnxruntime) is not installed, with the pip extra to install. `ShadowRunner` says once
+  on stderr which profile source is unavailable and why, and verdicts carry `error:missing_source:<src>` instead of
+  `error:KeyError`.
+- **`fit` input checks.** `folds` must be an integer of at least 2 (`--folds 1` was an IndexError; on the CLI it is
+  now a usage error, exit 2). The "both classes in every fold" check is now really per fold. An unreadable,
+  non-UTF-8 or invalid examples file is a usage error and an unwritable output file is a clean `fit failed`, not a
+  traceback.
+
+### Changed
+- CI: runners pinned to `ubuntu-24.04`, Python 3.14 added to the matrix, a `windows-2025` job, a pytest run with
+  `-X warn_default_encoding -W error::EncodingWarning`, a ruff job, `twine check --strict`, actions pinned to SHAs.
+- Package metadata: Python 3.9-3.14 and Development Status classifiers.
+- README: "no API calls" qualified (the optional `nli2` model is downloaded from Hugging Face by name on first use),
+  the private `phase3/cache/step2` feature cache needed to reproduce the published dev numbers is stated, and the test
+  counts are re-measured.
+- Tests use fixed deterministic data instead of seeded random generators in `tests/test_fit.py`.
+
+### Release provenance
+- 1.2.0 on PyPI was a manual `twine` upload from PR commit `13725f7` (same tree as merge `9dcdb4f`) before the merge,
+  with no tag and no attestations. 1.2.1 is the first release to go through `release.yml` from a `v1.2.1` tag.
+
 ## 1.2.0 (unreleased)
 Everything since 1.0.0. Version 1.1.0 was never published, so its changes are included here.
 
