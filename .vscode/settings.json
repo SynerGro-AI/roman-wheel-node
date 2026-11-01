@@ -1,0 +1,13 @@
+{
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": false,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "never",
+      "source.organizeImports.ruff": "never"
+    }
+  },
+  "ruff.lint.enable": true,
+  "ruff.configurationPreference": "filesystemFirst",
+  "python.analysis.typeCheckingMode": "basic"
+}
